@@ -190,9 +190,13 @@ definitions:
       password_confirmation:
         description: Confirmação da senha
         type: string
+      user_id:
+        description: ID do usuário
+        type: string
     required:
     - password
     - password_confirmation
+    - user_id
     type: object
   github_com_DenysonJ_financial-wallet_internal_usecases_user_dto.UpdateInput:
     properties:
@@ -257,6 +261,10 @@ paths:
           description: Unauthorized
           schema:
             $ref: '#/definitions/internal_infrastructure_web_handler.ErrorResponse'
+        "429":
+          description: Too Many Requests
+          schema:
+            $ref: '#/definitions/internal_infrastructure_web_handler.ErrorResponse'
         "500":
           description: Internal Server Error
           schema:
@@ -289,6 +297,10 @@ paths:
             $ref: '#/definitions/internal_infrastructure_web_handler.ErrorResponse'
         "401":
           description: Unauthorized
+          schema:
+            $ref: '#/definitions/internal_infrastructure_web_handler.ErrorResponse'
+        "429":
+          description: Too Many Requests
           schema:
             $ref: '#/definitions/internal_infrastructure_web_handler.ErrorResponse'
         "500":
@@ -325,6 +337,10 @@ paths:
           description: Bad Request
           schema:
             $ref: '#/definitions/internal_infrastructure_web_handler.ErrorResponse'
+        "429":
+          description: Too Many Requests
+          schema:
+            $ref: '#/definitions/internal_infrastructure_web_handler.ErrorResponse'
         "500":
           description: Internal Server Error
           schema:
@@ -357,6 +373,10 @@ paths:
           description: Bad Request
           schema:
             $ref: '#/definitions/internal_infrastructure_web_handler.ErrorResponse'
+        "429":
+          description: Too Many Requests
+          schema:
+            $ref: '#/definitions/internal_infrastructure_web_handler.ErrorResponse'
         "500":
           description: Internal Server Error
           schema:
@@ -385,6 +405,10 @@ paths:
             $ref: '#/definitions/github_com_DenysonJ_financial-wallet_internal_usecases_role_dto.DeleteOutput'
         "404":
           description: Not Found
+          schema:
+            $ref: '#/definitions/internal_infrastructure_web_handler.ErrorResponse'
+        "429":
+          description: Too Many Requests
           schema:
             $ref: '#/definitions/internal_infrastructure_web_handler.ErrorResponse'
         "500":
@@ -428,6 +452,10 @@ paths:
           description: OK
           schema:
             $ref: '#/definitions/github_com_DenysonJ_financial-wallet_internal_usecases_user_dto.ListOutput'
+        "429":
+          description: Too Many Requests
+          schema:
+            $ref: '#/definitions/internal_infrastructure_web_handler.ErrorResponse'
         "500":
           description: Internal Server Error
           schema:
@@ -460,6 +488,10 @@ paths:
           description: Bad Request
           schema:
             $ref: '#/definitions/internal_infrastructure_web_handler.ErrorResponse'
+        "429":
+          description: Too Many Requests
+          schema:
+            $ref: '#/definitions/internal_infrastructure_web_handler.ErrorResponse'
         "500":
           description: Internal Server Error
           schema:
@@ -490,6 +522,10 @@ paths:
           description: Not Found
           schema:
             $ref: '#/definitions/internal_infrastructure_web_handler.ErrorResponse'
+        "429":
+          description: Too Many Requests
+          schema:
+            $ref: '#/definitions/internal_infrastructure_web_handler.ErrorResponse'
         "500":
           description: Internal Server Error
           schema:
@@ -517,6 +553,10 @@ paths:
             $ref: '#/definitions/github_com_DenysonJ_financial-wallet_internal_usecases_user_dto.GetOutput'
         "404":
           description: Not Found
+          schema:
+            $ref: '#/definitions/internal_infrastructure_web_handler.ErrorResponse'
+        "429":
+          description: Too Many Requests
           schema:
             $ref: '#/definitions/internal_infrastructure_web_handler.ErrorResponse'
         "500":
@@ -560,6 +600,10 @@ paths:
           description: Not Found
           schema:
             $ref: '#/definitions/internal_infrastructure_web_handler.ErrorResponse'
+        "429":
+          description: Too Many Requests
+          schema:
+            $ref: '#/definitions/internal_infrastructure_web_handler.ErrorResponse'
         "500":
           description: Internal Server Error
           schema:
@@ -574,9 +618,11 @@ paths:
     post:
       consumes:
       - application/json
-      description: Set initial password for a user that does not have one yet
+      description: 'Set initial password for a user that does not have one yet. Protected
+        by Service Key (not JWT) to avoid deadlock: user needs a password to login,
+        but needs to login to get JWT.'
       parameters:
-      - description: Password and confirmation
+      - description: User ID, password and confirmation
         in: body
         name: request
         required: true
@@ -591,10 +637,6 @@ paths:
           description: Bad Request
           schema:
             $ref: '#/definitions/internal_infrastructure_web_handler.ErrorResponse'
-        "401":
-          description: Unauthorized
-          schema:
-            $ref: '#/definitions/internal_infrastructure_web_handler.ErrorResponse'
         "404":
           description: Not Found
           schema:
@@ -603,12 +645,17 @@ paths:
           description: Conflict
           schema:
             $ref: '#/definitions/internal_infrastructure_web_handler.ErrorResponse'
+        "429":
+          description: Too Many Requests
+          schema:
+            $ref: '#/definitions/internal_infrastructure_web_handler.ErrorResponse'
         "500":
           description: Internal Server Error
           schema:
             $ref: '#/definitions/internal_infrastructure_web_handler.ErrorResponse'
       security:
-      - BearerAuth: []
+      - ServiceName: []
+      - ServiceKey: []
       summary: Set user password
       tags:
       - users
@@ -638,6 +685,10 @@ paths:
             $ref: '#/definitions/internal_infrastructure_web_handler.ErrorResponse'
         "404":
           description: Not Found
+          schema:
+            $ref: '#/definitions/internal_infrastructure_web_handler.ErrorResponse'
+        "429":
+          description: Too Many Requests
           schema:
             $ref: '#/definitions/internal_infrastructure_web_handler.ErrorResponse'
         "500":

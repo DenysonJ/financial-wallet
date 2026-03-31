@@ -47,6 +47,12 @@
                             "$ref": "#/definitions/internal_infrastructure_web_handler.ErrorResponse"
                         }
                     },
+                    "429": {
+                        "description": "Too Many Requests",
+                        "schema": {
+                            "$ref": "#/definitions/internal_infrastructure_web_handler.ErrorResponse"
+                        }
+                    },
                     "500": {
                         "description": "Internal Server Error",
                         "schema": {
@@ -95,6 +101,12 @@
                     },
                     "401": {
                         "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/internal_infrastructure_web_handler.ErrorResponse"
+                        }
+                    },
+                    "429": {
+                        "description": "Too Many Requests",
                         "schema": {
                             "$ref": "#/definitions/internal_infrastructure_web_handler.ErrorResponse"
                         }
@@ -159,6 +171,12 @@
                             "$ref": "#/definitions/internal_infrastructure_web_handler.ErrorResponse"
                         }
                     },
+                    "429": {
+                        "description": "Too Many Requests",
+                        "schema": {
+                            "$ref": "#/definitions/internal_infrastructure_web_handler.ErrorResponse"
+                        }
+                    },
                     "500": {
                         "description": "Internal Server Error",
                         "schema": {
@@ -211,6 +229,12 @@
                             "$ref": "#/definitions/internal_infrastructure_web_handler.ErrorResponse"
                         }
                     },
+                    "429": {
+                        "description": "Too Many Requests",
+                        "schema": {
+                            "$ref": "#/definitions/internal_infrastructure_web_handler.ErrorResponse"
+                        }
+                    },
                     "500": {
                         "description": "Internal Server Error",
                         "schema": {
@@ -256,6 +280,12 @@
                     },
                     "404": {
                         "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/internal_infrastructure_web_handler.ErrorResponse"
+                        }
+                    },
+                    "429": {
+                        "description": "Too Many Requests",
                         "schema": {
                             "$ref": "#/definitions/internal_infrastructure_web_handler.ErrorResponse"
                         }
@@ -326,6 +356,12 @@
                             "$ref": "#/definitions/github_com_DenysonJ_financial-wallet_internal_usecases_user_dto.ListOutput"
                         }
                     },
+                    "429": {
+                        "description": "Too Many Requests",
+                        "schema": {
+                            "$ref": "#/definitions/internal_infrastructure_web_handler.ErrorResponse"
+                        }
+                    },
                     "500": {
                         "description": "Internal Server Error",
                         "schema": {
@@ -374,6 +410,12 @@
                     },
                     "400": {
                         "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/internal_infrastructure_web_handler.ErrorResponse"
+                        }
+                    },
+                    "429": {
+                        "description": "Too Many Requests",
                         "schema": {
                             "$ref": "#/definitions/internal_infrastructure_web_handler.ErrorResponse"
                         }
@@ -438,6 +480,12 @@
                             "$ref": "#/definitions/internal_infrastructure_web_handler.ErrorResponse"
                         }
                     },
+                    "429": {
+                        "description": "Too Many Requests",
+                        "schema": {
+                            "$ref": "#/definitions/internal_infrastructure_web_handler.ErrorResponse"
+                        }
+                    },
                     "500": {
                         "description": "Internal Server Error",
                         "schema": {
@@ -449,10 +497,13 @@
             "post": {
                 "security": [
                     {
-                        "BearerAuth": []
+                        "ServiceName": []
+                    },
+                    {
+                        "ServiceKey": []
                     }
                 ],
-                "description": "Set initial password for a user that does not have one yet",
+                "description": "Set initial password for a user that does not have one yet. Protected by Service Key (not JWT) to avoid deadlock: user needs a password to login, but needs to login to get JWT.",
                 "consumes": [
                     "application/json"
                 ],
@@ -465,7 +516,7 @@
                 "summary": "Set user password",
                 "parameters": [
                     {
-                        "description": "Password and confirmation",
+                        "description": "User ID, password and confirmation",
                         "name": "request",
                         "in": "body",
                         "required": true,
@@ -484,12 +535,6 @@
                             "$ref": "#/definitions/internal_infrastructure_web_handler.ErrorResponse"
                         }
                     },
-                    "401": {
-                        "description": "Unauthorized",
-                        "schema": {
-                            "$ref": "#/definitions/internal_infrastructure_web_handler.ErrorResponse"
-                        }
-                    },
                     "404": {
                         "description": "Not Found",
                         "schema": {
@@ -498,6 +543,12 @@
                     },
                     "409": {
                         "description": "Conflict",
+                        "schema": {
+                            "$ref": "#/definitions/internal_infrastructure_web_handler.ErrorResponse"
+                        }
+                    },
+                    "429": {
+                        "description": "Too Many Requests",
                         "schema": {
                             "$ref": "#/definitions/internal_infrastructure_web_handler.ErrorResponse"
                         }
@@ -547,6 +598,12 @@
                     },
                     "404": {
                         "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/internal_infrastructure_web_handler.ErrorResponse"
+                        }
+                    },
+                    "429": {
+                        "description": "Too Many Requests",
                         "schema": {
                             "$ref": "#/definitions/internal_infrastructure_web_handler.ErrorResponse"
                         }
@@ -616,6 +673,12 @@
                             "$ref": "#/definitions/internal_infrastructure_web_handler.ErrorResponse"
                         }
                     },
+                    "429": {
+                        "description": "Too Many Requests",
+                        "schema": {
+                            "$ref": "#/definitions/internal_infrastructure_web_handler.ErrorResponse"
+                        }
+                    },
                     "500": {
                         "description": "Internal Server Error",
                         "schema": {
@@ -659,6 +722,12 @@
                     },
                     "404": {
                         "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/internal_infrastructure_web_handler.ErrorResponse"
+                        }
+                    },
+                    "429": {
+                        "description": "Too Many Requests",
                         "schema": {
                             "$ref": "#/definitions/internal_infrastructure_web_handler.ErrorResponse"
                         }
@@ -947,7 +1016,8 @@
             "type": "object",
             "required": [
                 "password",
-                "password_confirmation"
+                "password_confirmation",
+                "user_id"
             ],
             "properties": {
                 "password": {
@@ -956,6 +1026,10 @@
                 },
                 "password_confirmation": {
                     "description": "Confirmação da senha",
+                    "type": "string"
+                },
+                "user_id": {
+                    "description": "ID do usuário",
                     "type": "string"
                 }
             }

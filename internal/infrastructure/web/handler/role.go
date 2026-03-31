@@ -42,6 +42,7 @@ func NewRoleHandler(
 // @Param        request body dto.CreateInput true "Role info"
 // @Success      201  {object}  dto.CreateOutput
 // @Failure      400  {object}  ErrorResponse
+// @Failure      429  {object}  ErrorResponse
 // @Failure      500  {object}  ErrorResponse
 // @Security     ServiceName
 // @Security     ServiceKey
@@ -82,6 +83,7 @@ func (h *RoleHandler) Create(c *gin.Context) {
 // @Param        name   query     string  false  "Filter by name"
 // @Success      200    {object}  dto.ListOutput
 // @Failure      400   {object}  ErrorResponse
+// @Failure      429    {object}  ErrorResponse
 // @Failure      500    {object}  ErrorResponse
 // @Security     ServiceName
 // @Security     ServiceKey
@@ -120,6 +122,7 @@ func (h *RoleHandler) List(c *gin.Context) {
 // @Param        id   path      string  true  "Role ID"
 // @Success      200  {object}  dto.DeleteOutput
 // @Failure      404  {object}  ErrorResponse
+// @Failure      429  {object}  ErrorResponse
 // @Failure      500  {object}  ErrorResponse
 // @Security     ServiceName
 // @Security     ServiceKey

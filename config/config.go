@@ -18,6 +18,20 @@ type Config struct {
 	JWT         JWTConfig
 	Swagger     SwaggerConfig
 	Idempotency IdempotencyConfig
+	RateLimit   RateLimitConfig
+}
+
+type RateLimitConfig struct {
+	// Enabled indica se o rate limiting está habilitado. Requer Redis.
+	Enabled bool
+	// Requests é o número máximo de requisições por janela (rotas gerais).
+	Requests int
+	// Window é a duração da janela para rotas gerais. Ex: "1m"
+	Window string
+	// AuthRequests é o número máximo de requisições por janela para rotas de auth.
+	AuthRequests int
+	// AuthWindow é a duração da janela para rotas de auth. Ex: "1m"
+	AuthWindow string
 }
 
 type JWTConfig struct {
@@ -222,6 +236,13 @@ func Load() (*Config, error) {
 			TTL:     getEnv("IDEMPOTENCY_TTL", "24h"),
 			LockTTL: getEnv("IDEMPOTENCY_LOCK_TTL", "30s"),
 		},
+		RateLimit: RateLimitConfig{
+			Enabled:      getEnvBool("RATE_LIMIT_ENABLED", false),
+			Requests:     getEnvInt("RATE_LIMIT_REQUESTS", 100),
+			Window:       getEnv("RATE_LIMIT_WINDOW", "1m"),
+			AuthRequests: getEnvInt("RATE_LIMIT_AUTH_REQUESTS", 10),
+			AuthWindow:   getEnv("RATE_LIMIT_AUTH_WINDOW", "1m"),
+		},
 	}, nil
 }
 
@@ -260,6 +281,21 @@ func (c *Config) Validate() error {
 		}
 		if _, parseErr := time.ParseDuration(c.JWT.RefreshTTL); parseErr != nil {
 			return fmt.Errorf("JWT_REFRESH_TTL=%q is not a valid duration: %w", c.JWT.RefreshTTL, parseErr)
+		}
+	}
+
+	// RateLimit: enabled but Redis disabled
+	if c.RateLimit.Enabled && !c.Redis.Enabled {
+		return fmt.Errorf("RATE_LIMIT_ENABLED=true requires REDIS_ENABLED=true")
+	}
+
+	// RateLimit: validate window durations are parseable
+	if c.RateLimit.Enabled {
+		if _, parseErr := time.ParseDuration(c.RateLimit.Window); parseErr != nil {
+			return fmt.Errorf("RATE_LIMIT_WINDOW=%q is not a valid duration: %w", c.RateLimit.Window, parseErr)
+		}
+		if _, parseErr := time.ParseDuration(c.RateLimit.AuthWindow); parseErr != nil {
+			return fmt.Errorf("RATE_LIMIT_AUTH_WINDOW=%q is not a valid duration: %w", c.RateLimit.AuthWindow, parseErr)
 		}
 	}
 

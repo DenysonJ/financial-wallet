@@ -58,6 +58,12 @@ const docTemplate = `{
                             "$ref": "#/definitions/internal_infrastructure_web_handler.ErrorResponse"
                         }
                     },
+                    "429": {
+                        "description": "Too Many Requests",
+                        "schema": {
+                            "$ref": "#/definitions/internal_infrastructure_web_handler.ErrorResponse"
+                        }
+                    },
                     "500": {
                         "description": "Internal Server Error",
                         "schema": {
@@ -106,6 +112,12 @@ const docTemplate = `{
                     },
                     "401": {
                         "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/internal_infrastructure_web_handler.ErrorResponse"
+                        }
+                    },
+                    "429": {
+                        "description": "Too Many Requests",
                         "schema": {
                             "$ref": "#/definitions/internal_infrastructure_web_handler.ErrorResponse"
                         }
@@ -170,6 +182,12 @@ const docTemplate = `{
                             "$ref": "#/definitions/internal_infrastructure_web_handler.ErrorResponse"
                         }
                     },
+                    "429": {
+                        "description": "Too Many Requests",
+                        "schema": {
+                            "$ref": "#/definitions/internal_infrastructure_web_handler.ErrorResponse"
+                        }
+                    },
                     "500": {
                         "description": "Internal Server Error",
                         "schema": {
@@ -222,6 +240,12 @@ const docTemplate = `{
                             "$ref": "#/definitions/internal_infrastructure_web_handler.ErrorResponse"
                         }
                     },
+                    "429": {
+                        "description": "Too Many Requests",
+                        "schema": {
+                            "$ref": "#/definitions/internal_infrastructure_web_handler.ErrorResponse"
+                        }
+                    },
                     "500": {
                         "description": "Internal Server Error",
                         "schema": {
@@ -267,6 +291,12 @@ const docTemplate = `{
                     },
                     "404": {
                         "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/internal_infrastructure_web_handler.ErrorResponse"
+                        }
+                    },
+                    "429": {
+                        "description": "Too Many Requests",
                         "schema": {
                             "$ref": "#/definitions/internal_infrastructure_web_handler.ErrorResponse"
                         }
@@ -337,6 +367,12 @@ const docTemplate = `{
                             "$ref": "#/definitions/github_com_DenysonJ_financial-wallet_internal_usecases_user_dto.ListOutput"
                         }
                     },
+                    "429": {
+                        "description": "Too Many Requests",
+                        "schema": {
+                            "$ref": "#/definitions/internal_infrastructure_web_handler.ErrorResponse"
+                        }
+                    },
                     "500": {
                         "description": "Internal Server Error",
                         "schema": {
@@ -385,6 +421,12 @@ const docTemplate = `{
                     },
                     "400": {
                         "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/internal_infrastructure_web_handler.ErrorResponse"
+                        }
+                    },
+                    "429": {
+                        "description": "Too Many Requests",
                         "schema": {
                             "$ref": "#/definitions/internal_infrastructure_web_handler.ErrorResponse"
                         }
@@ -449,6 +491,12 @@ const docTemplate = `{
                             "$ref": "#/definitions/internal_infrastructure_web_handler.ErrorResponse"
                         }
                     },
+                    "429": {
+                        "description": "Too Many Requests",
+                        "schema": {
+                            "$ref": "#/definitions/internal_infrastructure_web_handler.ErrorResponse"
+                        }
+                    },
                     "500": {
                         "description": "Internal Server Error",
                         "schema": {
@@ -460,10 +508,13 @@ const docTemplate = `{
             "post": {
                 "security": [
                     {
-                        "BearerAuth": []
+                        "ServiceName": []
+                    },
+                    {
+                        "ServiceKey": []
                     }
                 ],
-                "description": "Set initial password for a user that does not have one yet",
+                "description": "Set initial password for a user that does not have one yet. Protected by Service Key (not JWT) to avoid deadlock: user needs a password to login, but needs to login to get JWT.",
                 "consumes": [
                     "application/json"
                 ],
@@ -476,7 +527,7 @@ const docTemplate = `{
                 "summary": "Set user password",
                 "parameters": [
                     {
-                        "description": "Password and confirmation",
+                        "description": "User ID, password and confirmation",
                         "name": "request",
                         "in": "body",
                         "required": true,
@@ -495,12 +546,6 @@ const docTemplate = `{
                             "$ref": "#/definitions/internal_infrastructure_web_handler.ErrorResponse"
                         }
                     },
-                    "401": {
-                        "description": "Unauthorized",
-                        "schema": {
-                            "$ref": "#/definitions/internal_infrastructure_web_handler.ErrorResponse"
-                        }
-                    },
                     "404": {
                         "description": "Not Found",
                         "schema": {
@@ -509,6 +554,12 @@ const docTemplate = `{
                     },
                     "409": {
                         "description": "Conflict",
+                        "schema": {
+                            "$ref": "#/definitions/internal_infrastructure_web_handler.ErrorResponse"
+                        }
+                    },
+                    "429": {
+                        "description": "Too Many Requests",
                         "schema": {
                             "$ref": "#/definitions/internal_infrastructure_web_handler.ErrorResponse"
                         }
@@ -558,6 +609,12 @@ const docTemplate = `{
                     },
                     "404": {
                         "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/internal_infrastructure_web_handler.ErrorResponse"
+                        }
+                    },
+                    "429": {
+                        "description": "Too Many Requests",
                         "schema": {
                             "$ref": "#/definitions/internal_infrastructure_web_handler.ErrorResponse"
                         }
@@ -627,6 +684,12 @@ const docTemplate = `{
                             "$ref": "#/definitions/internal_infrastructure_web_handler.ErrorResponse"
                         }
                     },
+                    "429": {
+                        "description": "Too Many Requests",
+                        "schema": {
+                            "$ref": "#/definitions/internal_infrastructure_web_handler.ErrorResponse"
+                        }
+                    },
                     "500": {
                         "description": "Internal Server Error",
                         "schema": {
@@ -670,6 +733,12 @@ const docTemplate = `{
                     },
                     "404": {
                         "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/internal_infrastructure_web_handler.ErrorResponse"
+                        }
+                    },
+                    "429": {
+                        "description": "Too Many Requests",
                         "schema": {
                             "$ref": "#/definitions/internal_infrastructure_web_handler.ErrorResponse"
                         }
@@ -958,7 +1027,8 @@ const docTemplate = `{
             "type": "object",
             "required": [
                 "password",
-                "password_confirmation"
+                "password_confirmation",
+                "user_id"
             ],
             "properties": {
                 "password": {
@@ -967,6 +1037,10 @@ const docTemplate = `{
                 },
                 "password_confirmation": {
                     "description": "Confirmação da senha",
+                    "type": "string"
+                },
+                "user_id": {
+                    "description": "ID do usuário",
                     "type": "string"
                 }
             }

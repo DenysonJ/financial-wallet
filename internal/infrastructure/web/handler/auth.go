@@ -35,6 +35,7 @@ func NewAuthHandler(loginUC *authuc.LoginUseCase, refreshUC *authuc.RefreshUseCa
 // @Success      200  {object}  dto.LoginOutput
 // @Failure      400  {object}  ErrorResponse
 // @Failure      401  {object}  ErrorResponse
+// @Failure      429  {object}  ErrorResponse
 // @Failure      500  {object}  ErrorResponse
 // @Router       /auth/login [post]
 func (h *AuthHandler) Login(c *gin.Context) {
@@ -67,6 +68,7 @@ func (h *AuthHandler) Login(c *gin.Context) {
 // @Success      200  {object}  dto.RefreshOutput
 // @Failure      400  {object}  ErrorResponse
 // @Failure      401  {object}  ErrorResponse
+// @Failure      429  {object}  ErrorResponse
 // @Failure      500  {object}  ErrorResponse
 // @Router       /auth/refresh [post]
 func (h *AuthHandler) Refresh(c *gin.Context) {

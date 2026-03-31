@@ -58,6 +58,7 @@ func NewUserHandler(
 // @Param        request body dto.CreateInput true "User info"
 // @Success      201  {object}  dto.CreateOutput
 // @Failure      400  {object}  ErrorResponse
+// @Failure      429  {object}  ErrorResponse
 // @Failure      500  {object}  ErrorResponse
 // @Security     ServiceName
 // @Security     ServiceKey
@@ -101,6 +102,7 @@ func (h *UserHandler) Create(c *gin.Context) {
 // @Param        id   path      string  true  "User ID"
 // @Success      200  {object}  dto.GetOutput
 // @Failure      404  {object}  ErrorResponse
+// @Failure      429  {object}  ErrorResponse
 // @Failure      500  {object}  ErrorResponse
 // @Security     ServiceName
 // @Security     ServiceKey
@@ -132,6 +134,7 @@ func (h *UserHandler) GetByID(c *gin.Context) {
 // @Param        email   query     string  false  "Filter by email"
 // @Param        active  query     bool    false  "Filter by active status"
 // @Success      200     {object}  dto.ListOutput
+// @Failure      429     {object}  ErrorResponse
 // @Failure      500     {object}  ErrorResponse
 // @Security     ServiceName
 // @Security     ServiceKey
@@ -173,6 +176,7 @@ func (h *UserHandler) List(c *gin.Context) {
 // @Success      200      {object}  dto.UpdateOutput
 // @Failure      400      {object}  ErrorResponse
 // @Failure      404      {object}  ErrorResponse
+// @Failure      429      {object}  ErrorResponse
 // @Failure      500      {object}  ErrorResponse
 // @Security     ServiceName
 // @Security     ServiceKey
@@ -214,6 +218,7 @@ func (h *UserHandler) Update(c *gin.Context) {
 // @Param        id   path      string  true  "User ID"
 // @Success      200  {object}  dto.DeleteOutput
 // @Failure      404  {object}  ErrorResponse
+// @Failure      429  {object}  ErrorResponse
 // @Failure      500  {object}  ErrorResponse
 // @Security     ServiceName
 // @Security     ServiceKey

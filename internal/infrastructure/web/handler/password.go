@@ -39,6 +39,7 @@ func NewPasswordHandler(
 // @Failure      400  {object}  ErrorResponse
 // @Failure      404  {object}  ErrorResponse
 // @Failure      409  {object}  ErrorResponse
+// @Failure      429  {object}  ErrorResponse
 // @Failure      500  {object}  ErrorResponse
 // @Security     ServiceName
 // @Security     ServiceKey
@@ -74,6 +75,7 @@ func (h *PasswordHandler) SetPassword(c *gin.Context) {
 // @Failure      400  {object}  ErrorResponse
 // @Failure      401  {object}  ErrorResponse
 // @Failure      404  {object}  ErrorResponse
+// @Failure      429  {object}  ErrorResponse
 // @Failure      500  {object}  ErrorResponse
 // @Security     BearerAuth
 // @Router       /users/password [put]

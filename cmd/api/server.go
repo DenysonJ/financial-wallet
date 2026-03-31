@@ -20,14 +20,16 @@ import (
 	authuc "github.com/DenysonJ/financial-wallet/internal/usecases/auth"
 	roleuc "github.com/DenysonJ/financial-wallet/internal/usecases/role"
 	useruc "github.com/DenysonJ/financial-wallet/internal/usecases/user"
-	pkgjwt "github.com/DenysonJ/financial-wallet/pkg/jwt"
 	"github.com/DenysonJ/financial-wallet/pkg/cache"
 	"github.com/DenysonJ/financial-wallet/pkg/cache/redisclient"
 	"github.com/DenysonJ/financial-wallet/pkg/database"
 	"github.com/DenysonJ/financial-wallet/pkg/health"
 	"github.com/DenysonJ/financial-wallet/pkg/idempotency"
 	"github.com/DenysonJ/financial-wallet/pkg/idempotency/redisstore"
+	pkgjwt "github.com/DenysonJ/financial-wallet/pkg/jwt"
 	"github.com/DenysonJ/financial-wallet/pkg/logutil"
+	"github.com/DenysonJ/financial-wallet/pkg/ratelimit"
+	rlredis "github.com/DenysonJ/financial-wallet/pkg/ratelimit/redisstore"
 	pkgtelemetry "github.com/DenysonJ/financial-wallet/pkg/telemetry"
 	"github.com/DenysonJ/financial-wallet/pkg/telemetry/otelgrpc"
 	"github.com/gin-gonic/gin"
@@ -224,6 +226,14 @@ func buildDependencies(cluster *database.DBCluster, sqlxWriter, sqlxReader *sqlx
 		}
 	}
 
+	// Rate Limit Store (optional — uses Redis when enabled)
+	var rateLimitStore ratelimit.Store
+	if cfg.RateLimit.Enabled {
+		if rc := redisClient.UnderlyingClient(); rc != nil {
+			rateLimitStore = rlredis.NewRedisStore(rc)
+		}
+	}
+
 	// --- Role Domain (simpler, no cache/singleflight) ---
 	roleRepo := repository.NewRoleRepository(sqlxWriter, sqlxReader)
 	roleCreateUC := roleuc.NewCreateUseCase(roleRepo)
@@ -255,6 +265,13 @@ func buildDependencies(cluster *database.DBCluster, sqlxWriter, sqlxReader *sqlx
 	// --- Handlers ---
 	userHandler := handler.NewUserHandler(createUC, getUC, listUC, updateUC, deleteUC, businessMetrics)
 
+	// Parse rate limit window durations (already validated in config.Validate)
+	var rlWindow, rlAuthWin time.Duration
+	if cfg.RateLimit.Enabled {
+		rlWindow, _ = time.ParseDuration(cfg.RateLimit.Window)
+		rlAuthWin, _ = time.ParseDuration(cfg.RateLimit.AuthWindow)
+	}
+
 	return router.Dependencies{
 		HealthChecker:    checker,
 		UserHandler:      userHandler,
@@ -264,12 +281,18 @@ func buildDependencies(cluster *database.DBCluster, sqlxWriter, sqlxReader *sqlx
 		JWTService:       jwtService,
 		HTTPMetrics:      httpMetrics,
 		IdempotencyStore: idempotencyStore,
+		RateLimitStore:   rateLimitStore,
 		Config: router.Config{
 			ServiceName:        cfg.Otel.ServiceName,
 			ServiceKeysEnabled: cfg.Auth.Enabled,
 			ServiceKeys:        cfg.Auth.ServiceKeys,
 			SwaggerEnabled:     cfg.Swagger.Enabled,
 			JWTEnabled:         cfg.JWT.Enabled,
+			RateLimitEnabled:   cfg.RateLimit.Enabled,
+			RateLimitRequests:  cfg.RateLimit.Requests,
+			RateLimitWindow:    rlWindow,
+			RateLimitAuthReqs:  cfg.RateLimit.AuthRequests,
+			RateLimitAuthWin:   rlAuthWin,
 		},
 	}
 }

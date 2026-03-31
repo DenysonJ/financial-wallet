@@ -2,6 +2,7 @@ package router
 
 import (
 	"net/http"
+	"time"
 
 	"github.com/gin-gonic/gin"
 	swaggerFiles "github.com/swaggo/files"
@@ -14,6 +15,7 @@ import (
 	"github.com/DenysonJ/financial-wallet/pkg/httputil/httpgin"
 	"github.com/DenysonJ/financial-wallet/pkg/idempotency"
 	"github.com/DenysonJ/financial-wallet/pkg/jwt"
+	"github.com/DenysonJ/financial-wallet/pkg/ratelimit"
 	"github.com/DenysonJ/financial-wallet/pkg/telemetry"
 )
 
@@ -24,6 +26,11 @@ type Config struct {
 	ServiceKeys        string // "service1:key1,service2:key2"
 	SwaggerEnabled     bool
 	JWTEnabled         bool
+	RateLimitEnabled   bool
+	RateLimitRequests  int
+	RateLimitWindow    time.Duration
+	RateLimitAuthReqs  int
+	RateLimitAuthWin   time.Duration
 }
 
 // Dependencies agrupa todas as dependências necessárias para o router
@@ -36,6 +43,7 @@ type Dependencies struct {
 	JWTService       *jwt.Service
 	HTTPMetrics      *telemetry.HTTPMetrics
 	IdempotencyStore idempotency.Store
+	RateLimitStore   ratelimit.Store
 	Config           Config
 }
 
@@ -60,15 +68,33 @@ func Setup(deps Dependencies) *gin.Engine {
 		r.Use(middleware.Idempotency(deps.IdempotencyStore))
 	}
 
+	// Rate Limit — global (applied before auth, after logging/metrics)
+	if deps.Config.RateLimitEnabled && deps.RateLimitStore != nil {
+		r.Use(middleware.RateLimit(middleware.RateLimitConfig{
+			Store:  deps.RateLimitStore,
+			Limit:  deps.Config.RateLimitRequests,
+			Window: deps.Config.RateLimitWindow,
+		}))
+	}
+
 	// Public routes (no auth required)
 	if deps.Config.SwaggerEnabled {
 		registerSwaggerRoutes(r)
 	}
 	registerHealthRoutes(r, deps)
 
-	// Auth routes (public — no service key or JWT required)
+	// Auth routes (public — no service key or JWT required, but stricter rate limit)
 	if deps.AuthHandler != nil {
-		RegisterAuthRoutes(r, deps.AuthHandler)
+		authGroup := r.Group("/auth")
+		if deps.Config.RateLimitEnabled && deps.RateLimitStore != nil {
+			authGroup.Use(middleware.RateLimit(middleware.RateLimitConfig{
+				Store:  deps.RateLimitStore,
+				Limit:  deps.Config.RateLimitAuthReqs,
+				Window: deps.Config.RateLimitAuthWin,
+			}))
+		}
+		authGroup.POST("/login", deps.AuthHandler.Login)
+		authGroup.POST("/refresh", deps.AuthHandler.Refresh)
 	}
 
 	// Protected routes (auth required if SERVICE_KEYS is configured)
