@@ -11,7 +11,7 @@ import (
 
 // RegisterDBPoolMetrics registers observable gauges for SQL database pool stats.
 // This provides visibility into connection pool health (open, in_use, idle, max_open, wait_count).
-func RegisterDBPoolMetrics(ctx context.Context, serviceName string, db *sql.DB, poolName string) error {
+func RegisterDBPoolMetrics(_ context.Context, serviceName string, db *sql.DB, poolName string) error {
 	if db == nil {
 		return nil
 	}

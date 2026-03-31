@@ -1,7 +1,6 @@
 package config
 
 import (
-	"os"
 	"testing"
 	"time"
 
@@ -10,23 +9,22 @@ import (
 
 func TestLoad(t *testing.T) {
 	// Setup env vars for test
-	os.Setenv("SERVER_PORT", "9090")
-	os.Setenv("DB_HOST", "testhost")
-	os.Setenv("DB_PORT", "5433")
-	os.Setenv("DB_USER", "testuser")
-	os.Setenv("DB_PASSWORD", "testpass")
-	os.Setenv("DB_NAME", "test_db")
-	os.Setenv("DB_SSLMODE", "require")
-	os.Setenv("DB_MAX_OPEN_CONNS", "50")
-	os.Setenv("DB_MAX_IDLE_CONNS", "15")
-	os.Setenv("DB_CONN_MAX_LIFETIME", "10m")
-	os.Setenv("DB_CONN_MAX_IDLE_TIME", "2m")
-	os.Setenv("DB_REPLICA_ENABLED", "true")
-	os.Setenv("DB_REPLICA_HOST", "replicahost")
-	os.Setenv("DB_REPLICA_PORT", "5434")
-	os.Setenv("REDIS_ENABLED", "true")
-	os.Setenv("SWAGGER_ENABLED", "false")
-	defer os.Clearenv()
+	t.Setenv("SERVER_PORT", "9090")
+	t.Setenv("DB_HOST", "testhost")
+	t.Setenv("DB_PORT", "5433")
+	t.Setenv("DB_USER", "testuser")
+	t.Setenv("DB_PASSWORD", "testpass")
+	t.Setenv("DB_NAME", "test_db")
+	t.Setenv("DB_SSLMODE", "require")
+	t.Setenv("DB_MAX_OPEN_CONNS", "50")
+	t.Setenv("DB_MAX_IDLE_CONNS", "15")
+	t.Setenv("DB_CONN_MAX_LIFETIME", "10m")
+	t.Setenv("DB_CONN_MAX_IDLE_TIME", "2m")
+	t.Setenv("DB_REPLICA_ENABLED", "true")
+	t.Setenv("DB_REPLICA_HOST", "replicahost")
+	t.Setenv("DB_REPLICA_PORT", "5434")
+	t.Setenv("REDIS_ENABLED", "true")
+	t.Setenv("SWAGGER_ENABLED", "false")
 
 	cfg, loadErr := Load()
 	assert.NoError(t, loadErr)
@@ -70,7 +68,10 @@ func TestLoad(t *testing.T) {
 }
 
 func TestLoad_Defaults(t *testing.T) {
-	os.Clearenv()
+	// t.Setenv above auto-restores; for defaults test, clear relevant vars
+	for _, key := range []string{"SERVER_PORT", "DB_HOST", "DB_PORT", "DB_USER", "DB_PASSWORD", "DB_NAME", "DB_SSLMODE"} {
+		t.Setenv(key, "")
+	}
 
 	cfg, loadErr := Load()
 	assert.NoError(t, loadErr)
