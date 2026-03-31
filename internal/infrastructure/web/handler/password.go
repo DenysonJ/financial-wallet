@@ -30,18 +30,18 @@ func NewPasswordHandler(
 
 // SetPassword godoc
 // @Summary      Set user password
-// @Description  Set initial password for a user that does not have one yet
+// @Description  Set initial password for a user that does not have one yet. Protected by Service Key (not JWT) to avoid deadlock: user needs a password to login, but needs to login to get JWT.
 // @Tags         users
 // @Accept       json
 // @Produce      json
-// @Param        request body dto.SetPasswordInput true "Password and confirmation"
+// @Param        request body dto.SetPasswordInput true "User ID, password and confirmation"
 // @Success      204
 // @Failure      400  {object}  ErrorResponse
-// @Failure      401  {object}  ErrorResponse
 // @Failure      404  {object}  ErrorResponse
 // @Failure      409  {object}  ErrorResponse
 // @Failure      500  {object}  ErrorResponse
-// @Security     BearerAuth
+// @Security     ServiceName
+// @Security     ServiceKey
 // @Router       /users/password [post]
 func (h *PasswordHandler) SetPassword(c *gin.Context) {
 	ctx, span := otel.Tracer("http-handler").Start(c.Request.Context(), "PasswordHandler.SetPassword")
@@ -53,15 +53,6 @@ func (h *PasswordHandler) SetPassword(c *gin.Context) {
 		httpgin.SendError(c, http.StatusBadRequest, "invalid request body")
 		return
 	}
-
-	// User ID from JWT context
-	userID, exists := c.Get("user_id")
-	if !exists {
-		span.SetStatus(codes.Error, "unauthorized")
-		httpgin.SendError(c, http.StatusUnauthorized, "unauthorized")
-		return
-	}
-	req.UserID = userID.(string)
 
 	execErr := h.SetPasswordUC.Execute(ctx, req)
 	if execErr != nil {

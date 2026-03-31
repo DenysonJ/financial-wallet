@@ -79,19 +79,23 @@ func Setup(deps Dependencies) *gin.Engine {
 	protected := r.Group("")
 	protected.Use(middleware.ServiceKeyAuth(authConfig))
 
-	// User routes: Service Key OR JWT authentication
-	// Service Key auth already passed above. For JWT, apply middleware conditionally.
+	// Set Password: Service Key only
+	if deps.PasswordHandler != nil {
+		RegisterSetPasswordRoute(protected, deps.PasswordHandler)
+	}
+
+	// User routes + Change Password: Service Key OR JWT authentication
 	if deps.Config.JWTEnabled && deps.JWTService != nil {
 		jwtProtected := protected.Group("")
 		jwtProtected.Use(middleware.JWTAuth(deps.JWTService))
 		RegisterUserRoutes(jwtProtected, deps.UserHandler)
 		if deps.PasswordHandler != nil {
-			RegisterPasswordRoutes(jwtProtected, deps.PasswordHandler)
+			RegisterChangePasswordRoute(jwtProtected, deps.PasswordHandler)
 		}
 	} else {
 		RegisterUserRoutes(protected, deps.UserHandler)
 		if deps.PasswordHandler != nil {
-			RegisterPasswordRoutes(protected, deps.PasswordHandler)
+			RegisterChangePasswordRoute(protected, deps.PasswordHandler)
 		}
 	}
 
