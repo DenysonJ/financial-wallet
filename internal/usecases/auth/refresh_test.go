@@ -6,6 +6,7 @@ import (
 
 	userdomain "github.com/DenysonJ/financial-wallet/internal/domain/user"
 	"github.com/DenysonJ/financial-wallet/internal/usecases/auth/dto"
+	"github.com/DenysonJ/financial-wallet/internal/usecases/auth/interfaces"
 	"github.com/DenysonJ/financial-wallet/pkg/jwt"
 	"github.com/stretchr/testify/assert"
 )
@@ -13,9 +14,9 @@ import (
 func TestRefreshUseCase_Execute_Success(t *testing.T) {
 	mockToken := new(MockTokenService)
 
-	mockToken.On("ValidateToken", "valid-refresh").Return(&jwt.Claims{
+	mockToken.On("ValidateToken", "valid-refresh").Return(&interfaces.TokenClaims{
 		UserID:    "user-123",
-		TokenType: jwt.TokenTypeRefresh,
+		TokenType: interfaces.TokenTypeRefresh,
 	}, nil)
 	mockToken.On("GenerateAccessToken", "user-123").Return("new-access", nil)
 	mockToken.On("GenerateRefreshToken", "user-123").Return("new-refresh", nil)
@@ -48,9 +49,9 @@ func TestRefreshUseCase_Execute_InvalidToken(t *testing.T) {
 func TestRefreshUseCase_Execute_WrongTokenType(t *testing.T) {
 	mockToken := new(MockTokenService)
 
-	mockToken.On("ValidateToken", "access-token").Return(&jwt.Claims{
+	mockToken.On("ValidateToken", "access-token").Return(&interfaces.TokenClaims{
 		UserID:    "user-123",
-		TokenType: jwt.TokenTypeAccess, // wrong type — should be refresh
+		TokenType: interfaces.TokenTypeAccess,
 	}, nil)
 
 	uc := NewRefreshUseCase(mockToken)

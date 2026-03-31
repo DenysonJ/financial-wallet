@@ -13,6 +13,7 @@ import (
 
 	"github.com/DenysonJ/financial-wallet/config"
 	docs "github.com/DenysonJ/financial-wallet/docs"
+	infraauth "github.com/DenysonJ/financial-wallet/internal/infrastructure/auth"
 	"github.com/DenysonJ/financial-wallet/internal/infrastructure/db/postgres/repository"
 	infratelemetry "github.com/DenysonJ/financial-wallet/internal/infrastructure/telemetry"
 	"github.com/DenysonJ/financial-wallet/internal/infrastructure/web/handler"
@@ -257,8 +258,9 @@ func buildDependencies(cluster *database.DBCluster, sqlxWriter, sqlxReader *sqlx
 	// --- Auth Use Cases (optional — only when JWT is enabled) ---
 	var authHandler *handler.AuthHandler
 	if jwtService != nil {
-		loginUC := authuc.NewLoginUseCase(repo, jwtService)
-		refreshUC := authuc.NewRefreshUseCase(jwtService)
+		tokenAdapter := infraauth.NewJWTTokenAdapter(jwtService)
+		loginUC := authuc.NewLoginUseCase(repo, tokenAdapter)
+		refreshUC := authuc.NewRefreshUseCase(tokenAdapter)
 		authHandler = handler.NewAuthHandler(loginUC, refreshUC)
 	}
 

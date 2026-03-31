@@ -5,7 +5,7 @@ import (
 
 	userdomain "github.com/DenysonJ/financial-wallet/internal/domain/user"
 	"github.com/DenysonJ/financial-wallet/internal/domain/user/vo"
-	"github.com/DenysonJ/financial-wallet/pkg/jwt"
+	"github.com/DenysonJ/financial-wallet/internal/usecases/auth/interfaces"
 	"github.com/stretchr/testify/mock"
 )
 
@@ -37,10 +37,10 @@ func (m *MockTokenService) GenerateRefreshToken(userID string) (string, error) {
 	return args.String(0), args.Error(1)
 }
 
-func (m *MockTokenService) ValidateToken(tokenString string) (*jwt.Claims, error) {
+func (m *MockTokenService) ValidateToken(tokenString string) (*interfaces.TokenClaims, error) {
 	args := m.Called(tokenString)
 	if args.Get(0) == nil {
 		return nil, args.Error(1)
 	}
-	return args.Get(0).(*jwt.Claims), args.Error(1)
+	return args.Get(0).(*interfaces.TokenClaims), args.Error(1)
 }

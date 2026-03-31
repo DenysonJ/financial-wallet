@@ -97,7 +97,13 @@ func (h *PasswordHandler) ChangePassword(c *gin.Context) {
 		httpgin.SendError(c, http.StatusUnauthorized, "unauthorized")
 		return
 	}
-	req.UserID = userID.(string)
+	userIDStr, ok := userID.(string)
+	if !ok || userIDStr == "" {
+		span.SetStatus(codes.Error, "unauthorized")
+		httpgin.SendError(c, http.StatusUnauthorized, "unauthorized")
+		return
+	}
+	req.UserID = userIDStr
 
 	execErr := h.ChangePasswordUC.Execute(ctx, req)
 	if execErr != nil {

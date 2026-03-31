@@ -2,8 +2,8 @@ package dto
 
 // LoginInput representa os dados de entrada para login.
 type LoginInput struct {
-	Email    string `json:"email" binding:"required,email"`    // Email do usuário
-	Password string `json:"password" binding:"required"`       // Senha em texto plano
+	Email    string `json:"email" binding:"required,email"` // Email do usuário
+	Password string `json:"password" binding:"required"`    // Senha em texto plano
 }
 
 // LoginOutput representa os dados de saída após login bem-sucedido.

@@ -8,7 +8,19 @@ import (
 	"github.com/redis/go-redis/v9"
 )
 
-// RedisStore implements ratelimit.Store using Redis INCR + EXPIRE (fixed window).
+// luaRateLimit atomically increments the counter and sets TTL on first request.
+// Returns: [count, ttl_milliseconds]
+var luaRateLimit = redis.NewScript(`
+local count = redis.call("INCR", KEYS[1])
+local ttl = redis.call("PTTL", KEYS[1])
+if count == 1 or ttl < 0 then
+    redis.call("PEXPIRE", KEYS[1], ARGV[1])
+    ttl = tonumber(ARGV[1])
+end
+return {count, ttl}
+`)
+
+// RedisStore implements ratelimit.Store using Redis with an atomic Lua script.
 type RedisStore struct {
 	client *redis.Client
 }
@@ -19,38 +31,27 @@ func NewRedisStore(client *redis.Client) *RedisStore {
 }
 
 // Allow checks whether a request identified by key is within the rate limit.
-// Uses a Redis pipeline with INCR + conditional EXPIRE for atomicity.
-// The key automatically expires after the window duration.
+// Uses a Lua script for atomic INCR + conditional PEXPIRE to avoid race conditions.
 func (s *RedisStore) Allow(ctx context.Context, key string, limit int, window time.Duration) (*ratelimit.Result, error) {
-	pipe := s.client.Pipeline()
+	windowMs := window.Milliseconds()
 
-	incrCmd := pipe.Incr(ctx, key)
-	ttlCmd := pipe.TTL(ctx, key)
-
-	_, execErr := pipe.Exec(ctx)
-	if execErr != nil && execErr != redis.Nil {
-		return nil, execErr
+	result, evalErr := luaRateLimit.Run(ctx, s.client, []string{key}, windowMs).Int64Slice()
+	if evalErr != nil {
+		return nil, evalErr
 	}
 
-	count := incrCmd.Val()
-	ttl := ttlCmd.Val()
+	count := int(result[0])
+	ttlMs := result[1]
 
-	// If this is the first request in the window (count == 1), set the expiration.
-	// Also handle the case where the key exists but has no TTL (e.g., after a crash).
-	if count == 1 || ttl < 0 {
-		s.client.Expire(ctx, key, window)
-		ttl = window
-	}
-
-	remaining := limit - int(count)
+	remaining := limit - count
 	if remaining < 0 {
 		remaining = 0
 	}
 
-	resetAt := time.Now().Add(ttl)
+	resetAt := time.Now().Add(time.Duration(ttlMs) * time.Millisecond)
 
 	return &ratelimit.Result{
-		Allowed:   int(count) <= limit,
+		Allowed:   count <= limit,
 		Limit:     limit,
 		Remaining: remaining,
 		ResetAt:   resetAt,
