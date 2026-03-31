@@ -1,0 +1,57 @@
+{
+  "name": "financial-wallet",
+  "build": {
+    "dockerfile": "Dockerfile",
+    "args": {
+      "TZ": "${localEnv:TZ:America/Sao_Paulo}",
+      "CLAUDE_CODE_VERSION": "latest",
+      "GIT_DELTA_VERSION": "0.18.2",
+      "ZSH_IN_DOCKER_VERSION": "1.2.0"
+    }
+  },
+  "runArgs": [
+    "--cap-add=NET_ADMIN",
+    "--cap-add=NET_RAW"
+  ],
+  "features": {
+    "ghcr.io/devcontainers/features/docker-in-docker:2": {}
+  },
+  "customizations": {
+    "vscode": {
+      "extensions": [
+        "anthropic.claude-code",
+        "golang.go",
+        "eamodio.gitlens"
+      ],
+      "settings": {
+        "go.useLanguageServer": true,
+        "go.lintTool": "golangci-lint",
+        "go.lintOnSave": "package",
+        "go.gopath": "/home/node/go",
+        "go.goroot": "/usr/local/go",
+        "editor.formatOnSave": true,
+        "terminal.integrated.defaultProfile.linux": "zsh",
+        "terminal.integrated.profiles.linux": {
+          "bash": { "path": "bash", "icon": "terminal-bash" },
+          "zsh": { "path": "zsh" }
+        }
+      }
+    }
+  },
+  "remoteUser": "node",
+  "forwardPorts": [8080],
+  "mounts": [
+    "source=financial-bashhistory-${devcontainerId},target=/commandhistory,type=volume",
+    "source=financial-claude-config-${devcontainerId},target=/home/node/.claude,type=volume",
+    "source=financial-gopath-${devcontainerId},target=/home/node/go,type=volume"
+  ],
+  "containerEnv": {
+    "NODE_OPTIONS": "--max-old-space-size=4096",
+    "CLAUDE_CONFIG_DIR": "/home/node/.claude",
+    "POWERLEVEL9K_DISABLE_GITSTATUS": "true",
+    "GOPATH": "/home/node/go"
+  },
+  "workspaceFolder": "/workspaces/${localWorkspaceFolderBasename}",
+  "postStartCommand": "sudo /usr/local/bin/init-firewall.sh && git config --global user.email \"${GIT_AUTHOR_EMAIL:-dev@boilerplate.local}\" && git config --global user.name \"${GIT_AUTHOR_NAME:-Developer}\"",
+  "waitFor": "postStartCommand"
+}

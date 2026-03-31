@@ -1,0 +1,44 @@
+# Binários
+/bin/
+*.exe
+*.exe~
+*.dll
+*.so
+*.dylib
+
+# Saída de testes (tudo em tests/)
+tests/coverage/
+tests/load/results/
+
+# Dependências
+/vendor/
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# Arquivos de sistema
+.DS_Store
+Thumbs.db
+
+# Arquivos de ambiente
+.env
+.env.local
+
+# Claude Code
+.claude/settings.local.json
+.claude/worktrees/
+.claude/agent-memory/
+
+# Logs
+*.log
+
+# Temporários
+*.tmp
+
+# Review reports (generated, ephemeral)
+docs/review-report-*.md
+
+roadmap.md

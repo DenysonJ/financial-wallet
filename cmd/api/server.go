@@ -1,0 +1,322 @@
+package main
+
+import (
+	"context"
+	"errors"
+	"fmt"
+	"log/slog"
+	"net/http"
+	"os"
+	"os/signal"
+	"syscall"
+	"time"
+
+	"github.com/DenysonJ/financial-wallet/config"
+	docs "github.com/DenysonJ/financial-wallet/docs"
+	"github.com/DenysonJ/financial-wallet/internal/infrastructure/db/postgres/repository"
+	infratelemetry "github.com/DenysonJ/financial-wallet/internal/infrastructure/telemetry"
+	"github.com/DenysonJ/financial-wallet/internal/infrastructure/web/handler"
+	"github.com/DenysonJ/financial-wallet/internal/infrastructure/web/router"
+	authuc "github.com/DenysonJ/financial-wallet/internal/usecases/auth"
+	roleuc "github.com/DenysonJ/financial-wallet/internal/usecases/role"
+	useruc "github.com/DenysonJ/financial-wallet/internal/usecases/user"
+	pkgjwt "github.com/DenysonJ/financial-wallet/pkg/jwt"
+	"github.com/DenysonJ/financial-wallet/pkg/cache"
+	"github.com/DenysonJ/financial-wallet/pkg/cache/redisclient"
+	"github.com/DenysonJ/financial-wallet/pkg/database"
+	"github.com/DenysonJ/financial-wallet/pkg/health"
+	"github.com/DenysonJ/financial-wallet/pkg/idempotency"
+	"github.com/DenysonJ/financial-wallet/pkg/idempotency/redisstore"
+	"github.com/DenysonJ/financial-wallet/pkg/logutil"
+	pkgtelemetry "github.com/DenysonJ/financial-wallet/pkg/telemetry"
+	"github.com/DenysonJ/financial-wallet/pkg/telemetry/otelgrpc"
+	"github.com/gin-gonic/gin"
+	"github.com/jmoiron/sqlx"
+	_ "github.com/lib/pq"
+	"go.opentelemetry.io/otel"
+)
+
+// Start initializes the application following the composition pattern:
+// Config → Logger → Telemetry → Database → Dependencies → Router → Server
+func Start(ctx context.Context, cfg *config.Config) error {
+	// 0. Validate config
+	if validateErr := cfg.Validate(); validateErr != nil {
+		return fmt.Errorf("invalid configuration: %w", validateErr)
+	}
+
+	// 1. Logger
+	logger := setupLogger()
+	slog.SetDefault(logger)
+
+	// Set Gin mode from config (avoid "Running in debug mode" warning in production)
+	if cfg.Server.GinMode != "" {
+		gin.SetMode(cfg.Server.GinMode)
+	}
+
+	// 2. Telemetry (OpenTelemetry Traces + Metrics)
+	// Graceful degradation: if OTel setup fails, app continues without telemetry.
+	var exporterOpts []pkgtelemetry.Option
+	if cfg.Otel.CollectorURL != "" {
+		grpcOpts, exporterErr := otelgrpc.Exporters(ctx, otelgrpc.Config{
+			CollectorURL: cfg.Otel.CollectorURL,
+			Insecure:     cfg.Otel.Insecure,
+		})
+		if exporterErr != nil {
+			slog.Warn("Telemetry exporter setup failed, continuing without observability", "error", exporterErr)
+		} else {
+			exporterOpts = grpcOpts
+		}
+	}
+
+	tp, tpErr := pkgtelemetry.Setup(ctx, pkgtelemetry.Config{
+		ServiceName: cfg.Otel.ServiceName,
+		Enabled:     cfg.Otel.CollectorURL != "",
+	}, exporterOpts...)
+	if tpErr != nil {
+		slog.Warn("Telemetry setup failed, continuing without observability", "error", tpErr)
+	}
+	if tp != nil {
+		defer shutdownTelemetry(tp, logger)
+	}
+
+	// 3. Database (Writer/Reader Cluster)
+	writerCfg := database.Config{
+		Driver:          "postgres",
+		DSN:             cfg.DB.GetWriterDSN(),
+		MaxOpenConns:    cfg.DB.MaxOpenConns,
+		MaxIdleConns:    cfg.DB.MaxIdleConns,
+		ConnMaxLifetime: cfg.DB.ConnMaxLifetime,
+		ConnMaxIdleTime: cfg.DB.ConnMaxIdleTime,
+	}
+
+	var readerCfg *database.Config
+	if cfg.DB.ReplicaEnabled {
+		readerCfg = &database.Config{
+			Driver:          "postgres",
+			DSN:             cfg.DB.GetReaderDSN(),
+			MaxOpenConns:    cfg.DB.ReplicaMaxOpenConns,
+			MaxIdleConns:    cfg.DB.ReplicaMaxIdleConns,
+			ConnMaxLifetime: cfg.DB.ReplicaConnMaxLifetime,
+			ConnMaxIdleTime: cfg.DB.ReplicaConnMaxIdleTime,
+		}
+	}
+
+	cluster, clusterErr := database.NewDBCluster(writerCfg, readerCfg)
+	if clusterErr != nil {
+		return clusterErr
+	}
+	defer cluster.Close()
+
+	// Wrap stdlib connections for sqlx-based repositories
+	sqlxWriter := sqlx.NewDb(cluster.Writer(), "postgres")
+	sqlxReader := sqlx.NewDb(cluster.Reader(), "postgres")
+
+	// SSL mode warning for non-development environments
+	if cfg.DB.SSLMode == "disable" && cfg.Server.Env != "development" {
+		slog.Warn("database connection using sslmode=disable in non-development environment")
+	}
+
+	// 4. Register DB Pool Metrics
+	if regErr := pkgtelemetry.RegisterDBPoolMetrics(ctx, cfg.Otel.ServiceName, cluster.Writer(), "writer"); regErr != nil {
+		slog.Warn("Failed to register DB pool metrics", "error", regErr)
+	}
+
+	if cluster.HasSeparateReader() {
+		if regErr := pkgtelemetry.RegisterDBPoolMetrics(ctx, cfg.Otel.ServiceName, cluster.Reader(), "reader"); regErr != nil {
+			slog.Warn("Failed to register reader DB pool metrics", "error", regErr)
+		}
+	}
+
+	// 5. Business Metrics (injected into handlers, not global)
+	businessMetrics, metricsErr := infratelemetry.NewMetrics(otel.Meter(cfg.Otel.ServiceName))
+	if metricsErr != nil {
+		slog.Warn("Failed to create business metrics", "error", metricsErr)
+	}
+
+	// 6. Dependencies (Dependency Injection)
+	var httpMetrics *pkgtelemetry.HTTPMetrics
+	if tp != nil {
+		httpMetrics = tp.HTTPMetrics()
+	}
+	deps := buildDependencies(cluster, sqlxWriter, sqlxReader, cfg, httpMetrics, businessMetrics)
+
+	// Swagger Dynamic Config
+	if cfg.Swagger.Host != "" {
+		docs.SwaggerInfo.Host = cfg.Swagger.Host
+	} else {
+		docs.SwaggerInfo.Host = "localhost:" + cfg.Server.Port
+	}
+
+	// 7. Router
+	r := router.Setup(deps)
+
+	// 8. Server
+	srv := newServer(cfg.Server.Port, r)
+
+	// 9. Graceful Shutdown
+	return runWithGracefulShutdown(srv, logger)
+}
+
+func setupLogger() *slog.Logger {
+	stdout := slog.NewJSONHandler(os.Stdout, nil)
+	masked := logutil.NewMaskingHandler(logutil.NewMasker(logutil.DefaultBRConfig()), stdout)
+	return slog.New(logutil.NewFanoutHandler(masked))
+}
+
+func shutdownTelemetry(tp *pkgtelemetry.Provider, logger *slog.Logger) {
+	if shutdownErr := tp.Shutdown(context.Background()); shutdownErr != nil {
+		logger.Error("failed to shutdown telemetry", "error", shutdownErr)
+	}
+}
+
+func buildDependencies(cluster *database.DBCluster, sqlxWriter, sqlxReader *sqlx.DB, cfg *config.Config, httpMetrics *pkgtelemetry.HTTPMetrics, businessMetrics *infratelemetry.Metrics) router.Dependencies {
+	// Repositories (sqlx wrappers over stdlib *sql.DB connections)
+	repo := repository.NewUserRepository(sqlxWriter, sqlxReader)
+
+	// Cache (optional)
+	redisClient, cacheErr := redisclient.NewRedisClient(redisclient.RedisConfig{
+		URL:          cfg.Redis.URL,
+		TTL:          cfg.Redis.TTL,
+		Enabled:      cfg.Redis.Enabled,
+		PoolSize:     cfg.Redis.PoolSize,
+		MinIdleConns: cfg.Redis.MinIdleConns,
+		DialTimeout:  cfg.Redis.DialTimeout,
+		ReadTimeout:  cfg.Redis.ReadTimeout,
+		WriteTimeout: cfg.Redis.WriteTimeout,
+	})
+	if cacheErr != nil {
+		slog.Warn("Redis cache disabled", "error", cacheErr)
+	}
+
+	// Health Checker
+	checker := health.New()
+	checker.Register("database_writer", true, func(ctx context.Context) error {
+		return cluster.Writer().PingContext(ctx)
+	})
+	if cluster.HasSeparateReader() {
+		checker.Register("database_reader", false, func(ctx context.Context) error {
+			return cluster.Reader().PingContext(ctx)
+		})
+	}
+	if redisClient != nil && redisClient.UnderlyingClient() != nil {
+		checker.Register("redis", false, func(ctx context.Context) error {
+			return redisClient.Ping(ctx)
+		})
+	}
+
+	// Singleflight protection (prevents cache stampede on concurrent reads)
+	flightGroup := cache.NewFlightGroup()
+
+	// Use Cases (with optional cache via builder pattern)
+	createUC := useruc.NewCreateUseCase(repo)
+	getUC := useruc.NewGetUseCase(repo).WithCache(redisClient).WithFlight(flightGroup)
+	listUC := useruc.NewListUseCase(repo)
+	updateUC := useruc.NewUpdateUseCase(repo).WithCache(redisClient)
+	deleteUC := useruc.NewDeleteUseCase(repo).WithCache(redisClient)
+
+	// Idempotency Store (optional — uses Redis when enabled)
+	var idempotencyStore idempotency.Store
+	if cfg.Idempotency.Enabled {
+		if rc := redisClient.UnderlyingClient(); rc != nil {
+			ttl, _ := time.ParseDuration(cfg.Idempotency.TTL)
+			lockTTL, _ := time.ParseDuration(cfg.Idempotency.LockTTL)
+			idempotencyStore = redisstore.NewRedisStore(rc, ttl, lockTTL)
+		}
+	}
+
+	// --- Role Domain (simpler, no cache/singleflight) ---
+	roleRepo := repository.NewRoleRepository(sqlxWriter, sqlxReader)
+	roleCreateUC := roleuc.NewCreateUseCase(roleRepo)
+	roleListUC := roleuc.NewListUseCase(roleRepo)
+	roleDeleteUC := roleuc.NewDeleteUseCase(roleRepo)
+	roleHandler := handler.NewRoleHandler(roleCreateUC, roleListUC, roleDeleteUC)
+
+	// --- JWT Service (optional) ---
+	var jwtService *pkgjwt.Service
+	if cfg.JWT.Enabled {
+		accessTTL, _ := time.ParseDuration(cfg.JWT.AccessTTL)
+		refreshTTL, _ := time.ParseDuration(cfg.JWT.RefreshTTL)
+		jwtService = pkgjwt.NewService(cfg.JWT.Secret, accessTTL, refreshTTL)
+	}
+
+	// --- Password Use Cases ---
+	setPasswordUC := useruc.NewSetPasswordUseCase(repo).WithBcryptCost(cfg.JWT.BcryptCost)
+	changePasswordUC := useruc.NewChangePasswordUseCase(repo).WithBcryptCost(cfg.JWT.BcryptCost)
+	passwordHandler := handler.NewPasswordHandler(setPasswordUC, changePasswordUC)
+
+	// --- Auth Use Cases (optional — only when JWT is enabled) ---
+	var authHandler *handler.AuthHandler
+	if jwtService != nil {
+		loginUC := authuc.NewLoginUseCase(repo, jwtService)
+		refreshUC := authuc.NewRefreshUseCase(jwtService)
+		authHandler = handler.NewAuthHandler(loginUC, refreshUC)
+	}
+
+	// --- Handlers ---
+	userHandler := handler.NewUserHandler(createUC, getUC, listUC, updateUC, deleteUC, businessMetrics)
+
+	return router.Dependencies{
+		HealthChecker:    checker,
+		UserHandler:      userHandler,
+		RoleHandler:      roleHandler,
+		AuthHandler:      authHandler,
+		PasswordHandler:  passwordHandler,
+		JWTService:       jwtService,
+		HTTPMetrics:      httpMetrics,
+		IdempotencyStore: idempotencyStore,
+		Config: router.Config{
+			ServiceName:        cfg.Otel.ServiceName,
+			ServiceKeysEnabled: cfg.Auth.Enabled,
+			ServiceKeys:        cfg.Auth.ServiceKeys,
+			SwaggerEnabled:     cfg.Swagger.Enabled,
+			JWTEnabled:         cfg.JWT.Enabled,
+		},
+	}
+}
+
+func newServer(port string, handler http.Handler) *http.Server {
+	return &http.Server{
+		Addr:              ":" + port,
+		Handler:           handler,
+		ReadHeaderTimeout: 10 * time.Second,
+		ReadTimeout:       30 * time.Second,
+		WriteTimeout:      30 * time.Second,
+		IdleTimeout:       120 * time.Second,
+		MaxHeaderBytes:    1 << 20, // 1MB — protects against oversized headers
+	}
+}
+
+func runWithGracefulShutdown(srv *http.Server, logger *slog.Logger) error {
+	// Error channel to capture server startup failures without os.Exit in goroutine
+	errCh := make(chan error, 1)
+	go func() {
+		logger.Info("Starting server", "port", srv.Addr)
+		if listenErr := srv.ListenAndServe(); listenErr != nil && !errors.Is(listenErr, http.ErrServerClosed) {
+			errCh <- listenErr
+		}
+	}()
+
+	// Wait for interrupt signal or server error
+	quit := make(chan os.Signal, 1)
+	signal.Notify(quit, syscall.SIGINT, syscall.SIGTERM)
+
+	select {
+	case listenErr := <-errCh:
+		return listenErr
+	case <-quit:
+		// proceed to graceful shutdown
+	}
+
+	logger.Info("shutting down server...")
+
+	// Graceful shutdown with timeout
+	shutdownCtx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+
+	if shutdownErr := srv.Shutdown(shutdownCtx); shutdownErr != nil {
+		return shutdownErr
+	}
+
+	logger.Info("server exited properly")
+	return nil
+}

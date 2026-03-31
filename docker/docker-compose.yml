@@ -1,0 +1,124 @@
+name: financial-wallet
+
+services:
+  # ============================================
+  # DATABASE
+  # ============================================
+  financial-wallet-db:
+    container_name: financial-db
+    image: postgres:16-alpine
+    ports:
+      - "${POSTGRES_PORT:-5432}:5432"
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-user}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-password}
+      POSTGRES_DB: ${POSTGRES_DB:-users}
+    volumes:
+      - financial-wallet-db-data:/var/lib/postgresql/data
+    healthcheck:
+      test: [ "CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-user} -d ${POSTGRES_DB:-users}" ]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          cpus: "0.5"
+          memory: 256M
+
+  # ============================================
+  # REDIS (Cache)
+  # ============================================
+  financial-wallet-redis:
+    container_name: financial-redis
+    image: redis:7-alpine
+    ports:
+      - "${REDIS_PORT:-6379}:6379"
+    command: redis-server --appendonly yes
+    volumes:
+      - financial-wallet-redis-data:/data
+    healthcheck:
+      test: [ "CMD", "redis-cli", "ping" ]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+    restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          cpus: "0.2"
+          memory: 128M
+
+  # ============================================
+  # MIGRATIONS (roda e encerra)
+  # ============================================
+  financial-wallet-migrate:
+    container_name: financial-migrate
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile
+    entrypoint: ["./migrate"]
+    environment:
+      DB_HOST: financial-wallet-db
+      DB_PORT: "5432"
+      DB_USER: ${POSTGRES_USER:-user}
+      DB_PASSWORD: ${POSTGRES_PASSWORD:-password}
+      DB_NAME: ${POSTGRES_DB:-users}
+      DB_SSLMODE: disable
+    depends_on:
+      financial-wallet-db:
+        condition: service_healthy
+    restart: "no"
+    profiles:
+      - api
+
+  # ============================================
+  # API
+  # ============================================
+  financial-wallet-api:
+    container_name: financial-api
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile
+    ports:
+      - "${SERVER_PORT:-8080}:8080"
+    environment:
+      APP_ENV: development
+      SERVER_PORT: "8080"
+      DB_HOST: financial-wallet-db
+      DB_PORT: "5432"
+      DB_USER: ${POSTGRES_USER:-user}
+      DB_PASSWORD: ${POSTGRES_PASSWORD:-password}
+      DB_NAME: ${POSTGRES_DB:-users}
+      DB_SSLMODE: disable
+      REDIS_URL: redis://financial-wallet-redis:6379
+      REDIS_ENABLED: "true"
+      SWAGGER_ENABLED: "true"
+      SERVICE_KEYS: ""
+      OTEL_SERVICE_NAME: financial-wallet
+      OTEL_COLLECTOR_URL: otel-collector:4317
+      OTEL_INSECURE: "true"
+    depends_on:
+      financial-wallet-migrate:
+        condition: service_completed_successfully
+      financial-wallet-redis:
+        condition: service_healthy
+    restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          cpus: "0.5"
+          memory: 256M
+    profiles:
+      - api
+
+volumes:
+  financial-wallet-db-data:
+    name: financial-wallet-db-data
+  financial-wallet-redis-data:
+    name: financial-wallet-redis-data
+
+networks:
+  default:
+    name: financial-wallet-network

@@ -1,0 +1,85 @@
+# OpenTelemetry Collector Configuration
+# Recebe traces/metrics da API e exporta para Elasticsearch
+
+receivers:
+  otlp:
+    protocols:
+      grpc:
+        endpoint: 0.0.0.0:4317
+      http:
+        endpoint: 0.0.0.0:4318
+
+processors:
+  batch:
+    timeout: 1s
+    send_batch_size: 1024
+
+  memory_limiter:
+    check_interval: 1s
+    limit_mib: 512
+    spike_limit_mib: 128
+
+  resource:
+    attributes:
+      - key: environment
+        value: development
+        action: insert
+
+exporters:
+  # Elasticsearch para traces e logs (ECS mapping)
+  elasticsearch:
+    endpoints: ["http://elasticsearch:9200"]
+    traces_index: otel-traces
+    logs_index: otel-logs
+    mapping:
+      mode: ecs
+
+  # Elasticsearch para métricas (mode: none — ECS não suporta métricas, OTel requer data streams)
+  elasticsearch/metrics:
+    endpoints: ["http://elasticsearch:9200"]
+    metrics_index: otel-metrics
+    mapping:
+      mode: none
+
+  # Debug/logging local
+  debug:
+    verbosity: detailed
+    sampling_initial: 5
+    sampling_thereafter: 200
+
+  # Prometheus metrics (opcional)
+  prometheus:
+    endpoint: "0.0.0.0:8889"
+    namespace: financial_service
+
+extensions:
+  health_check:
+    endpoint: 0.0.0.0:13133
+  
+  zpages:
+    endpoint: 0.0.0.0:55679
+
+service:
+  extensions: [health_check, zpages]
+  
+  pipelines:
+    traces:
+      receivers: [otlp]
+      processors: [memory_limiter, batch, resource]
+      exporters: [elasticsearch, debug]
+
+    metrics:
+      receivers: [otlp]
+      processors: [memory_limiter, batch]
+      exporters: [elasticsearch/metrics, prometheus, debug]
+
+    logs:
+      receivers: [otlp]
+      processors: [memory_limiter, batch]
+      exporters: [elasticsearch, debug]
+
+  telemetry:
+    logs:
+      level: info
+    metrics:
+      address: 0.0.0.0:8888

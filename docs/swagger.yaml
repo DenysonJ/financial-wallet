@@ -1,0 +1,652 @@
+definitions:
+  github_com_DenysonJ_financial-wallet_internal_usecases_auth_dto.LoginInput:
+    properties:
+      email:
+        description: Email do usuário
+        type: string
+      password:
+        description: Senha em texto plano
+        type: string
+    required:
+    - email
+    - password
+    type: object
+  github_com_DenysonJ_financial-wallet_internal_usecases_auth_dto.LoginOutput:
+    properties:
+      access_token:
+        description: JWT access token (curta duração)
+        type: string
+      refresh_token:
+        description: JWT refresh token (longa duração)
+        type: string
+    type: object
+  github_com_DenysonJ_financial-wallet_internal_usecases_auth_dto.RefreshInput:
+    properties:
+      refresh_token:
+        description: Refresh token atual
+        type: string
+    required:
+    - refresh_token
+    type: object
+  github_com_DenysonJ_financial-wallet_internal_usecases_auth_dto.RefreshOutput:
+    properties:
+      access_token:
+        description: Novo JWT access token
+        type: string
+      refresh_token:
+        description: Novo JWT refresh token
+        type: string
+    type: object
+  github_com_DenysonJ_financial-wallet_internal_usecases_role_dto.CreateInput:
+    properties:
+      description:
+        description: Descricao da role
+        maxLength: 500
+        type: string
+      name:
+        description: Nome da role
+        maxLength: 100
+        type: string
+    required:
+    - name
+    type: object
+  github_com_DenysonJ_financial-wallet_internal_usecases_role_dto.CreateOutput:
+    properties:
+      created_at:
+        description: Timestamp no formato RFC3339
+        type: string
+      id:
+        description: ID gerado (UUID v7)
+        type: string
+    type: object
+  github_com_DenysonJ_financial-wallet_internal_usecases_role_dto.DeleteOutput:
+    properties:
+      deleted_at:
+        description: Timestamp da delecao
+        type: string
+      id:
+        type: string
+    type: object
+  github_com_DenysonJ_financial-wallet_internal_usecases_role_dto.ListOutput:
+    properties:
+      data:
+        items:
+          $ref: '#/definitions/github_com_DenysonJ_financial-wallet_internal_usecases_role_dto.RoleOutput'
+        type: array
+      pagination:
+        $ref: '#/definitions/github_com_DenysonJ_financial-wallet_internal_usecases_role_dto.PaginationOutput'
+    type: object
+  github_com_DenysonJ_financial-wallet_internal_usecases_role_dto.PaginationOutput:
+    properties:
+      limit:
+        type: integer
+      page:
+        type: integer
+      total:
+        type: integer
+      total_pages:
+        type: integer
+    type: object
+  github_com_DenysonJ_financial-wallet_internal_usecases_role_dto.RoleOutput:
+    properties:
+      created_at:
+        type: string
+      description:
+        type: string
+      id:
+        type: string
+      name:
+        type: string
+      updated_at:
+        type: string
+    type: object
+  github_com_DenysonJ_financial-wallet_internal_usecases_user_dto.ChangePasswordInput:
+    properties:
+      current_password:
+        description: Senha atual
+        type: string
+      new_password:
+        description: Nova senha
+        type: string
+      new_password_confirmation:
+        description: Confirmação da nova senha
+        type: string
+    required:
+    - current_password
+    - new_password
+    - new_password_confirmation
+    type: object
+  github_com_DenysonJ_financial-wallet_internal_usecases_user_dto.CreateInput:
+    properties:
+      email:
+        description: Email (validado via binding + UseCase)
+        maxLength: 255
+        type: string
+      name:
+        description: Nome do user
+        maxLength: 255
+        type: string
+    required:
+    - email
+    - name
+    type: object
+  github_com_DenysonJ_financial-wallet_internal_usecases_user_dto.CreateOutput:
+    properties:
+      created_at:
+        description: Timestamp no formato RFC3339
+        type: string
+      id:
+        description: ID gerado (UUID v7)
+        type: string
+    type: object
+  github_com_DenysonJ_financial-wallet_internal_usecases_user_dto.DeleteOutput:
+    properties:
+      deleted_at:
+        description: Timestamp da deleção
+        type: string
+      id:
+        type: string
+    type: object
+  github_com_DenysonJ_financial-wallet_internal_usecases_user_dto.GetOutput:
+    properties:
+      active:
+        type: boolean
+      created_at:
+        type: string
+      email:
+        type: string
+      id:
+        type: string
+      name:
+        type: string
+      updated_at:
+        type: string
+    type: object
+  github_com_DenysonJ_financial-wallet_internal_usecases_user_dto.ListOutput:
+    properties:
+      data:
+        items:
+          $ref: '#/definitions/github_com_DenysonJ_financial-wallet_internal_usecases_user_dto.GetOutput'
+        type: array
+      pagination:
+        $ref: '#/definitions/github_com_DenysonJ_financial-wallet_internal_usecases_user_dto.PaginationOutput'
+    type: object
+  github_com_DenysonJ_financial-wallet_internal_usecases_user_dto.PaginationOutput:
+    properties:
+      limit:
+        type: integer
+      page:
+        type: integer
+      total:
+        type: integer
+      total_pages:
+        type: integer
+    type: object
+  github_com_DenysonJ_financial-wallet_internal_usecases_user_dto.SetPasswordInput:
+    properties:
+      password:
+        description: Senha em texto plano
+        type: string
+      password_confirmation:
+        description: Confirmação da senha
+        type: string
+    required:
+    - password
+    - password_confirmation
+    type: object
+  github_com_DenysonJ_financial-wallet_internal_usecases_user_dto.UpdateInput:
+    properties:
+      email:
+        description: Email (opcional)
+        maxLength: 255
+        type: string
+      name:
+        description: Nome (opcional)
+        maxLength: 255
+        type: string
+    type: object
+  github_com_DenysonJ_financial-wallet_internal_usecases_user_dto.UpdateOutput:
+    properties:
+      active:
+        type: boolean
+      email:
+        type: string
+      id:
+        type: string
+      name:
+        type: string
+      updated_at:
+        type: string
+    type: object
+  internal_infrastructure_web_handler.ErrorResponse:
+    properties:
+      errors:
+        properties:
+          message:
+            example: error description
+            type: string
+        type: object
+    type: object
+info:
+  contact: {}
+paths:
+  /auth/login:
+    post:
+      consumes:
+      - application/json
+      description: Authenticate with email and password, returns JWT tokens
+      parameters:
+      - description: Login credentials
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/github_com_DenysonJ_financial-wallet_internal_usecases_auth_dto.LoginInput'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/github_com_DenysonJ_financial-wallet_internal_usecases_auth_dto.LoginOutput'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/internal_infrastructure_web_handler.ErrorResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/internal_infrastructure_web_handler.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/internal_infrastructure_web_handler.ErrorResponse'
+      summary: User login
+      tags:
+      - auth
+  /auth/refresh:
+    post:
+      consumes:
+      - application/json
+      description: Exchange a valid refresh token for a new token pair
+      parameters:
+      - description: Refresh token
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/github_com_DenysonJ_financial-wallet_internal_usecases_auth_dto.RefreshInput'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/github_com_DenysonJ_financial-wallet_internal_usecases_auth_dto.RefreshOutput'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/internal_infrastructure_web_handler.ErrorResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/internal_infrastructure_web_handler.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/internal_infrastructure_web_handler.ErrorResponse'
+      summary: Refresh tokens
+      tags:
+      - auth
+  /roles:
+    get:
+      description: Get a paginated list of roles
+      parameters:
+      - description: Page number
+        in: query
+        name: page
+        type: integer
+      - description: Items per page
+        in: query
+        name: limit
+        type: integer
+      - description: Filter by name
+        in: query
+        name: name
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/github_com_DenysonJ_financial-wallet_internal_usecases_role_dto.ListOutput'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/internal_infrastructure_web_handler.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/internal_infrastructure_web_handler.ErrorResponse'
+      security:
+      - ServiceName: []
+      - ServiceKey: []
+      summary: List roles
+      tags:
+      - roles
+    post:
+      consumes:
+      - application/json
+      description: Create a new role with the input payload
+      parameters:
+      - description: Role info
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/github_com_DenysonJ_financial-wallet_internal_usecases_role_dto.CreateInput'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            $ref: '#/definitions/github_com_DenysonJ_financial-wallet_internal_usecases_role_dto.CreateOutput'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/internal_infrastructure_web_handler.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/internal_infrastructure_web_handler.ErrorResponse'
+      security:
+      - ServiceName: []
+      - ServiceKey: []
+      summary: Create a new role
+      tags:
+      - roles
+  /roles/{id}:
+    delete:
+      description: Delete a role by ID
+      parameters:
+      - description: Role ID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/github_com_DenysonJ_financial-wallet_internal_usecases_role_dto.DeleteOutput'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/internal_infrastructure_web_handler.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/internal_infrastructure_web_handler.ErrorResponse'
+      security:
+      - ServiceName: []
+      - ServiceKey: []
+      summary: Delete a role
+      tags:
+      - roles
+  /users:
+    get:
+      description: Get a paginated list of users
+      parameters:
+      - description: Page number
+        in: query
+        name: page
+        type: integer
+      - description: Items per page
+        in: query
+        name: limit
+        type: integer
+      - description: Filter by name
+        in: query
+        name: name
+        type: string
+      - description: Filter by email
+        in: query
+        name: email
+        type: string
+      - description: Filter by active status
+        in: query
+        name: active
+        type: boolean
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/github_com_DenysonJ_financial-wallet_internal_usecases_user_dto.ListOutput'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/internal_infrastructure_web_handler.ErrorResponse'
+      security:
+      - ServiceName: []
+      - ServiceKey: []
+      summary: List users
+      tags:
+      - users
+    post:
+      consumes:
+      - application/json
+      description: Create a new user with the input payload
+      parameters:
+      - description: User info
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/github_com_DenysonJ_financial-wallet_internal_usecases_user_dto.CreateInput'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            $ref: '#/definitions/github_com_DenysonJ_financial-wallet_internal_usecases_user_dto.CreateOutput'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/internal_infrastructure_web_handler.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/internal_infrastructure_web_handler.ErrorResponse'
+      security:
+      - ServiceName: []
+      - ServiceKey: []
+      summary: Create a new user
+      tags:
+      - users
+  /users/{id}:
+    delete:
+      description: Soft delete a user by ID
+      parameters:
+      - description: User ID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/github_com_DenysonJ_financial-wallet_internal_usecases_user_dto.DeleteOutput'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/internal_infrastructure_web_handler.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/internal_infrastructure_web_handler.ErrorResponse'
+      security:
+      - ServiceName: []
+      - ServiceKey: []
+      summary: Delete a user
+      tags:
+      - users
+    get:
+      description: Get user details by unique ID
+      parameters:
+      - description: User ID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/github_com_DenysonJ_financial-wallet_internal_usecases_user_dto.GetOutput'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/internal_infrastructure_web_handler.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/internal_infrastructure_web_handler.ErrorResponse'
+      security:
+      - ServiceName: []
+      - ServiceKey: []
+      summary: Get a user by ID
+      tags:
+      - users
+    put:
+      consumes:
+      - application/json
+      description: Update user details by ID
+      parameters:
+      - description: User ID
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: Update info
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/github_com_DenysonJ_financial-wallet_internal_usecases_user_dto.UpdateInput'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/github_com_DenysonJ_financial-wallet_internal_usecases_user_dto.UpdateOutput'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/internal_infrastructure_web_handler.ErrorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/internal_infrastructure_web_handler.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/internal_infrastructure_web_handler.ErrorResponse'
+      security:
+      - ServiceName: []
+      - ServiceKey: []
+      summary: Update a user
+      tags:
+      - users
+  /users/password:
+    post:
+      consumes:
+      - application/json
+      description: Set initial password for a user that does not have one yet
+      parameters:
+      - description: Password and confirmation
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/github_com_DenysonJ_financial-wallet_internal_usecases_user_dto.SetPasswordInput'
+      produces:
+      - application/json
+      responses:
+        "204":
+          description: No Content
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/internal_infrastructure_web_handler.ErrorResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/internal_infrastructure_web_handler.ErrorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/internal_infrastructure_web_handler.ErrorResponse'
+        "409":
+          description: Conflict
+          schema:
+            $ref: '#/definitions/internal_infrastructure_web_handler.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/internal_infrastructure_web_handler.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Set user password
+      tags:
+      - users
+    put:
+      consumes:
+      - application/json
+      description: Change password for an authenticated user
+      parameters:
+      - description: Current and new password
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/github_com_DenysonJ_financial-wallet_internal_usecases_user_dto.ChangePasswordInput'
+      produces:
+      - application/json
+      responses:
+        "204":
+          description: No Content
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/internal_infrastructure_web_handler.ErrorResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/internal_infrastructure_web_handler.ErrorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/internal_infrastructure_web_handler.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/internal_infrastructure_web_handler.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Change user password
+      tags:
+      - users
+swagger: "2.0"
