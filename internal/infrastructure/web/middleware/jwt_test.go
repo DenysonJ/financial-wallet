@@ -6,15 +6,17 @@ import (
 	"testing"
 	"time"
 
+	infraauth "github.com/DenysonJ/financial-wallet/internal/infrastructure/auth"
+	"github.com/DenysonJ/financial-wallet/internal/usecases/auth/interfaces"
 	"github.com/DenysonJ/financial-wallet/pkg/jwt"
 	"github.com/gin-gonic/gin"
 	"github.com/stretchr/testify/assert"
 )
 
-func setupJWTTestRouter(jwtService *jwt.Service) *gin.Engine {
+func setupJWTTestRouter(tokenValidator interfaces.TokenService) *gin.Engine {
 	gin.SetMode(gin.TestMode)
 	r := gin.New()
-	r.Use(JWTAuth(jwtService))
+	r.Use(JWTAuth(tokenValidator))
 	r.GET("/protected", func(c *gin.Context) {
 		userID, _ := c.Get("user_id")
 		c.JSON(http.StatusOK, gin.H{"user_id": userID})
@@ -22,9 +24,14 @@ func setupJWTTestRouter(jwtService *jwt.Service) *gin.Engine {
 	return r
 }
 
-func TestJWTAuth_ValidAccessToken(t *testing.T) {
+func newTestTokenAdapter() (*jwt.Service, interfaces.TokenService) {
 	svc := jwt.NewService("test-secret-32chars-long!!", 15*time.Minute, 7*24*time.Hour)
-	r := setupJWTTestRouter(svc)
+	return svc, infraauth.NewJWTTokenAdapter(svc)
+}
+
+func TestJWTAuth_ValidAccessToken(t *testing.T) {
+	svc, adapter := newTestTokenAdapter()
+	r := setupJWTTestRouter(adapter)
 
 	token, _ := svc.GenerateAccessToken("user-123")
 
@@ -38,8 +45,8 @@ func TestJWTAuth_ValidAccessToken(t *testing.T) {
 }
 
 func TestJWTAuth_MissingHeader(t *testing.T) {
-	svc := jwt.NewService("test-secret-32chars-long!!", 15*time.Minute, 7*24*time.Hour)
-	r := setupJWTTestRouter(svc)
+	_, adapter := newTestTokenAdapter()
+	r := setupJWTTestRouter(adapter)
 
 	req := httptest.NewRequest(http.MethodGet, "/protected", nil)
 	w := httptest.NewRecorder()
@@ -49,8 +56,8 @@ func TestJWTAuth_MissingHeader(t *testing.T) {
 }
 
 func TestJWTAuth_InvalidToken(t *testing.T) {
-	svc := jwt.NewService("test-secret-32chars-long!!", 15*time.Minute, 7*24*time.Hour)
-	r := setupJWTTestRouter(svc)
+	_, adapter := newTestTokenAdapter()
+	r := setupJWTTestRouter(adapter)
 
 	req := httptest.NewRequest(http.MethodGet, "/protected", nil)
 	req.Header.Set("Authorization", "Bearer invalid-token")
@@ -61,10 +68,11 @@ func TestJWTAuth_InvalidToken(t *testing.T) {
 }
 
 func TestJWTAuth_ExpiredToken(t *testing.T) {
-	svc := jwt.NewService("test-secret-32chars-long!!", 1*time.Millisecond, 7*24*time.Hour)
-	r := setupJWTTestRouter(svc)
+	expiredSvc := jwt.NewService("test-secret-32chars-long!!", 1*time.Millisecond, 7*24*time.Hour)
+	expiredAdapter := infraauth.NewJWTTokenAdapter(expiredSvc)
+	r := setupJWTTestRouter(expiredAdapter)
 
-	token, _ := svc.GenerateAccessToken("user-123")
+	token, _ := expiredSvc.GenerateAccessToken("user-123")
 	time.Sleep(10 * time.Millisecond)
 
 	req := httptest.NewRequest(http.MethodGet, "/protected", nil)
@@ -76,8 +84,8 @@ func TestJWTAuth_ExpiredToken(t *testing.T) {
 }
 
 func TestJWTAuth_RefreshTokenRejected(t *testing.T) {
-	svc := jwt.NewService("test-secret-32chars-long!!", 15*time.Minute, 7*24*time.Hour)
-	r := setupJWTTestRouter(svc)
+	svc, adapter := newTestTokenAdapter()
+	r := setupJWTTestRouter(adapter)
 
 	// Generate refresh token (should be rejected by middleware)
 	token, _ := svc.GenerateRefreshToken("user-123")
@@ -91,8 +99,8 @@ func TestJWTAuth_RefreshTokenRejected(t *testing.T) {
 }
 
 func TestJWTAuth_MalformedHeader(t *testing.T) {
-	svc := jwt.NewService("test-secret-32chars-long!!", 15*time.Minute, 7*24*time.Hour)
-	r := setupJWTTestRouter(svc)
+	_, adapter := newTestTokenAdapter()
+	r := setupJWTTestRouter(adapter)
 
 	req := httptest.NewRequest(http.MethodGet, "/protected", nil)
 	req.Header.Set("Authorization", "NotBearer token")

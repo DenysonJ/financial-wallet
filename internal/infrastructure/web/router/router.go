@@ -11,10 +11,10 @@ import (
 
 	"github.com/DenysonJ/financial-wallet/internal/infrastructure/web/handler"
 	"github.com/DenysonJ/financial-wallet/internal/infrastructure/web/middleware"
+	"github.com/DenysonJ/financial-wallet/internal/usecases/auth/interfaces"
 	"github.com/DenysonJ/financial-wallet/pkg/health"
 	"github.com/DenysonJ/financial-wallet/pkg/httputil/httpgin"
 	"github.com/DenysonJ/financial-wallet/pkg/idempotency"
-	"github.com/DenysonJ/financial-wallet/pkg/jwt"
 	"github.com/DenysonJ/financial-wallet/pkg/ratelimit"
 	"github.com/DenysonJ/financial-wallet/pkg/telemetry"
 )
@@ -40,7 +40,7 @@ type Dependencies struct {
 	RoleHandler      *handler.RoleHandler
 	AuthHandler      *handler.AuthHandler
 	PasswordHandler  *handler.PasswordHandler
-	JWTService       *jwt.Service
+	JWTService       interfaces.TokenService
 	HTTPMetrics      *telemetry.HTTPMetrics
 	IdempotencyStore idempotency.Store
 	RateLimitStore   ratelimit.Store

@@ -4,8 +4,8 @@ import (
 	"net/http"
 	"strings"
 
+	"github.com/DenysonJ/financial-wallet/internal/usecases/auth/interfaces"
 	"github.com/DenysonJ/financial-wallet/pkg/httputil/httpgin"
-	"github.com/DenysonJ/financial-wallet/pkg/jwt"
 	"github.com/gin-gonic/gin"
 )
 
@@ -16,7 +16,7 @@ import (
 //   - Valida assinatura, expiração e tipo (deve ser "access")
 //   - Salva user_id no contexto Gin para uso downstream
 //   - Retorna 401 se o token é inválido, ausente ou expirado
-func JWTAuth(jwtService *jwt.Service) gin.HandlerFunc {
+func JWTAuth(tokenValidator interfaces.TokenService) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		authHeader := c.GetHeader("Authorization")
 		if authHeader == "" {
@@ -34,14 +34,14 @@ func JWTAuth(jwtService *jwt.Service) gin.HandlerFunc {
 
 		tokenString := parts[1]
 
-		claims, validateErr := jwtService.ValidateToken(tokenString)
+		claims, validateErr := tokenValidator.ValidateToken(tokenString)
 		if validateErr != nil {
 			httpgin.SendError(c, http.StatusUnauthorized, "unauthorized")
 			c.Abort()
 			return
 		}
 
-		if claims.TokenType != jwt.TokenTypeAccess {
+		if claims.TokenType != interfaces.TokenTypeAccess {
 			httpgin.SendError(c, http.StatusUnauthorized, "unauthorized")
 			c.Abort()
 			return

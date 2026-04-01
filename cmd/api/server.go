@@ -257,8 +257,9 @@ func buildDependencies(cluster *database.DBCluster, sqlxWriter, sqlxReader *sqlx
 
 	// --- Auth Use Cases (optional — only when JWT is enabled) ---
 	var authHandler *handler.AuthHandler
+	var tokenAdapter *infraauth.JWTTokenAdapter
 	if jwtService != nil {
-		tokenAdapter := infraauth.NewJWTTokenAdapter(jwtService)
+		tokenAdapter = infraauth.NewJWTTokenAdapter(jwtService)
 		loginUC := authuc.NewLoginUseCase(repo, tokenAdapter)
 		refreshUC := authuc.NewRefreshUseCase(tokenAdapter)
 		authHandler = handler.NewAuthHandler(loginUC, refreshUC)
@@ -280,7 +281,7 @@ func buildDependencies(cluster *database.DBCluster, sqlxWriter, sqlxReader *sqlx
 		RoleHandler:      roleHandler,
 		AuthHandler:      authHandler,
 		PasswordHandler:  passwordHandler,
-		JWTService:       jwtService,
+		JWTService:       tokenAdapter,
 		HTTPMetrics:      httpMetrics,
 		IdempotencyStore: idempotencyStore,
 		RateLimitStore:   rateLimitStore,
