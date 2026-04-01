@@ -12,133 +12,101 @@ import (
 	"github.com/stretchr/testify/mock"
 )
 
-func TestSetPasswordUseCase_Execute_Success(t *testing.T) {
-	mockRepo := new(MockRepository)
-	userID := vo.NewID()
-	existingUser := &userdomain.User{
-		ID:           userID,
-		Name:         "Test User",
-		Email:        vo.ParseEmail("test@example.com"),
-		PasswordHash: "", // no password set
-		Active:       true,
-		CreatedAt:    time.Now(),
-		UpdatedAt:    time.Now(),
+func TestSetPasswordUseCase_Execute(t *testing.T) {
+	makeUser := func(id vo.ID, passwordHash string) *userdomain.User {
+		return &userdomain.User{
+			ID:           id,
+			Name:         "Test User",
+			Email:        vo.ParseEmail("test@example.com"),
+			PasswordHash: passwordHash,
+			Active:       true,
+			CreatedAt:    time.Now(),
+			UpdatedAt:    time.Now(),
+		}
 	}
 
-	mockRepo.On("FindByID", mock.Anything, userID).Return(existingUser, nil)
-	mockRepo.On("UpdatePassword", mock.Anything, userID, mock.AnythingOfType("string")).Return(nil)
-
-	uc := NewSetPasswordUseCase(mockRepo).WithBcryptCost(4)
-	input := dto.SetPasswordInput{
-		UserID:               userID.String(),
-		Password:             "Str0ng!Pass",
-		PasswordConfirmation: "Str0ng!Pass",
+	tests := []struct {
+		name       string
+		setupMock  func(repo *MockRepository, userID vo.ID)
+		password   string
+		confirm    string
+		wantErr    error
+		wantUpdate bool
+	}{
+		{
+			name: "success",
+			setupMock: func(repo *MockRepository, userID vo.ID) {
+				repo.On("FindByID", mock.Anything, userID).Return(makeUser(userID, ""), nil)
+				repo.On("UpdatePassword", mock.Anything, userID, mock.AnythingOfType("string")).Return(nil)
+			},
+			password:   "Str0ng!Pass",
+			confirm:    "Str0ng!Pass",
+			wantErr:    nil,
+			wantUpdate: true,
+		},
+		{
+			name: "password already set",
+			setupMock: func(repo *MockRepository, userID vo.ID) {
+				repo.On("FindByID", mock.Anything, userID).Return(makeUser(userID, "$2a$12$existinghash"), nil)
+			},
+			password: "Str0ng!Pass",
+			confirm:  "Str0ng!Pass",
+			wantErr:  userdomain.ErrPasswordAlreadySet,
+		},
+		{
+			name: "password mismatch",
+			setupMock: func(repo *MockRepository, userID vo.ID) {
+				repo.On("FindByID", mock.Anything, userID).Return(makeUser(userID, ""), nil)
+			},
+			password: "Str0ng!Pass",
+			confirm:  "Different1!",
+			wantErr:  userdomain.ErrPasswordMismatch,
+		},
+		{
+			name: "password too short",
+			setupMock: func(repo *MockRepository, userID vo.ID) {
+				repo.On("FindByID", mock.Anything, userID).Return(makeUser(userID, ""), nil)
+			},
+			password: "Ab1!",
+			confirm:  "Ab1!",
+			wantErr:  vo.ErrPasswordTooShort,
+		},
+		{
+			name: "user not found",
+			setupMock: func(repo *MockRepository, userID vo.ID) {
+				repo.On("FindByID", mock.Anything, userID).Return(nil, userdomain.ErrUserNotFound)
+			},
+			password: "Str0ng!Pass",
+			confirm:  "Str0ng!Pass",
+			wantErr:  userdomain.ErrUserNotFound,
+		},
 	}
 
-	execErr := uc.Execute(context.Background(), input)
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			mockRepo := new(MockRepository)
+			userID := vo.NewID()
+			tt.setupMock(mockRepo, userID)
 
-	assert.NoError(t, execErr)
-	mockRepo.AssertExpectations(t)
-}
+			uc := NewSetPasswordUseCase(mockRepo).WithBcryptCost(4)
+			input := dto.SetPasswordInput{
+				UserID:               userID.String(),
+				Password:             tt.password,
+				PasswordConfirmation: tt.confirm,
+			}
 
-func TestSetPasswordUseCase_Execute_PasswordAlreadySet(t *testing.T) {
-	mockRepo := new(MockRepository)
-	userID := vo.NewID()
-	existingUser := &userdomain.User{
-		ID:           userID,
-		Name:         "Test User",
-		Email:        vo.ParseEmail("test@example.com"),
-		PasswordHash: "$2a$12$existinghash",
-		Active:       true,
-		CreatedAt:    time.Now(),
-		UpdatedAt:    time.Now(),
+			execErr := uc.Execute(context.Background(), input)
+
+			if tt.wantErr != nil {
+				assert.ErrorIs(t, execErr, tt.wantErr)
+			} else {
+				assert.NoError(t, execErr)
+			}
+
+			if !tt.wantUpdate {
+				mockRepo.AssertNotCalled(t, "UpdatePassword")
+			}
+			mockRepo.AssertExpectations(t)
+		})
 	}
-
-	mockRepo.On("FindByID", mock.Anything, userID).Return(existingUser, nil)
-
-	uc := NewSetPasswordUseCase(mockRepo).WithBcryptCost(4)
-	input := dto.SetPasswordInput{
-		UserID:               userID.String(),
-		Password:             "Str0ng!Pass",
-		PasswordConfirmation: "Str0ng!Pass",
-	}
-
-	execErr := uc.Execute(context.Background(), input)
-
-	assert.ErrorIs(t, execErr, userdomain.ErrPasswordAlreadySet)
-	mockRepo.AssertNotCalled(t, "UpdatePassword")
-}
-
-func TestSetPasswordUseCase_Execute_PasswordMismatch(t *testing.T) {
-	mockRepo := new(MockRepository)
-	userID := vo.NewID()
-	existingUser := &userdomain.User{
-		ID:           userID,
-		Name:         "Test User",
-		Email:        vo.ParseEmail("test@example.com"),
-		PasswordHash: "",
-		Active:       true,
-		CreatedAt:    time.Now(),
-		UpdatedAt:    time.Now(),
-	}
-
-	mockRepo.On("FindByID", mock.Anything, userID).Return(existingUser, nil)
-
-	uc := NewSetPasswordUseCase(mockRepo).WithBcryptCost(4)
-	input := dto.SetPasswordInput{
-		UserID:               userID.String(),
-		Password:             "Str0ng!Pass",
-		PasswordConfirmation: "Different1!",
-	}
-
-	execErr := uc.Execute(context.Background(), input)
-
-	assert.ErrorIs(t, execErr, userdomain.ErrPasswordMismatch)
-	mockRepo.AssertNotCalled(t, "UpdatePassword")
-}
-
-func TestSetPasswordUseCase_Execute_PasswordTooShort(t *testing.T) {
-	mockRepo := new(MockRepository)
-	userID := vo.NewID()
-	existingUser := &userdomain.User{
-		ID:           userID,
-		Name:         "Test User",
-		Email:        vo.ParseEmail("test@example.com"),
-		PasswordHash: "",
-		Active:       true,
-		CreatedAt:    time.Now(),
-		UpdatedAt:    time.Now(),
-	}
-
-	mockRepo.On("FindByID", mock.Anything, userID).Return(existingUser, nil)
-
-	uc := NewSetPasswordUseCase(mockRepo).WithBcryptCost(4)
-	input := dto.SetPasswordInput{
-		UserID:               userID.String(),
-		Password:             "Ab1!",
-		PasswordConfirmation: "Ab1!",
-	}
-
-	execErr := uc.Execute(context.Background(), input)
-
-	assert.ErrorIs(t, execErr, vo.ErrPasswordTooShort)
-	mockRepo.AssertNotCalled(t, "UpdatePassword")
-}
-
-func TestSetPasswordUseCase_Execute_UserNotFound(t *testing.T) {
-	mockRepo := new(MockRepository)
-	userID := vo.NewID()
-
-	mockRepo.On("FindByID", mock.Anything, userID).Return(nil, userdomain.ErrUserNotFound)
-
-	uc := NewSetPasswordUseCase(mockRepo).WithBcryptCost(4)
-	input := dto.SetPasswordInput{
-		UserID:               userID.String(),
-		Password:             "Str0ng!Pass",
-		PasswordConfirmation: "Str0ng!Pass",
-	}
-
-	execErr := uc.Execute(context.Background(), input)
-
-	assert.ErrorIs(t, execErr, userdomain.ErrUserNotFound)
 }

@@ -27,108 +27,107 @@ func makeUserWithPassword(t *testing.T) *userdomain.User {
 	}
 }
 
-func TestLoginUseCase_Execute_Success(t *testing.T) {
-	mockRepo := new(MockUserRepository)
-	mockToken := new(MockTokenService)
-	user := makeUserWithPassword(t)
+func TestLoginUseCase_Execute(t *testing.T) {
+	tests := []struct {
+		name       string
+		setupMock  func(repo *MockUserRepository, token *MockTokenService, user *userdomain.User)
+		mutateUser func(user *userdomain.User)
+		email      string
+		password   string
+		wantErr    error
+		wantTokens bool
+	}{
+		{
+			name: "success",
+			setupMock: func(repo *MockUserRepository, token *MockTokenService, user *userdomain.User) {
+				repo.On("FindByEmail", mock.Anything, mock.Anything).Return(user, nil)
+				token.On("GenerateAccessToken", user.ID.String()).Return("access-token", nil)
+				token.On("GenerateRefreshToken", user.ID.String()).Return("refresh-token", nil)
+			},
+			email:      "test@example.com",
+			password:   "Str0ng!Pass",
+			wantTokens: true,
+		},
+		{
+			name: "user not found",
+			setupMock: func(repo *MockUserRepository, token *MockTokenService, _ *userdomain.User) {
+				repo.On("FindByEmail", mock.Anything, mock.Anything).Return(nil, userdomain.ErrUserNotFound)
+			},
+			email:    "notfound@example.com",
+			password: "Str0ng!Pass",
+			wantErr:  userdomain.ErrInvalidCredentials,
+		},
+		{
+			name: "wrong password",
+			setupMock: func(repo *MockUserRepository, _ *MockTokenService, user *userdomain.User) {
+				repo.On("FindByEmail", mock.Anything, mock.Anything).Return(user, nil)
+			},
+			email:    "test@example.com",
+			password: "WrongPass1!",
+			wantErr:  userdomain.ErrInvalidCredentials,
+		},
+		{
+			name: "inactive user",
+			setupMock: func(repo *MockUserRepository, _ *MockTokenService, user *userdomain.User) {
+				repo.On("FindByEmail", mock.Anything, mock.Anything).Return(user, nil)
+			},
+			mutateUser: func(user *userdomain.User) { user.Active = false },
+			email:      "test@example.com",
+			password:   "Str0ng!Pass",
+			wantErr:    userdomain.ErrInvalidCredentials,
+		},
+		{
+			name: "no password set",
+			setupMock: func(repo *MockUserRepository, _ *MockTokenService, user *userdomain.User) {
+				repo.On("FindByEmail", mock.Anything, mock.Anything).Return(user, nil)
+			},
+			mutateUser: func(user *userdomain.User) { user.PasswordHash = "" },
+			email:      "test@example.com",
+			password:   "Str0ng!Pass",
+			wantErr:    userdomain.ErrInvalidCredentials,
+		},
+		{
+			name: "invalid email",
+			setupMock: func(_ *MockUserRepository, _ *MockTokenService, _ *userdomain.User) {
+				// no mock setup needed — validation fails before repo call
+			},
+			email:    "not-an-email",
+			password: "Str0ng!Pass",
+			wantErr:  userdomain.ErrInvalidCredentials,
+		},
+	}
 
-	mockRepo.On("FindByEmail", mock.Anything, mock.Anything).Return(user, nil)
-	mockToken.On("GenerateAccessToken", user.ID.String()).Return("access-token", nil)
-	mockToken.On("GenerateRefreshToken", user.ID.String()).Return("refresh-token", nil)
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			mockRepo := new(MockUserRepository)
+			mockToken := new(MockTokenService)
+			user := makeUserWithPassword(t)
 
-	uc := NewLoginUseCase(mockRepo, mockToken)
-	output, execErr := uc.Execute(context.Background(), dto.LoginInput{
-		Email:    "test@example.com",
-		Password: "Str0ng!Pass",
-	})
+			if tt.mutateUser != nil {
+				tt.mutateUser(user)
+			}
+			tt.setupMock(mockRepo, mockToken, user)
 
-	assert.NoError(t, execErr)
-	assert.Equal(t, "access-token", output.AccessToken)
-	assert.Equal(t, "refresh-token", output.RefreshToken)
-	mockRepo.AssertExpectations(t)
-	mockToken.AssertExpectations(t)
-}
+			uc := NewLoginUseCase(mockRepo, mockToken)
+			output, execErr := uc.Execute(context.Background(), dto.LoginInput{
+				Email:    tt.email,
+				Password: tt.password,
+			})
 
-func TestLoginUseCase_Execute_UserNotFound(t *testing.T) {
-	mockRepo := new(MockUserRepository)
-	mockToken := new(MockTokenService)
+			if tt.wantErr != nil {
+				assert.ErrorIs(t, execErr, tt.wantErr)
+				assert.Nil(t, output)
+			} else {
+				assert.NoError(t, execErr)
+			}
 
-	mockRepo.On("FindByEmail", mock.Anything, mock.Anything).Return(nil, userdomain.ErrUserNotFound)
+			if tt.wantTokens {
+				assert.Equal(t, "access-token", output.AccessToken)
+				assert.Equal(t, "refresh-token", output.RefreshToken)
+			}
 
-	uc := NewLoginUseCase(mockRepo, mockToken)
-	output, execErr := uc.Execute(context.Background(), dto.LoginInput{
-		Email:    "notfound@example.com",
-		Password: "Str0ng!Pass",
-	})
-
-	assert.ErrorIs(t, execErr, userdomain.ErrInvalidCredentials)
-	assert.Nil(t, output)
-}
-
-func TestLoginUseCase_Execute_WrongPassword(t *testing.T) {
-	mockRepo := new(MockUserRepository)
-	mockToken := new(MockTokenService)
-	user := makeUserWithPassword(t)
-
-	mockRepo.On("FindByEmail", mock.Anything, mock.Anything).Return(user, nil)
-
-	uc := NewLoginUseCase(mockRepo, mockToken)
-	output, execErr := uc.Execute(context.Background(), dto.LoginInput{
-		Email:    "test@example.com",
-		Password: "WrongPass1!",
-	})
-
-	assert.ErrorIs(t, execErr, userdomain.ErrInvalidCredentials)
-	assert.Nil(t, output)
-	mockToken.AssertNotCalled(t, "GenerateAccessToken")
-}
-
-func TestLoginUseCase_Execute_InactiveUser(t *testing.T) {
-	mockRepo := new(MockUserRepository)
-	mockToken := new(MockTokenService)
-	user := makeUserWithPassword(t)
-	user.Active = false
-
-	mockRepo.On("FindByEmail", mock.Anything, mock.Anything).Return(user, nil)
-
-	uc := NewLoginUseCase(mockRepo, mockToken)
-	output, execErr := uc.Execute(context.Background(), dto.LoginInput{
-		Email:    "test@example.com",
-		Password: "Str0ng!Pass",
-	})
-
-	assert.ErrorIs(t, execErr, userdomain.ErrInvalidCredentials)
-	assert.Nil(t, output)
-}
-
-func TestLoginUseCase_Execute_NoPasswordSet(t *testing.T) {
-	mockRepo := new(MockUserRepository)
-	mockToken := new(MockTokenService)
-	user := makeUserWithPassword(t)
-	user.PasswordHash = "" // no password
-
-	mockRepo.On("FindByEmail", mock.Anything, mock.Anything).Return(user, nil)
-
-	uc := NewLoginUseCase(mockRepo, mockToken)
-	output, execErr := uc.Execute(context.Background(), dto.LoginInput{
-		Email:    "test@example.com",
-		Password: "Str0ng!Pass",
-	})
-
-	assert.ErrorIs(t, execErr, userdomain.ErrInvalidCredentials)
-	assert.Nil(t, output)
-}
-
-func TestLoginUseCase_Execute_InvalidEmail(t *testing.T) {
-	mockRepo := new(MockUserRepository)
-	mockToken := new(MockTokenService)
-
-	uc := NewLoginUseCase(mockRepo, mockToken)
-	output, execErr := uc.Execute(context.Background(), dto.LoginInput{
-		Email:    "not-an-email",
-		Password: "Str0ng!Pass",
-	})
-
-	assert.ErrorIs(t, execErr, userdomain.ErrInvalidCredentials)
-	assert.Nil(t, output)
+			mockRepo.AssertExpectations(t)
+			mockToken.AssertExpectations(t)
+		})
+	}
 }
