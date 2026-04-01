@@ -29,7 +29,7 @@ func (e Email) Value() (driver.Value, error) {
 
 func (e *Email) Scan(value interface{}) error {
 	if value == nil {
-		return fmt.Errorf("email não pode ser nulo")
+		return fmt.Errorf("email can't be nil")
 	}
 	switch v := value.(type) {
 	case string:
@@ -37,7 +37,7 @@ func (e *Email) Scan(value interface{}) error {
 	case []byte:
 		e.value = string(v)
 	default:
-		return fmt.Errorf("tipo inválido para Email: %T", value)
+		return fmt.Errorf("wrong type for Email: %T", value)
 	}
 	return nil
 }

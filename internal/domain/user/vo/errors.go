@@ -11,7 +11,7 @@ import "errors"
 
 var (
 	// ErrInvalidEmail indica que o email informado não é válido.
-	ErrInvalidEmail = errors.New("email inválido")
+	ErrInvalidEmail = errors.New("invalid email")
 
 	// ErrInvalidID is returned when a string is not a valid UUID v7.
 	ErrInvalidID = errors.New("invalid ID")
