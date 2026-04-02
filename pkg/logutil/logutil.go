@@ -143,6 +143,14 @@ func getStackTrace() string {
 	return sb.String()
 }
 
+// WithContext enriches the context with step, resource, and action for structured logging.
+// Preserves existing LogContext fields (request_id, trace_id, etc.).
+func WithContext(ctx context.Context, step, resource, action string) context.Context {
+	lc, _ := Extract(ctx)
+	lc = lc.WithStep(step).WithResource(resource).WithAction(action)
+	return Inject(ctx, lc)
+}
+
 // LogInfo logs an info message with LogContext attributes from context.
 func LogInfo(ctx context.Context, msg string, extraArgs ...any) {
 	args := contextArgsFromCtx(ctx)

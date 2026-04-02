@@ -5,9 +5,14 @@ import (
 	"math"
 	"time"
 
+	"go.opentelemetry.io/otel"
+	"go.opentelemetry.io/otel/attribute"
+	otelcodes "go.opentelemetry.io/otel/codes"
+
 	userdomain "github.com/DenysonJ/financial-wallet/internal/domain/user"
 	"github.com/DenysonJ/financial-wallet/internal/usecases/user/dto"
 	"github.com/DenysonJ/financial-wallet/internal/usecases/user/interfaces"
+	"github.com/DenysonJ/financial-wallet/pkg/logutil"
 )
 
 // ListUseCase implementa o caso de uso de listar users.
@@ -22,6 +27,16 @@ func NewListUseCase(repo interfaces.Repository) *ListUseCase {
 
 // Execute retorna uma lista paginada de users.
 func (uc *ListUseCase) Execute(ctx context.Context, input dto.ListInput) (*dto.ListOutput, error) {
+	ctx, span := otel.Tracer("usecase").Start(ctx, "UseCase.User.List")
+	defer span.End()
+
+	ctx = injectLogContext(ctx, "user", "list")
+
+	span.SetAttributes(
+		attribute.Int("filter.page", input.Page),
+		attribute.Int("filter.limit", input.Limit),
+	)
+
 	// Converter input para filtro de domínio
 	filter := userdomain.ListFilter{
 		Page:       input.Page,
@@ -32,9 +47,11 @@ func (uc *ListUseCase) Execute(ctx context.Context, input dto.ListInput) (*dto.L
 	}
 
 	// Buscar no repositório
-	result, err := uc.repo.List(ctx, filter)
-	if err != nil {
-		return nil, err
+	result, listErr := uc.repo.List(ctx, filter)
+	if listErr != nil {
+		span.SetStatus(otelcodes.Error, listErr.Error())
+		logutil.LogError(ctx, "user list failed: repository error", "error", listErr.Error())
+		return nil, listErr
 	}
 
 	// Converter para DTOs de saída
@@ -52,6 +69,9 @@ func (uc *ListUseCase) Execute(ctx context.Context, input dto.ListInput) (*dto.L
 
 	// Calculate total pages
 	totalPages := int(math.Ceil(float64(result.Total) / float64(result.Limit)))
+
+	span.SetAttributes(attribute.Int("result.total", result.Total))
+	logutil.LogInfo(ctx, "users listed", "total", result.Total, "page", result.Page)
 
 	return &dto.ListOutput{
 		Data: items,
