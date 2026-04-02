@@ -45,11 +45,12 @@ func RateLimit(cfg RateLimitConfig) gin.HandlerFunc {
 		}
 
 		// Set rate limit headers on every response
-		c.Header("X-RateLimit-Limit", fmt.Sprintf("%d", result.Limit))
-		c.Header("X-RateLimit-Remaining", fmt.Sprintf("%d", result.Remaining))
-		c.Header("X-RateLimit-Reset", fmt.Sprintf("%d", result.ResetAt.Unix()))
+		c.Header("RateLimit-Limit", fmt.Sprintf("%d", result.Limit))
+		c.Header("RateLimit-Remaining", fmt.Sprintf("%d", result.Remaining))
+		c.Header("RateLimit-Reset", fmt.Sprintf("%d", result.ResetAt.Unix()))
 
 		if !result.Allowed {
+			c.Header("Retry-After", fmt.Sprintf("%d", int(time.Until(result.ResetAt).Seconds())))
 			httpgin.SendError(c, http.StatusTooManyRequests, "rate limit exceeded")
 			c.Abort()
 			return

@@ -66,9 +66,9 @@ func TestRateLimit_AllowedRequest(t *testing.T) {
 	r.ServeHTTP(w, req)
 
 	assert.Equal(t, http.StatusOK, w.Code)
-	assert.Equal(t, "100", w.Header().Get("X-RateLimit-Limit"))
-	assert.Equal(t, "99", w.Header().Get("X-RateLimit-Remaining"))
-	assert.NotEmpty(t, w.Header().Get("X-RateLimit-Reset"))
+	assert.Equal(t, "100", w.Header().Get("RateLimit-Limit"))
+	assert.Equal(t, "99", w.Header().Get("RateLimit-Remaining"))
+	assert.NotEmpty(t, w.Header().Get("RateLimit-Reset"))
 }
 
 func TestRateLimit_BlockedRequest(t *testing.T) {
@@ -84,8 +84,8 @@ func TestRateLimit_BlockedRequest(t *testing.T) {
 	r.ServeHTTP(w, req)
 
 	assert.Equal(t, http.StatusTooManyRequests, w.Code)
-	assert.Equal(t, "100", w.Header().Get("X-RateLimit-Limit"))
-	assert.Equal(t, "0", w.Header().Get("X-RateLimit-Remaining"))
+	assert.Equal(t, "100", w.Header().Get("RateLimit-Limit"))
+	assert.Equal(t, "0", w.Header().Get("RateLimit-Remaining"))
 	assert.Contains(t, w.Body.String(), "rate limit exceeded")
 }
 
@@ -103,10 +103,10 @@ func TestRateLimit_HeadersPresentOn429(t *testing.T) {
 	r.ServeHTTP(w, req)
 
 	assert.Equal(t, http.StatusTooManyRequests, w.Code)
-	assert.Equal(t, "10", w.Header().Get("X-RateLimit-Limit"))
-	assert.Equal(t, "0", w.Header().Get("X-RateLimit-Remaining"))
+	assert.Equal(t, "10", w.Header().Get("RateLimit-Limit"))
+	assert.Equal(t, "0", w.Header().Get("RateLimit-Remaining"))
 	// Reset header should be a Unix timestamp
-	assert.NotEmpty(t, w.Header().Get("X-RateLimit-Reset"))
+	assert.NotEmpty(t, w.Header().Get("RateLimit-Reset"))
 }
 
 func TestRateLimit_FailOpen_StoreError(t *testing.T) {
@@ -122,7 +122,7 @@ func TestRateLimit_FailOpen_StoreError(t *testing.T) {
 	// Should pass through (fail-open)
 	assert.Equal(t, http.StatusOK, w.Code)
 	// No rate limit headers when store fails
-	assert.Empty(t, w.Header().Get("X-RateLimit-Limit"))
+	assert.Empty(t, w.Header().Get("RateLimit-Limit"))
 }
 
 func TestRateLimit_MultipleRequests_CountsDown(t *testing.T) {
