@@ -22,7 +22,6 @@ type ErrorResponse struct {
 }
 
 // codeToStatus maps AppError codes to HTTP status codes.
-// This is the single source of truth for error-to-HTTP translation.
 var codeToStatus = map[string]int{
 	apperror.CodeInvalidRequest:  http.StatusBadRequest,
 	apperror.CodeValidationError: http.StatusBadRequest,
@@ -31,6 +30,35 @@ var codeToStatus = map[string]int{
 	apperror.CodeUnauthorized:    http.StatusUnauthorized,
 	apperror.CodeForbidden:       http.StatusForbidden,
 	apperror.CodeInternalError:   http.StatusInternalServerError,
+}
+
+// domainErrorMapping defines how pure domain errors translate to HTTP responses.
+type domainErrorMapping struct {
+	Status  int
+	Code    string
+	Message string
+}
+
+// domainErrors maps domain sentinel errors to their HTTP representation.
+// This is the single source of truth for domain error-to-HTTP translation.
+var domainErrors = []struct {
+	err     error
+	mapping domainErrorMapping
+}{
+	{vo.ErrInvalidEmail, domainErrorMapping{http.StatusBadRequest, apperror.CodeInvalidRequest, "invalid email"}},
+	{vo.ErrInvalidID, domainErrorMapping{http.StatusBadRequest, apperror.CodeInvalidRequest, "invalid ID"}},
+	{vo.ErrPasswordTooShort, domainErrorMapping{http.StatusBadRequest, apperror.CodeValidationError, "password must be at least 8 characters"}},
+	{vo.ErrPasswordNoLetter, domainErrorMapping{http.StatusBadRequest, apperror.CodeValidationError, "password must contain at least one letter"}},
+	{vo.ErrPasswordNoNumber, domainErrorMapping{http.StatusBadRequest, apperror.CodeValidationError, "password must contain at least one number"}},
+	{vo.ErrPasswordNoSpecial, domainErrorMapping{http.StatusBadRequest, apperror.CodeValidationError, "password must contain at least one special character"}},
+	{userdomain.ErrPasswordMismatch, domainErrorMapping{http.StatusBadRequest, apperror.CodeValidationError, "passwords do not match"}},
+	{userdomain.ErrPasswordAlreadySet, domainErrorMapping{http.StatusConflict, apperror.CodeConflict, "password already set"}},
+	{userdomain.ErrInvalidCredentials, domainErrorMapping{http.StatusUnauthorized, apperror.CodeUnauthorized, "invalid credentials"}},
+	{vo.ErrInvalidPassword, domainErrorMapping{http.StatusUnauthorized, apperror.CodeUnauthorized, "invalid password"}},
+	{userdomain.ErrUserInactive, domainErrorMapping{http.StatusUnauthorized, apperror.CodeUnauthorized, "invalid credentials"}},
+	{userdomain.ErrUserNotFound, domainErrorMapping{http.StatusNotFound, apperror.CodeNotFound, "user not found"}},
+	{roledomain.ErrRoleNotFound, domainErrorMapping{http.StatusNotFound, apperror.CodeNotFound, "role not found"}},
+	{roledomain.ErrDuplicateRoleName, domainErrorMapping{http.StatusConflict, apperror.CodeConflict, "role name already exists"}},
 }
 
 // HandleError handles errors in a centralized and consistent way.
@@ -62,39 +90,12 @@ func HandleError(c *gin.Context, span trace.Span, err error) {
 	httpgin.SendError(c, status, message)
 }
 
-// translateError maps domain errors to HTTP status codes.
-// This is the fallback for errors that are not AppError.
+// translateError maps domain errors to HTTP responses by looking up domainErrors.
 func translateError(err error) (status int, code, message string) {
-	switch {
-	case errors.Is(err, vo.ErrInvalidEmail):
-		return http.StatusBadRequest, apperror.CodeInvalidRequest, "invalid email"
-	case errors.Is(err, vo.ErrInvalidID):
-		return http.StatusBadRequest, apperror.CodeInvalidRequest, "invalid ID"
-	case errors.Is(err, vo.ErrPasswordTooShort):
-		return http.StatusBadRequest, apperror.CodeValidationError, err.Error()
-	case errors.Is(err, vo.ErrPasswordNoLetter):
-		return http.StatusBadRequest, apperror.CodeValidationError, err.Error()
-	case errors.Is(err, vo.ErrPasswordNoNumber):
-		return http.StatusBadRequest, apperror.CodeValidationError, err.Error()
-	case errors.Is(err, vo.ErrPasswordNoSpecial):
-		return http.StatusBadRequest, apperror.CodeValidationError, err.Error()
-	case errors.Is(err, userdomain.ErrPasswordMismatch):
-		return http.StatusBadRequest, apperror.CodeValidationError, "passwords do not match"
-	case errors.Is(err, userdomain.ErrPasswordAlreadySet):
-		return http.StatusConflict, apperror.CodeConflict, "password already set"
-	case errors.Is(err, userdomain.ErrInvalidCredentials):
-		return http.StatusUnauthorized, apperror.CodeUnauthorized, "invalid credentials"
-	case errors.Is(err, vo.ErrInvalidPassword):
-		return http.StatusUnauthorized, apperror.CodeUnauthorized, "invalid credentials"
-	case errors.Is(err, userdomain.ErrUserInactive):
-		return http.StatusUnauthorized, apperror.CodeUnauthorized, "invalid credentials"
-	case errors.Is(err, userdomain.ErrUserNotFound):
-		return http.StatusNotFound, apperror.CodeNotFound, "user not found"
-	case errors.Is(err, roledomain.ErrRoleNotFound):
-		return http.StatusNotFound, apperror.CodeNotFound, "role not found"
-	case errors.Is(err, roledomain.ErrDuplicateRoleName):
-		return http.StatusConflict, apperror.CodeConflict, "role name already exists"
-	default:
-		return http.StatusInternalServerError, apperror.CodeInternalError, "internal server error"
+	for _, entry := range domainErrors {
+		if errors.Is(err, entry.err) {
+			return entry.mapping.Status, entry.mapping.Code, entry.mapping.Message
+		}
 	}
+	return http.StatusInternalServerError, apperror.CodeInternalError, "internal server error"
 }
