@@ -12,20 +12,20 @@ import (
 
 // DeleteUseCase implementa o caso de uso de deleção (soft delete) de user.
 type DeleteUseCase struct {
-	Repo  interfaces.Repository
-	Cache interfaces.Cache
+	repo  interfaces.Repository
+	cache interfaces.Cache
 }
 
 // NewDeleteUseCase cria uma nova instância do DeleteUseCase.
 func NewDeleteUseCase(repo interfaces.Repository) *DeleteUseCase {
 	return &DeleteUseCase{
-		Repo: repo,
+		repo: repo,
 	}
 }
 
 // WithCache sets an optional cache for the use case (builder pattern).
-func (uc *DeleteUseCase) WithCache(cache interfaces.Cache) *DeleteUseCase {
-	uc.Cache = cache
+func (uc *DeleteUseCase) WithCache(c interfaces.Cache) *DeleteUseCase {
+	uc.cache = c
 	return uc
 }
 
@@ -43,14 +43,14 @@ func (uc *DeleteUseCase) Execute(ctx context.Context, input dto.DeleteInput) (*d
 	}
 
 	// 2. Realizar soft delete
-	if err := uc.Repo.Delete(ctx, id); err != nil {
+	if err := uc.repo.Delete(ctx, id); err != nil {
 		return nil, err
 	}
 
 	// 3. Invalidar cache
-	if uc.Cache != nil {
+	if uc.cache != nil {
 		cacheKey := "user:" + input.ID
-		if err := uc.Cache.Delete(ctx, cacheKey); err != nil {
+		if err := uc.cache.Delete(ctx, cacheKey); err != nil {
 			slog.Warn("failed to invalidate cache", "key", cacheKey, "error", err)
 		}
 	}

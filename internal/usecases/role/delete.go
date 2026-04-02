@@ -11,13 +11,13 @@ import (
 
 // DeleteUseCase implementa o caso de uso de delecao de role.
 type DeleteUseCase struct {
-	Repo interfaces.Repository
+	repo interfaces.Repository
 }
 
 // NewDeleteUseCase cria uma nova instancia do DeleteUseCase.
 func NewDeleteUseCase(repo interfaces.Repository) *DeleteUseCase {
 	return &DeleteUseCase{
-		Repo: repo,
+		repo: repo,
 	}
 }
 
@@ -34,7 +34,7 @@ func (uc *DeleteUseCase) Execute(ctx context.Context, input dto.DeleteInput) (*d
 	}
 
 	// Deletar role
-	if deleteErr := uc.Repo.Delete(ctx, id); deleteErr != nil {
+	if deleteErr := uc.repo.Delete(ctx, id); deleteErr != nil {
 		return nil, deleteErr
 	}
 

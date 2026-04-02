@@ -11,15 +11,15 @@ import (
 
 // LoginUseCase implementa o caso de uso de login.
 type LoginUseCase struct {
-	Repo  interfaces.UserRepository
-	Token interfaces.TokenService
+	repo  interfaces.UserRepository
+	token interfaces.TokenService
 }
 
 // NewLoginUseCase cria uma nova instância do LoginUseCase.
 func NewLoginUseCase(repo interfaces.UserRepository, token interfaces.TokenService) *LoginUseCase {
 	return &LoginUseCase{
-		Repo:  repo,
-		Token: token,
+		repo:  repo,
+		token: token,
 	}
 }
 
@@ -39,7 +39,7 @@ func (uc *LoginUseCase) Execute(ctx context.Context, input dto.LoginInput) (*dto
 		return nil, userdomain.ErrInvalidCredentials
 	}
 
-	e, findErr := uc.Repo.FindByEmail(ctx, emailVO)
+	e, findErr := uc.repo.FindByEmail(ctx, emailVO)
 	if findErr != nil {
 		return nil, userdomain.ErrInvalidCredentials
 	}
@@ -57,12 +57,12 @@ func (uc *LoginUseCase) Execute(ctx context.Context, input dto.LoginInput) (*dto
 		return nil, userdomain.ErrInvalidCredentials
 	}
 
-	accessToken, accessErr := uc.Token.GenerateAccessToken(e.ID.String())
+	accessToken, accessErr := uc.token.GenerateAccessToken(e.ID.String())
 	if accessErr != nil {
 		return nil, accessErr
 	}
 
-	refreshToken, refreshErr := uc.Token.GenerateRefreshToken(e.ID.String())
+	refreshToken, refreshErr := uc.token.GenerateRefreshToken(e.ID.String())
 	if refreshErr != nil {
 		return nil, refreshErr
 	}

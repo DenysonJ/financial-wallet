@@ -14,27 +14,27 @@ import (
 
 // GetUseCase implementa o caso de uso de buscar user por ID.
 type GetUseCase struct {
-	Repo   interfaces.Repository
-	Cache  interfaces.Cache   // optional, set via WithCache()
-	Flight *cache.FlightGroup // optional, prevents cache stampede
+	repo   interfaces.Repository
+	cache  interfaces.Cache   // optional, set via WithCache()
+	flight *cache.FlightGroup // optional, prevents cache stampede
 }
 
 // NewGetUseCase cria uma nova instância do GetUseCase.
 func NewGetUseCase(repo interfaces.Repository) *GetUseCase {
 	return &GetUseCase{
-		Repo: repo,
+		repo: repo,
 	}
 }
 
 // WithCache sets an optional cache for the use case (builder pattern).
-func (uc *GetUseCase) WithCache(cache interfaces.Cache) *GetUseCase {
-	uc.Cache = cache
+func (uc *GetUseCase) WithCache(c interfaces.Cache) *GetUseCase {
+	uc.cache = c
 	return uc
 }
 
 // WithFlight adds singleflight protection against cache stampede (thundering herd).
 func (uc *GetUseCase) WithFlight(fg *cache.FlightGroup) *GetUseCase {
-	uc.Flight = fg
+	uc.flight = fg
 	return uc
 }
 
@@ -54,9 +54,9 @@ func (uc *GetUseCase) Execute(ctx context.Context, input dto.GetInput) (*dto.Get
 	cacheKey := "user:" + input.ID
 
 	// 1. Tentar cache primeiro
-	if uc.Cache != nil {
+	if uc.cache != nil {
 		var cached dto.GetOutput
-		if cacheErr := uc.Cache.Get(ctx, cacheKey, &cached); cacheErr == nil {
+		if cacheErr := uc.cache.Get(ctx, cacheKey, &cached); cacheErr == nil {
 			slog.Debug("cache hit", "key", cacheKey)
 			return &cached, nil
 		}
@@ -65,9 +65,9 @@ func (uc *GetUseCase) Execute(ctx context.Context, input dto.GetInput) (*dto.Get
 	// 2. Buscar no repositório (cache miss — with singleflight if configured)
 	var e *userdomain.User
 
-	if uc.Flight != nil {
-		val, flightErr, _ := uc.Flight.Do(input.ID, func() (any, error) {
-			return uc.Repo.FindByID(ctx, id)
+	if uc.flight != nil {
+		val, flightErr, _ := uc.flight.Do(input.ID, func() (any, error) {
+			return uc.repo.FindByID(ctx, id)
 		})
 		if flightErr != nil {
 			return nil, flightErr
@@ -75,7 +75,7 @@ func (uc *GetUseCase) Execute(ctx context.Context, input dto.GetInput) (*dto.Get
 		e = val.(*userdomain.User)
 	} else {
 		var findErr error
-		e, findErr = uc.Repo.FindByID(ctx, id)
+		e, findErr = uc.repo.FindByID(ctx, id)
 		if findErr != nil {
 			return nil, findErr
 		}
@@ -92,8 +92,8 @@ func (uc *GetUseCase) Execute(ctx context.Context, input dto.GetInput) (*dto.Get
 	}
 
 	// 4. Armazenar no cache
-	if uc.Cache != nil {
-		if err := uc.Cache.Set(ctx, cacheKey, output); err != nil {
+	if uc.cache != nil {
+		if err := uc.cache.Set(ctx, cacheKey, output); err != nil {
 			slog.Warn("failed to cache user", "key", cacheKey, "error", err)
 		}
 	}

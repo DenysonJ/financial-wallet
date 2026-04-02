@@ -10,13 +10,13 @@ import (
 
 // RefreshUseCase implementa o caso de uso de refresh de token.
 type RefreshUseCase struct {
-	Token interfaces.TokenService
+	token interfaces.TokenService
 }
 
 // NewRefreshUseCase cria uma nova instância do RefreshUseCase.
 func NewRefreshUseCase(token interfaces.TokenService) *RefreshUseCase {
 	return &RefreshUseCase{
-		Token: token,
+		token: token,
 	}
 }
 
@@ -27,7 +27,7 @@ func NewRefreshUseCase(token interfaces.TokenService) *RefreshUseCase {
 //  2. Verificar que o tipo é "refresh"
 //  3. Gerar novo access token e refresh token
 func (uc *RefreshUseCase) Execute(_ context.Context, input dto.RefreshInput) (*dto.RefreshOutput, error) {
-	claims, validateErr := uc.Token.ValidateToken(input.RefreshToken)
+	claims, validateErr := uc.token.ValidateToken(input.RefreshToken)
 	if validateErr != nil {
 		return nil, userdomain.ErrInvalidCredentials
 	}
@@ -36,12 +36,12 @@ func (uc *RefreshUseCase) Execute(_ context.Context, input dto.RefreshInput) (*d
 		return nil, userdomain.ErrInvalidCredentials
 	}
 
-	accessToken, accessErr := uc.Token.GenerateAccessToken(claims.UserID)
+	accessToken, accessErr := uc.token.GenerateAccessToken(claims.UserID)
 	if accessErr != nil {
 		return nil, accessErr
 	}
 
-	refreshToken, refreshErr := uc.Token.GenerateRefreshToken(claims.UserID)
+	refreshToken, refreshErr := uc.token.GenerateRefreshToken(claims.UserID)
 	if refreshErr != nil {
 		return nil, refreshErr
 	}

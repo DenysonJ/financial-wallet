@@ -12,12 +12,12 @@ import (
 
 // CreateUseCase implementa o caso de uso de criação de user.
 type CreateUseCase struct {
-	Repo interfaces.Repository
+	repo interfaces.Repository
 }
 
 // NewCreateUseCase cria uma nova instância do CreateUseCase.
 func NewCreateUseCase(repo interfaces.Repository) *CreateUseCase {
-	return &CreateUseCase{Repo: repo}
+	return &CreateUseCase{repo: repo}
 }
 
 // Execute executa o caso de uso de criação de user.
@@ -38,7 +38,7 @@ func (uc *CreateUseCase) Execute(ctx context.Context, input dto.CreateInput) (*d
 	e := userdomain.NewUser(input.Name, emailVO)
 
 	// PASSO 3: Persistir no banco via Repository
-	if err := uc.Repo.Create(ctx, e); err != nil {
+	if err := uc.repo.Create(ctx, e); err != nil {
 		return nil, err
 	}
 

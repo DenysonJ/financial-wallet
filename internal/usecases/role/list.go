@@ -12,12 +12,12 @@ import (
 
 // ListUseCase implementa o caso de uso de listar roles.
 type ListUseCase struct {
-	Repo interfaces.Repository
+	repo interfaces.Repository
 }
 
 // NewListUseCase cria uma nova instancia do ListUseCase.
 func NewListUseCase(repo interfaces.Repository) *ListUseCase {
-	return &ListUseCase{Repo: repo}
+	return &ListUseCase{repo: repo}
 }
 
 // Execute retorna uma lista paginada de roles.
@@ -30,7 +30,7 @@ func (uc *ListUseCase) Execute(ctx context.Context, input dto.ListInput) (*dto.L
 	}
 
 	// Buscar no repositorio
-	result, listErr := uc.Repo.List(ctx, filter)
+	result, listErr := uc.repo.List(ctx, filter)
 	if listErr != nil {
 		return nil, listErr
 	}

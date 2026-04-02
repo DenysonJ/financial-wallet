@@ -12,12 +12,12 @@ import (
 
 // CreateUseCase implementa o caso de uso de criacao de role.
 type CreateUseCase struct {
-	Repo interfaces.Repository
+	repo interfaces.Repository
 }
 
 // NewCreateUseCase cria uma nova instancia do CreateUseCase.
 func NewCreateUseCase(repo interfaces.Repository) *CreateUseCase {
-	return &CreateUseCase{Repo: repo}
+	return &CreateUseCase{repo: repo}
 }
 
 // Execute executa o caso de uso de criacao de role.
@@ -29,7 +29,7 @@ func NewCreateUseCase(repo interfaces.Repository) *CreateUseCase {
 //  4. Retorna DTO com ID e timestamp
 func (uc *CreateUseCase) Execute(ctx context.Context, input dto.CreateInput) (*dto.CreateOutput, error) {
 	// PASSO 1: Verificar duplicidade de nome
-	existingRole, findErr := uc.Repo.FindByName(ctx, input.Name)
+	existingRole, findErr := uc.repo.FindByName(ctx, input.Name)
 	if findErr != nil && !errors.Is(findErr, roledomain.ErrRoleNotFound) {
 		return nil, findErr
 	}
@@ -41,7 +41,7 @@ func (uc *CreateUseCase) Execute(ctx context.Context, input dto.CreateInput) (*d
 	r := roledomain.NewRole(input.Name, input.Description)
 
 	// PASSO 3: Persistir no banco via Repository
-	if createErr := uc.Repo.Create(ctx, r); createErr != nil {
+	if createErr := uc.repo.Create(ctx, r); createErr != nil {
 		return nil, createErr
 	}
 

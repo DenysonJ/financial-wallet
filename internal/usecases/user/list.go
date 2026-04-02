@@ -12,12 +12,12 @@ import (
 
 // ListUseCase implementa o caso de uso de listar users.
 type ListUseCase struct {
-	Repo interfaces.Repository
+	repo interfaces.Repository
 }
 
 // NewListUseCase cria uma nova instância do ListUseCase.
 func NewListUseCase(repo interfaces.Repository) *ListUseCase {
-	return &ListUseCase{Repo: repo}
+	return &ListUseCase{repo: repo}
 }
 
 // Execute retorna uma lista paginada de users.
@@ -32,7 +32,7 @@ func (uc *ListUseCase) Execute(ctx context.Context, input dto.ListInput) (*dto.L
 	}
 
 	// Buscar no repositório
-	result, err := uc.Repo.List(ctx, filter)
+	result, err := uc.repo.List(ctx, filter)
 	if err != nil {
 		return nil, err
 	}

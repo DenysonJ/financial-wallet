@@ -11,21 +11,21 @@ import (
 
 // ChangePasswordUseCase implementa o caso de uso de alteração de senha.
 type ChangePasswordUseCase struct {
-	Repo       interfaces.Repository
-	BcryptCost int
+	repo       interfaces.Repository
+	bcryptCost int
 }
 
 // NewChangePasswordUseCase cria uma nova instância do ChangePasswordUseCase.
 func NewChangePasswordUseCase(repo interfaces.Repository) *ChangePasswordUseCase {
 	return &ChangePasswordUseCase{
-		Repo:       repo,
-		BcryptCost: vo.DefaultBcryptCost,
+		repo:       repo,
+		bcryptCost: vo.DefaultBcryptCost,
 	}
 }
 
 // WithBcryptCost sets a custom bcrypt cost (builder pattern).
 func (uc *ChangePasswordUseCase) WithBcryptCost(cost int) *ChangePasswordUseCase {
-	uc.BcryptCost = cost
+	uc.bcryptCost = cost
 	return uc
 }
 
@@ -43,7 +43,7 @@ func (uc *ChangePasswordUseCase) Execute(ctx context.Context, input dto.ChangePa
 		return parseErr
 	}
 
-	e, findErr := uc.Repo.FindByID(ctx, id)
+	e, findErr := uc.repo.FindByID(ctx, id)
 	if findErr != nil {
 		return findErr
 	}
@@ -57,12 +57,12 @@ func (uc *ChangePasswordUseCase) Execute(ctx context.Context, input dto.ChangePa
 		return userdomain.ErrPasswordMismatch
 	}
 
-	passwordVO, hashErr := vo.NewPassword(input.NewPassword, uc.BcryptCost)
+	passwordVO, hashErr := vo.NewPassword(input.NewPassword, uc.bcryptCost)
 	if hashErr != nil {
 		return hashErr
 	}
 
-	updateErr := uc.Repo.UpdatePassword(ctx, id, passwordVO.String())
+	updateErr := uc.repo.UpdatePassword(ctx, id, passwordVO.String())
 	if updateErr != nil {
 		return updateErr
 	}

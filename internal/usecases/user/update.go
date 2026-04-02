@@ -12,20 +12,20 @@ import (
 
 // UpdateUseCase implementa o caso de uso de atualização de user.
 type UpdateUseCase struct {
-	Repo  interfaces.Repository
-	Cache interfaces.Cache
+	repo  interfaces.Repository
+	cache interfaces.Cache
 }
 
 // NewUpdateUseCase cria uma nova instância do UpdateUseCase.
 func NewUpdateUseCase(repo interfaces.Repository) *UpdateUseCase {
 	return &UpdateUseCase{
-		Repo: repo,
+		repo: repo,
 	}
 }
 
 // WithCache sets an optional cache for the use case (builder pattern).
-func (uc *UpdateUseCase) WithCache(cache interfaces.Cache) *UpdateUseCase {
-	uc.Cache = cache
+func (uc *UpdateUseCase) WithCache(c interfaces.Cache) *UpdateUseCase {
+	uc.cache = c
 	return uc
 }
 
@@ -44,7 +44,7 @@ func (uc *UpdateUseCase) Execute(ctx context.Context, input dto.UpdateInput) (*d
 	}
 
 	// 1. Buscar user existente
-	e, err := uc.Repo.FindByID(ctx, id)
+	e, err := uc.repo.FindByID(ctx, id)
 	if err != nil {
 		return nil, err
 	}
@@ -63,14 +63,14 @@ func (uc *UpdateUseCase) Execute(ctx context.Context, input dto.UpdateInput) (*d
 	}
 
 	// 3. Persistir alterações
-	if err := uc.Repo.Update(ctx, e); err != nil {
+	if err := uc.repo.Update(ctx, e); err != nil {
 		return nil, err
 	}
 
 	// 4. Invalidar cache
-	if uc.Cache != nil {
+	if uc.cache != nil {
 		cacheKey := "user:" + input.ID
-		if err := uc.Cache.Delete(ctx, cacheKey); err != nil {
+		if err := uc.cache.Delete(ctx, cacheKey); err != nil {
 			slog.Warn("failed to invalidate cache", "key", cacheKey, "error", err)
 		}
 	}
