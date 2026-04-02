@@ -18,7 +18,7 @@ func setupJWTTestRouter(tokenValidator interfaces.TokenService) *gin.Engine {
 	r := gin.New()
 	r.Use(JWTAuth(tokenValidator))
 	r.GET("/protected", func(c *gin.Context) {
-		userID, _ := c.Get("user_id")
+		userID, _ := c.Get(ContextKeyUserID)
 		c.JSON(http.StatusOK, gin.H{"user_id": userID})
 	})
 	return r

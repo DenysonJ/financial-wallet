@@ -3,6 +3,7 @@ package handler
 import (
 	"net/http"
 
+	"github.com/DenysonJ/financial-wallet/internal/infrastructure/web/middleware"
 	useruc "github.com/DenysonJ/financial-wallet/internal/usecases/user"
 	"github.com/DenysonJ/financial-wallet/internal/usecases/user/dto"
 	"github.com/DenysonJ/financial-wallet/pkg/httputil/httpgin"
@@ -91,7 +92,7 @@ func (h *PasswordHandler) ChangePassword(c *gin.Context) {
 	}
 
 	// User ID from JWT context
-	userID, exists := c.Get("user_id")
+	userID, exists := c.Get(middleware.ContextKeyUserID)
 	if !exists {
 		span.SetStatus(codes.Error, "unauthorized")
 		httpgin.SendError(c, http.StatusUnauthorized, "unauthorized")

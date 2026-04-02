@@ -9,6 +9,9 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
+// ContextKeyUserID is the Gin context key where the authenticated user ID is stored.
+const ContextKeyUserID = "user_id"
+
 // JWTAuth retorna um middleware que valida tokens JWT no header Authorization.
 //
 // Comportamento:
@@ -47,7 +50,7 @@ func JWTAuth(tokenValidator interfaces.TokenService) gin.HandlerFunc {
 			return
 		}
 
-		c.Set("user_id", claims.UserID)
+		c.Set(ContextKeyUserID, claims.UserID)
 		c.Next()
 	}
 }
