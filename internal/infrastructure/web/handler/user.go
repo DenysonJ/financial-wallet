@@ -57,14 +57,14 @@ func isServiceKeyRequest(c *gin.Context) bool {
 	return !exists
 }
 
-// isAdmin checks if the JWT user has admin-level permissions (user:delete — only admin has it).
+// isAdmin checks if the JWT user has the "admin" role.
 func isAdmin(c *gin.Context) bool {
-	perms, exists := c.Get("user_permissions")
+	roles, exists := c.Get("user_roles")
 	if !exists {
 		return false
 	}
-	if permSlice, ok := perms.([]string); ok {
-		return slices.Contains(permSlice, "user:delete")
+	if roleSlice, ok := roles.([]string); ok {
+		return slices.Contains(roleSlice, "admin")
 	}
 	return false
 }

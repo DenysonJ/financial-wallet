@@ -14,11 +14,16 @@ import (
 // mockPermissionLoader implements PermissionLoader for tests.
 type mockPermissionLoader struct {
 	permissions []string
+	roles       []string
 	err         error
 }
 
 func (m *mockPermissionLoader) GetPermissions(_ context.Context, _ string) ([]string, error) {
 	return m.permissions, m.err
+}
+
+func (m *mockPermissionLoader) GetRoles(_ context.Context, _ string) ([]string, error) {
+	return m.roles, m.err
 }
 
 // =============================================================================
@@ -31,6 +36,14 @@ type mockPermissionRepo struct {
 }
 
 func (m *mockPermissionRepo) GetUserPermissions(ctx context.Context, userID vo.ID) ([]string, error) {
+	args := m.Called(ctx, userID)
+	if args.Get(0) == nil {
+		return nil, args.Error(1)
+	}
+	return args.Get(0).([]string), args.Error(1)
+}
+
+func (m *mockPermissionRepo) GetUserRoles(ctx context.Context, userID vo.ID) ([]string, error) {
 	args := m.Called(ctx, userID)
 	if args.Get(0) == nil {
 		return nil, args.Error(1)

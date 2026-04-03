@@ -9,9 +9,10 @@ import (
 	"github.com/DenysonJ/financial-wallet/pkg/logutil"
 )
 
-// PermissionRepository defines the contract for loading user permissions from the database.
+// PermissionRepository defines the contract for loading user permissions and roles from the database.
 type PermissionRepository interface {
 	GetUserPermissions(ctx context.Context, userID vo.ID) ([]string, error)
+	GetUserRoles(ctx context.Context, userID vo.ID) ([]string, error)
 }
 
 // CachedPermissionLoader loads permissions with Redis cache and DB fallback.
@@ -56,4 +57,37 @@ func (l *CachedPermissionLoader) GetPermissions(ctx context.Context, userID stri
 	}
 
 	return permissions, nil
+}
+
+// GetRoles returns the user's role names, checking cache first.
+func (l *CachedPermissionLoader) GetRoles(ctx context.Context, userID string) ([]string, error) {
+	cacheKey := "roles:user:" + userID
+
+	// 1. Try cache
+	if l.cache != nil {
+		var cached []string
+		if cacheErr := l.cache.Get(ctx, cacheKey, &cached); cacheErr == nil {
+			return cached, nil
+		}
+	}
+
+	// 2. Fallback to DB
+	id, parseErr := vo.ParseID(userID)
+	if parseErr != nil {
+		return nil, parseErr
+	}
+
+	roles, dbErr := l.repo.GetUserRoles(ctx, id)
+	if dbErr != nil {
+		return nil, dbErr
+	}
+
+	// 3. Cache for next time
+	if l.cache != nil {
+		if setCacheErr := l.cache.Set(ctx, cacheKey, roles); setCacheErr != nil {
+			logutil.LogWarn(ctx, "failed to cache roles", "key", cacheKey, "error", setCacheErr.Error())
+		}
+	}
+
+	return roles, nil
 }

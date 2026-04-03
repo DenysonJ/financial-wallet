@@ -45,4 +45,7 @@ type Repository interface {
 
 	// GetUserPermissions retorna a lista de permission names de um usuário.
 	GetUserPermissions(ctx context.Context, userID vo.ID) ([]string, error)
+
+	// GetUserRoles retorna a lista de role names de um usuário.
+	GetUserRoles(ctx context.Context, userID vo.ID) ([]string, error)
 }

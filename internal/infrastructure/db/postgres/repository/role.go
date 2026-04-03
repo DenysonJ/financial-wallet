@@ -265,6 +265,24 @@ func (r *RoleRepository) GetUserPermissions(ctx context.Context, userID vo.ID) (
 	return permissions, nil
 }
 
+func (r *RoleRepository) GetUserRoles(ctx context.Context, userID vo.ID) ([]string, error) {
+	query := `
+		SELECT DISTINCT rl.name
+		FROM user_roles ur
+		JOIN roles rl ON ur.role_id = rl.id
+		WHERE ur.user_id = $1
+		ORDER BY rl.name
+	`
+
+	var roles []string
+	selectErr := r.reader.SelectContext(ctx, &roles, query, userID.String())
+	if selectErr != nil {
+		return nil, selectErr
+	}
+
+	return roles, nil
+}
+
 func (r *RoleRepository) Delete(ctx context.Context, id vo.ID) error {
 	query := `
 		DELETE FROM roles

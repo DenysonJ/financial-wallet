@@ -10,9 +10,10 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
-// PermissionLoader loads permissions for a given user ID.
+// PermissionLoader loads permissions and roles for a given user ID.
 type PermissionLoader interface {
 	GetPermissions(ctx context.Context, userID string) ([]string, error)
+	GetRoles(ctx context.Context, userID string) ([]string, error)
 }
 
 // RequirePermission returns a middleware that checks if the authenticated user
@@ -55,8 +56,19 @@ func RequirePermission(loader PermissionLoader, requiredPermission string) gin.H
 			return
 		}
 
-		// Store permissions in context for downstream use (e.g., ownership checks)
+		// Load roles for downstream use (e.g., admin checks)
+		roles, rolesErr := loader.GetRoles(c.Request.Context(), userIDStr)
+		if rolesErr != nil {
+			logutil.LogError(c.Request.Context(), "failed to load roles",
+				"user.id", userIDStr, "error", rolesErr.Error())
+			httpgin.SendError(c, http.StatusInternalServerError, "internal server error")
+			c.Abort()
+			return
+		}
+
+		// Store permissions and roles in context for downstream use
 		c.Set("user_permissions", permissions)
+		c.Set("user_roles", roles)
 		c.Next()
 	}
 }
