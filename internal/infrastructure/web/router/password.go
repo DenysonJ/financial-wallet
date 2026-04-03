@@ -9,7 +9,7 @@ import (
 
 // RegisterSetPasswordRoute registra a rota de cadastro de senha.
 func RegisterSetPasswordRoute(rg *gin.RouterGroup, h *handler.PasswordHandler, loader middleware.PermissionLoader) {
-	rg.POST("/users/password", middleware.RequirePermission(loader, "user:write"), h.SetPassword)
+	rg.POST("/users/password", h.SetPassword)
 }
 
 // RegisterChangePasswordRoute registra a rota de alteração de senha.
