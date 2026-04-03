@@ -94,8 +94,7 @@ func Setup(deps Dependencies) *gin.Engine {
 				Window: deps.Config.RateLimitAuthWin,
 			}))
 		}
-		authGroup.POST("/login", deps.AuthHandler.Login)
-		authGroup.POST("/refresh", deps.AuthHandler.Refresh)
+		RegisterAuthRoutes(r, deps.AuthHandler)
 	}
 
 	// Protected routes (auth required if SERVICE_KEYS is configured)
