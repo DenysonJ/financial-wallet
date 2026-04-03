@@ -3,7 +3,6 @@ package middleware
 import (
 	"context"
 
-	"github.com/DenysonJ/financial-wallet/internal/domain/user/vo"
 	"github.com/stretchr/testify/mock"
 )
 
@@ -35,7 +34,7 @@ type mockPermissionRepo struct {
 	mock.Mock
 }
 
-func (m *mockPermissionRepo) GetUserPermissions(ctx context.Context, userID vo.ID) ([]string, error) {
+func (m *mockPermissionRepo) GetUserPermissions(ctx context.Context, userID string) ([]string, error) {
 	args := m.Called(ctx, userID)
 	if args.Get(0) == nil {
 		return nil, args.Error(1)
@@ -43,7 +42,7 @@ func (m *mockPermissionRepo) GetUserPermissions(ctx context.Context, userID vo.I
 	return args.Get(0).([]string), args.Error(1)
 }
 
-func (m *mockPermissionRepo) GetUserRoles(ctx context.Context, userID vo.ID) ([]string, error) {
+func (m *mockPermissionRepo) GetUserRoles(ctx context.Context, userID string) ([]string, error) {
 	args := m.Called(ctx, userID)
 	if args.Get(0) == nil {
 		return nil, args.Error(1)

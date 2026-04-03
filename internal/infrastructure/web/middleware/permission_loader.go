@@ -3,7 +3,6 @@ package middleware
 import (
 	"context"
 
-	"github.com/DenysonJ/financial-wallet/internal/domain/user/vo"
 	"github.com/DenysonJ/financial-wallet/internal/usecases/role/interfaces"
 	"github.com/DenysonJ/financial-wallet/pkg/cache"
 	"github.com/DenysonJ/financial-wallet/pkg/logutil"
@@ -11,8 +10,8 @@ import (
 
 // PermissionRepository defines the contract for loading user permissions and roles from the database.
 type PermissionRepository interface {
-	GetUserPermissions(ctx context.Context, userID vo.ID) ([]string, error)
-	GetUserRoles(ctx context.Context, userID vo.ID) ([]string, error)
+	GetUserPermissions(ctx context.Context, userID string) ([]string, error)
+	GetUserRoles(ctx context.Context, userID string) ([]string, error)
 }
 
 // CachedPermissionLoader loads permissions with Redis cache and DB fallback.
@@ -39,12 +38,7 @@ func (l *CachedPermissionLoader) GetPermissions(ctx context.Context, userID stri
 	}
 
 	// 2. Fallback to DB
-	id, parseErr := vo.ParseID(userID)
-	if parseErr != nil {
-		return nil, parseErr
-	}
-
-	permissions, dbErr := l.repo.GetUserPermissions(ctx, id)
+	permissions, dbErr := l.repo.GetUserPermissions(ctx, userID)
 	if dbErr != nil {
 		return nil, dbErr
 	}
@@ -72,12 +66,7 @@ func (l *CachedPermissionLoader) GetRoles(ctx context.Context, userID string) ([
 	}
 
 	// 2. Fallback to DB
-	id, parseErr := vo.ParseID(userID)
-	if parseErr != nil {
-		return nil, parseErr
-	}
-
-	roles, dbErr := l.repo.GetUserRoles(ctx, id)
+	roles, dbErr := l.repo.GetUserRoles(ctx, userID)
 	if dbErr != nil {
 		return nil, dbErr
 	}
