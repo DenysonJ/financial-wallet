@@ -5,7 +5,7 @@ CREATE TABLE accounts (
     id UUID PRIMARY KEY,
     user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
     name VARCHAR(255) NOT NULL,
-    type VARCHAR(50) NOT NULL,
+    type VARCHAR(50) NOT NULL CHECK (type IN ('bank_account', 'credit_card', 'cash')),
     description TEXT NOT NULL DEFAULT '',
     active BOOLEAN NOT NULL DEFAULT true,
     created_at TIMESTAMP WITH TIME ZONE NOT NULL,
