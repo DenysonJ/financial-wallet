@@ -27,7 +27,7 @@ func RequirePermission(loader PermissionLoader, requiredPermission string) gin.H
 		userID, exists := c.Get(ContextKeyUserID)
 		if !exists {
 			logutil.LogError(c.Request.Context(), "user not found in context")
-			httpgin.SendError(c, http.StatusForbidden, "user not authenticated")
+			httpgin.SendError(c, http.StatusUnauthorized, "user not authenticated")
 			c.Abort()
 			return
 		}
@@ -35,7 +35,7 @@ func RequirePermission(loader PermissionLoader, requiredPermission string) gin.H
 		userIDStr, ok := userID.(string)
 		if !ok || userIDStr == "" {
 			logutil.LogError(c.Request.Context(), "user not found in context")
-			httpgin.SendError(c, http.StatusForbidden, "user not authenticated")
+			httpgin.SendError(c, http.StatusUnauthorized, "user not authenticated")
 			c.Abort()
 			return
 		}
