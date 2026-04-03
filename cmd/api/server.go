@@ -17,6 +17,7 @@ import (
 	"github.com/DenysonJ/financial-wallet/internal/infrastructure/db/postgres/repository"
 	infratelemetry "github.com/DenysonJ/financial-wallet/internal/infrastructure/telemetry"
 	"github.com/DenysonJ/financial-wallet/internal/infrastructure/web/handler"
+	"github.com/DenysonJ/financial-wallet/internal/infrastructure/web/middleware"
 	"github.com/DenysonJ/financial-wallet/internal/infrastructure/web/router"
 	authuc "github.com/DenysonJ/financial-wallet/internal/usecases/auth"
 	roleuc "github.com/DenysonJ/financial-wallet/internal/usecases/role"
@@ -235,12 +236,14 @@ func buildDependencies(cluster *database.DBCluster, sqlxWriter, sqlxReader *sqlx
 		}
 	}
 
-	// --- Role Domain (simpler, no cache/singleflight) ---
+	// --- Role Domain ---
 	roleRepo := repository.NewRoleRepository(sqlxWriter, sqlxReader)
 	roleCreateUC := roleuc.NewCreateUseCase(roleRepo)
 	roleListUC := roleuc.NewListUseCase(roleRepo)
 	roleDeleteUC := roleuc.NewDeleteUseCase(roleRepo)
-	roleHandler := handler.NewRoleHandler(roleCreateUC, roleListUC, roleDeleteUC)
+	roleAssignUC := roleuc.NewAssignRoleUseCase(roleRepo).WithCache(redisClient)
+	roleRevokeUC := roleuc.NewRevokeRoleUseCase(roleRepo).WithCache(redisClient)
+	roleHandler := handler.NewRoleHandler(roleCreateUC, roleListUC, roleDeleteUC, roleAssignUC, roleRevokeUC)
 
 	// --- JWT Service (optional) ---
 	var jwtService *pkgjwt.Service
@@ -275,6 +278,9 @@ func buildDependencies(cluster *database.DBCluster, sqlxWriter, sqlxReader *sqlx
 		rlAuthWin, _ = time.ParseDuration(cfg.RateLimit.AuthWindow)
 	}
 
+	// --- Permission Loader (RBAC authorization) ---
+	permissionLoader := middleware.NewCachedPermissionLoader(roleRepo, redisClient)
+
 	return router.Dependencies{
 		HealthChecker:    checker,
 		UserHandler:      userHandler,
@@ -282,6 +288,7 @@ func buildDependencies(cluster *database.DBCluster, sqlxWriter, sqlxReader *sqlx
 		AuthHandler:      authHandler,
 		PasswordHandler:  passwordHandler,
 		JWTService:       tokenAdapter,
+		PermissionLoader: permissionLoader,
 		HTTPMetrics:      httpMetrics,
 		IdempotencyStore: idempotencyStore,
 		RateLimitStore:   rateLimitStore,

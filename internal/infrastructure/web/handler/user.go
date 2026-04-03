@@ -2,8 +2,10 @@ package handler
 
 import (
 	"net/http"
+	"slices"
 
 	"github.com/DenysonJ/financial-wallet/internal/infrastructure/telemetry"
+	"github.com/DenysonJ/financial-wallet/internal/infrastructure/web/middleware"
 	useruc "github.com/DenysonJ/financial-wallet/internal/usecases/user"
 	"github.com/DenysonJ/financial-wallet/internal/usecases/user/dto"
 	"github.com/DenysonJ/financial-wallet/pkg/httputil/httpgin"
@@ -47,6 +49,41 @@ func NewUserHandler(
 		DeleteUC: deleteUC,
 		Metrics:  metrics,
 	}
+}
+
+// isServiceKeyRequest returns true if the request was authenticated via Service Key (no JWT user_id).
+func isServiceKeyRequest(c *gin.Context) bool {
+	_, exists := c.Get(middleware.ContextKeyUserID)
+	return !exists
+}
+
+// isAdmin checks if the JWT user has admin-level permissions (user:delete — only admin has it).
+func isAdmin(c *gin.Context) bool {
+	perms, exists := c.Get("user_permissions")
+	if !exists {
+		return false
+	}
+	if permSlice, ok := perms.([]string); ok {
+		return slices.Contains(permSlice, "user:delete")
+	}
+	return false
+}
+
+// isAdminOrOwner checks if the JWT user is the resource owner or has admin-level permissions.
+// Returns true for Service Key requests (trusted), admin users, or matching owner.
+func isAdminOrOwner(c *gin.Context, resourceUserID string) bool {
+	if isServiceKeyRequest(c) {
+		return true
+	}
+
+	jwtUserID, _ := c.Get(middleware.ContextKeyUserID)
+	jwtUserIDStr, _ := jwtUserID.(string)
+
+	if jwtUserIDStr == resourceUserID {
+		return true
+	}
+
+	return isAdmin(c)
 }
 
 // Create godoc
@@ -101,6 +138,7 @@ func (h *UserHandler) Create(c *gin.Context) {
 // @Produce      json
 // @Param        id   path      string  true  "User ID"
 // @Success      200  {object}  dto.GetOutput
+// @Failure      403  {object}  ErrorResponse
 // @Failure      404  {object}  ErrorResponse
 // @Failure      429  {object}  ErrorResponse
 // @Failure      500  {object}  ErrorResponse
@@ -113,6 +151,12 @@ func (h *UserHandler) GetByID(c *gin.Context) {
 
 	id := c.Param("id")
 	span.SetAttributes(attribute.String("user.id", id))
+
+	if !isAdminOrOwner(c, id) {
+		span.SetStatus(codes.Error, "forbidden")
+		httpgin.SendError(c, http.StatusForbidden, "forbidden")
+		return
+	}
 
 	res, execErr := h.GetUC.Execute(ctx, dto.GetInput{ID: id})
 	if execErr != nil {
@@ -134,6 +178,7 @@ func (h *UserHandler) GetByID(c *gin.Context) {
 // @Param        email   query     string  false  "Filter by email"
 // @Param        active  query     bool    false  "Filter by active status"
 // @Success      200     {object}  dto.ListOutput
+// @Failure      403     {object}  ErrorResponse
 // @Failure      429     {object}  ErrorResponse
 // @Failure      500     {object}  ErrorResponse
 // @Security     ServiceName
@@ -147,6 +192,25 @@ func (h *UserHandler) List(c *gin.Context) {
 	if bindErr := c.ShouldBindQuery(&req); bindErr != nil {
 		span.SetStatus(codes.Error, "invalid query parameters")
 		httpgin.SendError(c, http.StatusBadRequest, "invalid query parameters")
+		return
+	}
+
+	// Non-admin JWT users can only see themselves
+	if !isServiceKeyRequest(c) && !isAdmin(c) {
+		jwtUserID, _ := c.Get(middleware.ContextKeyUserID)
+		jwtUserIDStr, _ := jwtUserID.(string)
+
+		span.SetAttributes(attribute.String("user.id", jwtUserIDStr))
+
+		getRes, getErr := h.GetUC.Execute(ctx, dto.GetInput{ID: jwtUserIDStr})
+		if getErr != nil {
+			HandleError(c, span, getErr)
+			return
+		}
+
+		httpgin.SendSuccessWithMeta(c, http.StatusOK, []dto.GetOutput{*getRes}, dto.PaginationOutput{
+			Page: 1, Limit: 1, Total: 1, TotalPages: 1,
+		}, nil)
 		return
 	}
 
@@ -175,6 +239,7 @@ func (h *UserHandler) List(c *gin.Context) {
 // @Param        request  body      dto.UpdateInput true  "Update info"
 // @Success      200      {object}  dto.UpdateOutput
 // @Failure      400      {object}  ErrorResponse
+// @Failure      403      {object}  ErrorResponse
 // @Failure      404      {object}  ErrorResponse
 // @Failure      429      {object}  ErrorResponse
 // @Failure      500      {object}  ErrorResponse
@@ -187,6 +252,12 @@ func (h *UserHandler) Update(c *gin.Context) {
 
 	id := c.Param("id")
 	span.SetAttributes(attribute.String("user.id", id))
+
+	if !isAdminOrOwner(c, id) {
+		span.SetStatus(codes.Error, "forbidden")
+		httpgin.SendError(c, http.StatusForbidden, "forbidden")
+		return
+	}
 
 	var req dto.UpdateInput
 	if bindErr := c.ShouldBindJSON(&req); bindErr != nil {
@@ -217,6 +288,7 @@ func (h *UserHandler) Update(c *gin.Context) {
 // @Produce      json
 // @Param        id   path      string  true  "User ID"
 // @Success      200  {object}  dto.DeleteOutput
+// @Failure      403  {object}  ErrorResponse
 // @Failure      404  {object}  ErrorResponse
 // @Failure      429  {object}  ErrorResponse
 // @Failure      500  {object}  ErrorResponse
@@ -229,6 +301,12 @@ func (h *UserHandler) Delete(c *gin.Context) {
 
 	id := c.Param("id")
 	span.SetAttributes(attribute.String("user.id", id))
+
+	if !isAdminOrOwner(c, id) {
+		span.SetStatus(codes.Error, "forbidden")
+		httpgin.SendError(c, http.StatusForbidden, "forbidden")
+		return
+	}
 
 	res, execErr := h.DeleteUC.Execute(ctx, dto.DeleteInput{ID: id})
 	if execErr != nil {

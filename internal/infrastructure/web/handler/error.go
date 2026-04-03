@@ -59,6 +59,9 @@ var domainErrors = []struct {
 	{userdomain.ErrUserNotFound, domainErrorMapping{http.StatusNotFound, apperror.CodeNotFound, "user not found"}},
 	{roledomain.ErrRoleNotFound, domainErrorMapping{http.StatusNotFound, apperror.CodeNotFound, "role not found"}},
 	{roledomain.ErrDuplicateRoleName, domainErrorMapping{http.StatusConflict, apperror.CodeConflict, "role name already exists"}},
+	{roledomain.ErrRoleAlreadyAssigned, domainErrorMapping{http.StatusConflict, apperror.CodeConflict, "role already assigned to user"}},
+	{roledomain.ErrRoleNotAssigned, domainErrorMapping{http.StatusNotFound, apperror.CodeNotFound, "role not assigned to user"}},
+	{roledomain.ErrForbidden, domainErrorMapping{http.StatusForbidden, apperror.CodeForbidden, "forbidden"}},
 }
 
 // HandleError handles errors in a centralized and consistent way.

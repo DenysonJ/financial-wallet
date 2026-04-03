@@ -27,8 +27,10 @@ func setupRoleTestRouter() *gin.Engine {
 	createUC := roleuc.NewCreateUseCase(repo)
 	listUC := roleuc.NewListUseCase(repo)
 	deleteUC := roleuc.NewDeleteUseCase(repo)
+	assignUC := roleuc.NewAssignRoleUseCase(repo)
+	revokeUC := roleuc.NewRevokeRoleUseCase(repo)
 
-	h := handler.NewRoleHandler(createUC, listUC, deleteUC)
+	h := handler.NewRoleHandler(createUC, listUC, deleteUC, assignUC, revokeUC)
 
 	r := gin.New()
 	r.Use(gin.Recovery())

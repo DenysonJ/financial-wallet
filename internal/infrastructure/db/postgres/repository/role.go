@@ -180,6 +180,91 @@ func (r *RoleRepository) List(ctx context.Context, filter roledomain.ListFilter)
 	}, nil
 }
 
+func (r *RoleRepository) FindByID(ctx context.Context, id vo.ID) (*roledomain.Role, error) {
+	query := `
+		SELECT id, name, description, created_at, updated_at
+		FROM roles
+		WHERE id = $1
+	`
+
+	var dbModel roleDB
+	selectErr := r.reader.GetContext(ctx, &dbModel, query, id.String())
+	if selectErr != nil {
+		if errors.Is(selectErr, sql.ErrNoRows) {
+			return nil, roledomain.ErrRoleNotFound
+		}
+		return nil, selectErr
+	}
+
+	return dbModel.toRole()
+}
+
+func (r *RoleRepository) AssignRole(ctx context.Context, userID vo.ID, roleID vo.ID) error {
+	query := `
+		INSERT INTO user_roles (user_id, role_id, created_at)
+		VALUES ($1, $2, $3)
+		ON CONFLICT (user_id, role_id) DO NOTHING
+	`
+
+	result, execErr := r.writer.ExecContext(ctx, query, userID.String(), roleID.String(), time.Now())
+	if execErr != nil {
+		return execErr
+	}
+
+	rowsAffected, rowsErr := result.RowsAffected()
+	if rowsErr != nil {
+		return rowsErr
+	}
+
+	if rowsAffected == 0 {
+		return roledomain.ErrRoleAlreadyAssigned
+	}
+
+	return nil
+}
+
+func (r *RoleRepository) RevokeRole(ctx context.Context, userID vo.ID, roleID vo.ID) error {
+	query := `
+		DELETE FROM user_roles
+		WHERE user_id = $1 AND role_id = $2
+	`
+
+	result, execErr := r.writer.ExecContext(ctx, query, userID.String(), roleID.String())
+	if execErr != nil {
+		return execErr
+	}
+
+	rowsAffected, rowsErr := result.RowsAffected()
+	if rowsErr != nil {
+		return rowsErr
+	}
+
+	if rowsAffected == 0 {
+		return roledomain.ErrRoleNotAssigned
+	}
+
+	return nil
+}
+
+func (r *RoleRepository) GetUserPermissions(ctx context.Context, userID vo.ID) ([]string, error) {
+	query := `
+		SELECT DISTINCT p.name
+		FROM user_roles ur
+		JOIN role_permissions rp ON ur.role_id = rp.role_id
+		JOIN permissions p ON rp.permission_id = p.id
+		WHERE ur.user_id = $1
+		ORDER BY p.name
+	`
+
+	var permissions []string
+	selectErr := r.reader.SelectContext(ctx, &permissions, query, userID.String())
+	if selectErr != nil {
+		return nil, selectErr
+	}
+
+	return permissions, nil
+}
+
 func (r *RoleRepository) Delete(ctx context.Context, id vo.ID) error {
 	query := `
 		DELETE FROM roles

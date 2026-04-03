@@ -41,6 +41,7 @@ type Dependencies struct {
 	AuthHandler      *handler.AuthHandler
 	PasswordHandler  *handler.PasswordHandler
 	JWTService       interfaces.TokenService
+	PermissionLoader middleware.PermissionLoader
 	HTTPMetrics      *telemetry.HTTPMetrics
 	IdempotencyStore idempotency.Store
 	RateLimitStore   ratelimit.Store
@@ -107,26 +108,32 @@ func Setup(deps Dependencies) *gin.Engine {
 
 	// Set Password: Service Key only
 	if deps.PasswordHandler != nil {
-		RegisterSetPasswordRoute(protected, deps.PasswordHandler)
+		RegisterSetPasswordRoute(protected, deps.PasswordHandler, deps.PermissionLoader)
 	}
 
 	// User routes + Change Password: Service Key OR JWT authentication
 	if deps.Config.JWTEnabled && deps.JWTService != nil {
 		jwtProtected := protected.Group("")
 		jwtProtected.Use(middleware.JWTAuth(deps.JWTService))
-		RegisterUserRoutes(jwtProtected, deps.UserHandler)
+		RegisterUserRoutes(jwtProtected, deps.UserHandler, deps.PermissionLoader)
 		if deps.PasswordHandler != nil {
-			RegisterChangePasswordRoute(jwtProtected, deps.PasswordHandler)
+			RegisterChangePasswordRoute(jwtProtected, deps.PasswordHandler, deps.PermissionLoader)
 		}
 	} else {
-		RegisterUserRoutes(protected, deps.UserHandler)
+		RegisterUserRoutes(protected, deps.UserHandler, deps.PermissionLoader)
 		if deps.PasswordHandler != nil {
-			RegisterChangePasswordRoute(protected, deps.PasswordHandler)
+			RegisterChangePasswordRoute(protected, deps.PasswordHandler, deps.PermissionLoader)
 		}
 	}
 
-	// Role routes: Service Key only (no JWT required per spec REQ-5)
-	RegisterRoleRoutes(protected, deps.RoleHandler)
+	// Role routes: Service Key + Admin JWT
+	if deps.Config.JWTEnabled && deps.JWTService != nil {
+		roleGroup := protected.Group("")
+		roleGroup.Use(middleware.JWTAuth(deps.JWTService))
+		RegisterRoleRoutes(roleGroup, deps.RoleHandler, deps.PermissionLoader)
+	} else {
+		RegisterRoleRoutes(protected, deps.RoleHandler, deps.PermissionLoader)
+	}
 
 	return r
 }

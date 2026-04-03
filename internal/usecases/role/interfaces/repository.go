@@ -30,4 +30,19 @@ type Repository interface {
 	// FindByName busca uma Role pelo nome.
 	// Retorna ErrRoleNotFound se nao encontrar.
 	FindByName(ctx context.Context, name string) (*roledomain.Role, error)
+
+	// FindByID busca uma Role pelo ID.
+	// Retorna ErrRoleNotFound se nao encontrar.
+	FindByID(ctx context.Context, id vo.ID) (*roledomain.Role, error)
+
+	// AssignRole atribui uma role a um usuário.
+	// Retorna ErrRoleAlreadyAssigned se a associação já existir.
+	AssignRole(ctx context.Context, userID vo.ID, roleID vo.ID) error
+
+	// RevokeRole revoga uma role de um usuário.
+	// Retorna ErrRoleNotAssigned se a associação não existir.
+	RevokeRole(ctx context.Context, userID vo.ID, roleID vo.ID) error
+
+	// GetUserPermissions retorna a lista de permission names de um usuário.
+	GetUserPermissions(ctx context.Context, userID vo.ID) ([]string, error)
 }

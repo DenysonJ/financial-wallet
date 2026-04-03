@@ -18,6 +18,8 @@ type RoleHandler struct {
 	CreateUC *roleuc.CreateUseCase
 	ListUC   *roleuc.ListUseCase
 	DeleteUC *roleuc.DeleteUseCase
+	AssignUC *roleuc.AssignRoleUseCase
+	RevokeUC *roleuc.RevokeRoleUseCase
 }
 
 // NewRoleHandler cria um novo RoleHandler com todos os use cases.
@@ -25,11 +27,15 @@ func NewRoleHandler(
 	createUC *roleuc.CreateUseCase,
 	listUC *roleuc.ListUseCase,
 	deleteUC *roleuc.DeleteUseCase,
+	assignUC *roleuc.AssignRoleUseCase,
+	revokeUC *roleuc.RevokeRoleUseCase,
 ) *RoleHandler {
 	return &RoleHandler{
 		CreateUC: createUC,
 		ListUC:   listUC,
 		DeleteUC: deleteUC,
+		AssignUC: assignUC,
+		RevokeUC: revokeUC,
 	}
 }
 
@@ -42,6 +48,7 @@ func NewRoleHandler(
 // @Param        request body dto.CreateInput true "Role info"
 // @Success      201  {object}  dto.CreateOutput
 // @Failure      400  {object}  ErrorResponse
+// @Failure      403  {object}  ErrorResponse
 // @Failure      429  {object}  ErrorResponse
 // @Failure      500  {object}  ErrorResponse
 // @Security     ServiceName
@@ -83,6 +90,7 @@ func (h *RoleHandler) Create(c *gin.Context) {
 // @Param        name   query     string  false  "Filter by name"
 // @Success      200    {object}  dto.ListOutput
 // @Failure      400   {object}  ErrorResponse
+// @Failure      403    {object}  ErrorResponse
 // @Failure      429    {object}  ErrorResponse
 // @Failure      500    {object}  ErrorResponse
 // @Security     ServiceName
@@ -121,6 +129,7 @@ func (h *RoleHandler) List(c *gin.Context) {
 // @Produce      json
 // @Param        id   path      string  true  "Role ID"
 // @Success      200  {object}  dto.DeleteOutput
+// @Failure      403  {object}  ErrorResponse
 // @Failure      404  {object}  ErrorResponse
 // @Failure      429  {object}  ErrorResponse
 // @Failure      500  {object}  ErrorResponse
@@ -141,4 +150,89 @@ func (h *RoleHandler) Delete(c *gin.Context) {
 	}
 
 	httpgin.SendSuccess(c, http.StatusOK, res)
+}
+
+// AssignRole godoc
+// @Summary      Assign a role to a user
+// @Description  Assign the specified role to a user
+// @Tags         roles
+// @Accept       json
+// @Produce      json
+// @Param        id       path      string              true  "Role ID"
+// @Param        request  body      dto.AssignRoleInput  true  "User to assign"
+// @Success      204
+// @Failure      400  {object}  ErrorResponse
+// @Failure      404  {object}  ErrorResponse
+// @Failure      409  {object}  ErrorResponse
+// @Failure      429  {object}  ErrorResponse
+// @Failure      500  {object}  ErrorResponse
+// @Security     ServiceName
+// @Security     ServiceKey
+// @Router       /roles/{id}/assign [post]
+func (h *RoleHandler) AssignRole(c *gin.Context) {
+	ctx, span := otel.Tracer("http-handler").Start(c.Request.Context(), "RoleHandler.AssignRole")
+	defer span.End()
+
+	roleID := c.Param("id")
+	span.SetAttributes(attribute.String("role.id", roleID))
+
+	var req dto.AssignRoleInput
+	if bindErr := c.ShouldBindJSON(&req); bindErr != nil {
+		span.SetStatus(codes.Error, "invalid request body")
+		httpgin.SendError(c, http.StatusBadRequest, "invalid request body")
+		return
+	}
+	req.RoleID = roleID
+
+	span.SetAttributes(attribute.String("user.id", req.UserID))
+
+	execErr := h.AssignUC.Execute(ctx, req)
+	if execErr != nil {
+		HandleError(c, span, execErr)
+		return
+	}
+
+	c.Status(http.StatusNoContent)
+}
+
+// RevokeRole godoc
+// @Summary      Revoke a role from a user
+// @Description  Revoke the specified role from a user
+// @Tags         roles
+// @Accept       json
+// @Produce      json
+// @Param        id       path      string               true  "Role ID"
+// @Param        request  body      dto.RevokeRoleInput   true  "User to revoke"
+// @Success      204
+// @Failure      400  {object}  ErrorResponse
+// @Failure      404  {object}  ErrorResponse
+// @Failure      429  {object}  ErrorResponse
+// @Failure      500  {object}  ErrorResponse
+// @Security     ServiceName
+// @Security     ServiceKey
+// @Router       /roles/{id}/revoke [post]
+func (h *RoleHandler) RevokeRole(c *gin.Context) {
+	ctx, span := otel.Tracer("http-handler").Start(c.Request.Context(), "RoleHandler.RevokeRole")
+	defer span.End()
+
+	roleID := c.Param("id")
+	span.SetAttributes(attribute.String("role.id", roleID))
+
+	var req dto.RevokeRoleInput
+	if bindErr := c.ShouldBindJSON(&req); bindErr != nil {
+		span.SetStatus(codes.Error, "invalid request body")
+		httpgin.SendError(c, http.StatusBadRequest, "invalid request body")
+		return
+	}
+	req.RoleID = roleID
+
+	span.SetAttributes(attribute.String("user.id", req.UserID))
+
+	execErr := h.RevokeUC.Execute(ctx, req)
+	if execErr != nil {
+		HandleError(c, span, execErr)
+		return
+	}
+
+	c.Status(http.StatusNoContent)
 }
