@@ -193,7 +193,7 @@ func (h *AccountHandler) List(c *gin.Context) {
 	}
 
 	span.SetAttributes(attribute.Int("result.total", res.Pagination.Total))
-	httpgin.SendSuccessWithMeta(c, http.StatusOK, res.Data, res.Pagination, nil)
+	httpgin.SendSuccess(c, http.StatusOK, res)
 }
 
 // Update godoc
