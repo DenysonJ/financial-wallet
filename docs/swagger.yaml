@@ -1,4 +1,98 @@
 definitions:
+  github_com_DenysonJ_financial-wallet_internal_usecases_account_dto.CreateInput:
+    properties:
+      description:
+        description: Descrição opcional
+        maxLength: 1000
+        type: string
+      name:
+        description: Nome da conta
+        maxLength: 255
+        type: string
+      type:
+        description: 'Tipo: bank_account, credit_card, cash'
+        maxLength: 50
+        type: string
+    required:
+    - name
+    - type
+    type: object
+  github_com_DenysonJ_financial-wallet_internal_usecases_account_dto.CreateOutput:
+    properties:
+      created_at:
+        description: Timestamp no formato RFC3339
+        type: string
+      id:
+        description: ID gerado (UUID v7)
+        type: string
+    type: object
+  github_com_DenysonJ_financial-wallet_internal_usecases_account_dto.GetOutput:
+    properties:
+      active:
+        type: boolean
+      created_at:
+        type: string
+      description:
+        type: string
+      id:
+        type: string
+      name:
+        type: string
+      type:
+        type: string
+      updated_at:
+        type: string
+      user_id:
+        type: string
+    type: object
+  github_com_DenysonJ_financial-wallet_internal_usecases_account_dto.ListOutput:
+    properties:
+      data:
+        items:
+          $ref: '#/definitions/github_com_DenysonJ_financial-wallet_internal_usecases_account_dto.GetOutput'
+        type: array
+      pagination:
+        $ref: '#/definitions/github_com_DenysonJ_financial-wallet_internal_usecases_account_dto.PaginationOutput'
+    type: object
+  github_com_DenysonJ_financial-wallet_internal_usecases_account_dto.PaginationOutput:
+    properties:
+      limit:
+        type: integer
+      page:
+        type: integer
+      total:
+        type: integer
+      total_pages:
+        type: integer
+    type: object
+  github_com_DenysonJ_financial-wallet_internal_usecases_account_dto.UpdateInput:
+    properties:
+      description:
+        description: Descrição (opcional)
+        maxLength: 1000
+        type: string
+      name:
+        description: Nome (opcional)
+        maxLength: 255
+        type: string
+    type: object
+  github_com_DenysonJ_financial-wallet_internal_usecases_account_dto.UpdateOutput:
+    properties:
+      active:
+        type: boolean
+      description:
+        type: string
+      id:
+        type: string
+      name:
+        type: string
+      type:
+        type: string
+      updated_at:
+        type: string
+      user_id:
+        type: string
+    type: object
   github_com_DenysonJ_financial-wallet_internal_usecases_auth_dto.LoginInput:
     properties:
       email:
@@ -36,6 +130,14 @@ definitions:
       refresh_token:
         description: Novo JWT refresh token
         type: string
+    type: object
+  github_com_DenysonJ_financial-wallet_internal_usecases_role_dto.AssignRoleInput:
+    properties:
+      user_id:
+        description: ID do usuário
+        type: string
+    required:
+    - user_id
     type: object
   github_com_DenysonJ_financial-wallet_internal_usecases_role_dto.CreateInput:
     properties:
@@ -86,6 +188,14 @@ definitions:
         type: integer
       total_pages:
         type: integer
+    type: object
+  github_com_DenysonJ_financial-wallet_internal_usecases_role_dto.RevokeRoleInput:
+    properties:
+      user_id:
+        description: ID do usuário
+        type: string
+    required:
+    - user_id
     type: object
   github_com_DenysonJ_financial-wallet_internal_usecases_role_dto.RoleOutput:
     properties:
@@ -234,6 +344,209 @@ definitions:
 info:
   contact: {}
 paths:
+  /accounts:
+    get:
+      description: Get a paginated list of the authenticated user's accounts
+      parameters:
+      - description: Page number
+        in: query
+        name: page
+        type: integer
+      - description: Items per page
+        in: query
+        name: limit
+        type: integer
+      - description: Filter by name
+        in: query
+        name: name
+        type: string
+      - description: Filter by type
+        in: query
+        name: type
+        type: string
+      - description: Filter by active status
+        in: query
+        name: active_only
+        type: boolean
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/github_com_DenysonJ_financial-wallet_internal_usecases_account_dto.ListOutput'
+        "429":
+          description: Too Many Requests
+          schema:
+            $ref: '#/definitions/internal_infrastructure_web_handler.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/internal_infrastructure_web_handler.ErrorResponse'
+      security:
+      - ServiceName: []
+      - ServiceKey: []
+      summary: List accounts
+      tags:
+      - accounts
+    post:
+      consumes:
+      - application/json
+      description: Create a new financial account for the authenticated user
+      parameters:
+      - description: Account info
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/github_com_DenysonJ_financial-wallet_internal_usecases_account_dto.CreateInput'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            $ref: '#/definitions/github_com_DenysonJ_financial-wallet_internal_usecases_account_dto.CreateOutput'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/internal_infrastructure_web_handler.ErrorResponse'
+        "429":
+          description: Too Many Requests
+          schema:
+            $ref: '#/definitions/internal_infrastructure_web_handler.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/internal_infrastructure_web_handler.ErrorResponse'
+      security:
+      - ServiceName: []
+      - ServiceKey: []
+      summary: Create a new account
+      tags:
+      - accounts
+  /accounts/{id}:
+    delete:
+      description: Soft delete an account by ID
+      parameters:
+      - description: Account ID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "204":
+          description: No Content
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/internal_infrastructure_web_handler.ErrorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/internal_infrastructure_web_handler.ErrorResponse'
+        "429":
+          description: Too Many Requests
+          schema:
+            $ref: '#/definitions/internal_infrastructure_web_handler.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/internal_infrastructure_web_handler.ErrorResponse'
+      security:
+      - ServiceName: []
+      - ServiceKey: []
+      summary: Delete an account
+      tags:
+      - accounts
+    get:
+      description: Get account details by unique ID
+      parameters:
+      - description: Account ID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/github_com_DenysonJ_financial-wallet_internal_usecases_account_dto.GetOutput'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/internal_infrastructure_web_handler.ErrorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/internal_infrastructure_web_handler.ErrorResponse'
+        "429":
+          description: Too Many Requests
+          schema:
+            $ref: '#/definitions/internal_infrastructure_web_handler.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/internal_infrastructure_web_handler.ErrorResponse'
+      security:
+      - ServiceName: []
+      - ServiceKey: []
+      summary: Get an account by ID
+      tags:
+      - accounts
+    put:
+      consumes:
+      - application/json
+      description: Update account details by ID
+      parameters:
+      - description: Account ID
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: Update info
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/github_com_DenysonJ_financial-wallet_internal_usecases_account_dto.UpdateInput'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/github_com_DenysonJ_financial-wallet_internal_usecases_account_dto.UpdateOutput'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/internal_infrastructure_web_handler.ErrorResponse'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/internal_infrastructure_web_handler.ErrorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/internal_infrastructure_web_handler.ErrorResponse'
+        "429":
+          description: Too Many Requests
+          schema:
+            $ref: '#/definitions/internal_infrastructure_web_handler.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/internal_infrastructure_web_handler.ErrorResponse'
+      security:
+      - ServiceName: []
+      - ServiceKey: []
+      summary: Update an account
+      tags:
+      - accounts
   /auth/login:
     post:
       consumes:
@@ -337,6 +650,10 @@ paths:
           description: Bad Request
           schema:
             $ref: '#/definitions/internal_infrastructure_web_handler.ErrorResponse'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/internal_infrastructure_web_handler.ErrorResponse'
         "429":
           description: Too Many Requests
           schema:
@@ -373,6 +690,10 @@ paths:
           description: Bad Request
           schema:
             $ref: '#/definitions/internal_infrastructure_web_handler.ErrorResponse'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/internal_infrastructure_web_handler.ErrorResponse'
         "429":
           description: Too Many Requests
           schema:
@@ -403,6 +724,10 @@ paths:
           description: OK
           schema:
             $ref: '#/definitions/github_com_DenysonJ_financial-wallet_internal_usecases_role_dto.DeleteOutput'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/internal_infrastructure_web_handler.ErrorResponse'
         "404":
           description: Not Found
           schema:
@@ -419,6 +744,98 @@ paths:
       - ServiceName: []
       - ServiceKey: []
       summary: Delete a role
+      tags:
+      - roles
+  /roles/{id}/assign:
+    post:
+      consumes:
+      - application/json
+      description: Assign the specified role to a user
+      parameters:
+      - description: Role ID
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: User to assign
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/github_com_DenysonJ_financial-wallet_internal_usecases_role_dto.AssignRoleInput'
+      produces:
+      - application/json
+      responses:
+        "204":
+          description: No Content
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/internal_infrastructure_web_handler.ErrorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/internal_infrastructure_web_handler.ErrorResponse'
+        "409":
+          description: Conflict
+          schema:
+            $ref: '#/definitions/internal_infrastructure_web_handler.ErrorResponse'
+        "429":
+          description: Too Many Requests
+          schema:
+            $ref: '#/definitions/internal_infrastructure_web_handler.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/internal_infrastructure_web_handler.ErrorResponse'
+      security:
+      - ServiceName: []
+      - ServiceKey: []
+      summary: Assign a role to a user
+      tags:
+      - roles
+  /roles/{id}/revoke:
+    post:
+      consumes:
+      - application/json
+      description: Revoke the specified role from a user
+      parameters:
+      - description: Role ID
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: User to revoke
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/github_com_DenysonJ_financial-wallet_internal_usecases_role_dto.RevokeRoleInput'
+      produces:
+      - application/json
+      responses:
+        "204":
+          description: No Content
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/internal_infrastructure_web_handler.ErrorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/internal_infrastructure_web_handler.ErrorResponse'
+        "429":
+          description: Too Many Requests
+          schema:
+            $ref: '#/definitions/internal_infrastructure_web_handler.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/internal_infrastructure_web_handler.ErrorResponse'
+      security:
+      - ServiceName: []
+      - ServiceKey: []
+      summary: Revoke a role from a user
       tags:
       - roles
   /users:
@@ -452,6 +869,10 @@ paths:
           description: OK
           schema:
             $ref: '#/definitions/github_com_DenysonJ_financial-wallet_internal_usecases_user_dto.ListOutput'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/internal_infrastructure_web_handler.ErrorResponse'
         "429":
           description: Too Many Requests
           schema:
@@ -518,6 +939,10 @@ paths:
           description: OK
           schema:
             $ref: '#/definitions/github_com_DenysonJ_financial-wallet_internal_usecases_user_dto.DeleteOutput'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/internal_infrastructure_web_handler.ErrorResponse'
         "404":
           description: Not Found
           schema:
@@ -551,6 +976,10 @@ paths:
           description: OK
           schema:
             $ref: '#/definitions/github_com_DenysonJ_financial-wallet_internal_usecases_user_dto.GetOutput'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/internal_infrastructure_web_handler.ErrorResponse'
         "404":
           description: Not Found
           schema:
@@ -594,6 +1023,10 @@ paths:
             $ref: '#/definitions/github_com_DenysonJ_financial-wallet_internal_usecases_user_dto.UpdateOutput'
         "400":
           description: Bad Request
+          schema:
+            $ref: '#/definitions/internal_infrastructure_web_handler.ErrorResponse'
+        "403":
+          description: Forbidden
           schema:
             $ref: '#/definitions/internal_infrastructure_web_handler.ErrorResponse'
         "404":

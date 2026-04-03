@@ -19,6 +19,7 @@ import (
 	"github.com/DenysonJ/financial-wallet/internal/infrastructure/web/handler"
 	"github.com/DenysonJ/financial-wallet/internal/infrastructure/web/middleware"
 	"github.com/DenysonJ/financial-wallet/internal/infrastructure/web/router"
+	accountuc "github.com/DenysonJ/financial-wallet/internal/usecases/account"
 	authuc "github.com/DenysonJ/financial-wallet/internal/usecases/auth"
 	roleuc "github.com/DenysonJ/financial-wallet/internal/usecases/role"
 	useruc "github.com/DenysonJ/financial-wallet/internal/usecases/user"
@@ -245,6 +246,15 @@ func buildDependencies(cluster *database.DBCluster, sqlxWriter, sqlxReader *sqlx
 	roleRevokeUC := roleuc.NewRevokeRoleUseCase(roleRepo).WithCache(redisClient)
 	roleHandler := handler.NewRoleHandler(roleCreateUC, roleListUC, roleDeleteUC, roleAssignUC, roleRevokeUC)
 
+	// --- Account Domain ---
+	accountRepo := repository.NewAccountRepository(sqlxWriter, sqlxReader)
+	accountCreateUC := accountuc.NewCreateUseCase(accountRepo)
+	accountGetUC := accountuc.NewGetUseCase(accountRepo)
+	accountListUC := accountuc.NewListUseCase(accountRepo)
+	accountUpdateUC := accountuc.NewUpdateUseCase(accountRepo)
+	accountDeleteUC := accountuc.NewDeleteUseCase(accountRepo)
+	accountHandler := handler.NewAccountHandler(accountCreateUC, accountGetUC, accountListUC, accountUpdateUC, accountDeleteUC)
+
 	// --- JWT Service (optional) ---
 	var jwtService *pkgjwt.Service
 	if cfg.JWT.Enabled {
@@ -293,6 +303,7 @@ func buildDependencies(cluster *database.DBCluster, sqlxWriter, sqlxReader *sqlx
 		HealthChecker:    checker,
 		UserHandler:      userHandler,
 		RoleHandler:      roleHandler,
+		AccountHandler:   accountHandler,
 		AuthHandler:      authHandler,
 		PasswordHandler:  passwordHandler,
 		JWTService:       tokenAdapter,
