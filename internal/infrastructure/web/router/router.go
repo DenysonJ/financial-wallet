@@ -121,9 +121,7 @@ func Setup(deps Dependencies) *gin.Engine {
 		}
 	} else {
 		RegisterUserRoutes(protected, deps.UserHandler, deps.PermissionLoader)
-		if deps.PasswordHandler != nil {
-			RegisterChangePasswordRoute(protected, deps.PasswordHandler, deps.PermissionLoader)
-		}
+		// ChangePassword requires JWT (ContextKeyUserID) — not registered without JWT
 	}
 
 	// Role routes: Service Key + Admin JWT
