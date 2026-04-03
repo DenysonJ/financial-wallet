@@ -91,7 +91,7 @@ func (r *AccountRepository) FindByID(ctx context.Context, id uservo.ID) (*accoun
 	query := `
 		SELECT id, user_id, name, type, description, active, created_at, updated_at
 		FROM accounts
-		WHERE id = $1
+		WHERE id = $1 AND active = true
 	`
 
 	var dbModel accountDB
@@ -109,15 +109,14 @@ func (r *AccountRepository) FindByID(ctx context.Context, id uservo.ID) (*accoun
 func (r *AccountRepository) List(ctx context.Context, filter accountdomain.ListFilter) (*accountdomain.ListResult, error) {
 	filter.Normalize()
 
-	// Build dynamic query with filters
-	var conditions []string
-	args := make(map[string]interface{})
-
-	// user_id is always required for scoping
-	if filter.UserID != "" {
-		conditions = append(conditions, "user_id = :user_id")
-		args["user_id"] = filter.UserID
+	// user_id is mandatory — reject queries without it to prevent cross-user data leak
+	if filter.UserID == "" {
+		return nil, fmt.Errorf("list accounts: user_id is required")
 	}
+
+	// Build dynamic query with filters
+	conditions := []string{"user_id = :user_id"}
+	args := map[string]interface{}{"user_id": filter.UserID}
 
 	if filter.ActiveOnly {
 		conditions = append(conditions, "active = true")

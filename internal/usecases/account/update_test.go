@@ -141,3 +141,37 @@ func TestUpdateUseCase_Execute_RepositoryError(t *testing.T) {
 	assert.Contains(t, updateErr.Error(), "db error")
 	mockRepo.AssertExpectations(t)
 }
+
+func TestUpdateUseCase_Execute_OwnershipCheck_NotOwner(t *testing.T) {
+	mockRepo := new(MockRepository)
+	id := uservo.NewID()
+	ownerID := uservo.NewID()
+	otherUserID := uservo.NewID()
+
+	existing := &accountdomain.Account{
+		ID:        id,
+		UserID:    ownerID,
+		Name:      "Nubank",
+		Type:      accountvo.TypeBankAccount,
+		Active:    true,
+		CreatedAt: time.Now(),
+		UpdatedAt: time.Now(),
+	}
+
+	mockRepo.On("FindByID", mock.Anything, id).Return(existing, nil)
+
+	uc := NewUpdateUseCase(mockRepo)
+	newName := "Hacked"
+	input := dto.UpdateInput{
+		ID:               id.String(),
+		RequestingUserID: otherUserID.String(),
+		Name:             &newName,
+	}
+
+	output, updateErr := uc.Execute(context.Background(), input)
+
+	assert.Error(t, updateErr)
+	assert.Nil(t, output)
+	assert.ErrorIs(t, updateErr, accountdomain.ErrAccountNotFound)
+	mockRepo.AssertNotCalled(t, "Update")
+}

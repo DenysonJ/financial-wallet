@@ -8,6 +8,7 @@ import (
 	"go.opentelemetry.io/otel/attribute"
 	otelcodes "go.opentelemetry.io/otel/codes"
 
+	accountdomain "github.com/DenysonJ/financial-wallet/internal/domain/account"
 	uservo "github.com/DenysonJ/financial-wallet/internal/domain/user/vo"
 	"github.com/DenysonJ/financial-wallet/internal/usecases/account/dto"
 	"github.com/DenysonJ/financial-wallet/internal/usecases/account/interfaces"
@@ -40,6 +41,21 @@ func (uc *DeleteUseCase) Execute(ctx context.Context, input dto.DeleteInput) (*d
 	}
 
 	span.SetAttributes(attribute.String("account.id", input.ID))
+
+	// Ownership check: fetch account first, verify owner
+	if input.RequestingUserID != "" {
+		a, findErr := uc.repo.FindByID(ctx, id)
+		if findErr != nil {
+			span.SetStatus(otelcodes.Error, findErr.Error())
+			logutil.LogWarn(ctx, "account delete failed", "error", findErr.Error())
+			return nil, findErr
+		}
+		if a.UserID.String() != input.RequestingUserID {
+			span.SetStatus(otelcodes.Error, "forbidden")
+			logutil.LogWarn(ctx, "account delete forbidden: not owner", "account.id", input.ID)
+			return nil, accountdomain.ErrAccountNotFound
+		}
+	}
 
 	// Soft delete
 	if deleteErr := uc.repo.Delete(ctx, id); deleteErr != nil {

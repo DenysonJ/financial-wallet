@@ -8,6 +8,7 @@ import (
 	"go.opentelemetry.io/otel/attribute"
 	otelcodes "go.opentelemetry.io/otel/codes"
 
+	accountdomain "github.com/DenysonJ/financial-wallet/internal/domain/account"
 	uservo "github.com/DenysonJ/financial-wallet/internal/domain/user/vo"
 	"github.com/DenysonJ/financial-wallet/internal/usecases/account/dto"
 	"github.com/DenysonJ/financial-wallet/internal/usecases/account/interfaces"
@@ -47,6 +48,13 @@ func (uc *GetUseCase) Execute(ctx context.Context, input dto.GetInput) (*dto.Get
 		span.SetStatus(otelcodes.Error, findErr.Error())
 		logutil.LogWarn(ctx, "account get failed", "error", findErr.Error())
 		return nil, findErr
+	}
+
+	// Ownership check (when RequestingUserID is set, enforce it)
+	if input.RequestingUserID != "" && a.UserID.String() != input.RequestingUserID {
+		span.SetStatus(otelcodes.Error, "forbidden")
+		logutil.LogWarn(ctx, "account get forbidden: not owner", "account.id", a.ID.String())
+		return nil, accountdomain.ErrAccountNotFound
 	}
 
 	logutil.LogInfo(ctx, "account retrieved", "account.id", a.ID.String())

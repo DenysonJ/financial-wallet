@@ -4,8 +4,10 @@ import (
 	"context"
 	"errors"
 	"testing"
+	"time"
 
 	accountdomain "github.com/DenysonJ/financial-wallet/internal/domain/account"
+	accountvo "github.com/DenysonJ/financial-wallet/internal/domain/account/vo"
 	uservo "github.com/DenysonJ/financial-wallet/internal/domain/user/vo"
 	"github.com/DenysonJ/financial-wallet/internal/usecases/account/dto"
 	"github.com/stretchr/testify/assert"
@@ -64,4 +66,34 @@ func TestDeleteUseCase_Execute_RepositoryError(t *testing.T) {
 	assert.Nil(t, output)
 	assert.Contains(t, deleteErr.Error(), "db error")
 	mockRepo.AssertExpectations(t)
+}
+
+func TestDeleteUseCase_Execute_OwnershipCheck_NotOwner(t *testing.T) {
+	mockRepo := new(MockRepository)
+	id := uservo.NewID()
+	ownerID := uservo.NewID()
+	otherUserID := uservo.NewID()
+
+	existing := &accountdomain.Account{
+		ID:        id,
+		UserID:    ownerID,
+		Name:      "Nubank",
+		Type:      accountvo.TypeBankAccount,
+		Active:    true,
+		CreatedAt: time.Now(),
+		UpdatedAt: time.Now(),
+	}
+
+	mockRepo.On("FindByID", mock.Anything, id).Return(existing, nil)
+
+	uc := NewDeleteUseCase(mockRepo)
+	output, deleteErr := uc.Execute(context.Background(), dto.DeleteInput{
+		ID:               id.String(),
+		RequestingUserID: otherUserID.String(),
+	})
+
+	assert.Error(t, deleteErr)
+	assert.Nil(t, output)
+	assert.ErrorIs(t, deleteErr, accountdomain.ErrAccountNotFound)
+	mockRepo.AssertNotCalled(t, "Delete")
 }

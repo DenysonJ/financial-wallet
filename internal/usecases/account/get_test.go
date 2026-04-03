@@ -82,3 +82,91 @@ func TestGetUseCase_Execute_RepositoryError(t *testing.T) {
 	assert.Contains(t, getErr.Error(), "db error")
 	mockRepo.AssertExpectations(t)
 }
+
+func TestGetUseCase_Execute_OwnershipCheck_Owner(t *testing.T) {
+	mockRepo := new(MockRepository)
+	id := uservo.NewID()
+	userID := uservo.NewID()
+
+	expected := &accountdomain.Account{
+		ID:        id,
+		UserID:    userID,
+		Name:      "Nubank",
+		Type:      accountvo.TypeBankAccount,
+		Active:    true,
+		CreatedAt: time.Now(),
+		UpdatedAt: time.Now(),
+	}
+
+	mockRepo.On("FindByID", mock.Anything, id).Return(expected, nil)
+
+	uc := NewGetUseCase(mockRepo)
+	output, getErr := uc.Execute(context.Background(), dto.GetInput{
+		ID:               id.String(),
+		RequestingUserID: userID.String(),
+	})
+
+	assert.NoError(t, getErr)
+	assert.NotNil(t, output)
+	assert.Equal(t, id.String(), output.ID)
+	mockRepo.AssertExpectations(t)
+}
+
+func TestGetUseCase_Execute_OwnershipCheck_NotOwner(t *testing.T) {
+	mockRepo := new(MockRepository)
+	id := uservo.NewID()
+	ownerID := uservo.NewID()
+	otherUserID := uservo.NewID()
+
+	expected := &accountdomain.Account{
+		ID:        id,
+		UserID:    ownerID,
+		Name:      "Nubank",
+		Type:      accountvo.TypeBankAccount,
+		Active:    true,
+		CreatedAt: time.Now(),
+		UpdatedAt: time.Now(),
+	}
+
+	mockRepo.On("FindByID", mock.Anything, id).Return(expected, nil)
+
+	uc := NewGetUseCase(mockRepo)
+	output, getErr := uc.Execute(context.Background(), dto.GetInput{
+		ID:               id.String(),
+		RequestingUserID: otherUserID.String(),
+	})
+
+	// Returns ErrAccountNotFound (not forbidden) to avoid existence oracle
+	assert.Error(t, getErr)
+	assert.Nil(t, output)
+	assert.ErrorIs(t, getErr, accountdomain.ErrAccountNotFound)
+	mockRepo.AssertExpectations(t)
+}
+
+func TestGetUseCase_Execute_OwnershipCheck_Skipped_WhenEmpty(t *testing.T) {
+	mockRepo := new(MockRepository)
+	id := uservo.NewID()
+
+	expected := &accountdomain.Account{
+		ID:        id,
+		UserID:    uservo.NewID(),
+		Name:      "Nubank",
+		Type:      accountvo.TypeBankAccount,
+		Active:    true,
+		CreatedAt: time.Now(),
+		UpdatedAt: time.Now(),
+	}
+
+	mockRepo.On("FindByID", mock.Anything, id).Return(expected, nil)
+
+	uc := NewGetUseCase(mockRepo)
+	// Empty RequestingUserID = admin/service-key, ownership check skipped
+	output, getErr := uc.Execute(context.Background(), dto.GetInput{
+		ID:               id.String(),
+		RequestingUserID: "",
+	})
+
+	assert.NoError(t, getErr)
+	assert.NotNil(t, output)
+	mockRepo.AssertExpectations(t)
+}

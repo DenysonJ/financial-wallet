@@ -39,11 +39,29 @@ func NewAccountHandler(
 	}
 }
 
-// getJWTUserID extracts the user ID from JWT context.
-func getJWTUserID(c *gin.Context) string {
-	userID, _ := c.Get(middleware.ContextKeyUserID)
-	userIDStr, _ := userID.(string)
-	return userIDStr
+// getRequiredJWTUserID extracts the user ID from JWT context.
+// Returns empty string for service-key or admin requests (ownership check skipped).
+// Returns the user ID for regular JWT users (ownership enforced in use case).
+func getRequiredJWTUserID(c *gin.Context) (userID string, ok bool) {
+	raw, exists := c.Get(middleware.ContextKeyUserID)
+	if !exists {
+		return "", false
+	}
+	userIDStr, _ := raw.(string)
+	if userIDStr == "" {
+		return "", false
+	}
+	return userIDStr, true
+}
+
+// ownershipUserID returns the user ID for ownership enforcement.
+// Admin and service-key requests return "" (skip check); regular users return their ID.
+func ownershipUserID(c *gin.Context) string {
+	if isServiceKeyRequest(c) || isAdmin(c) {
+		return ""
+	}
+	userID, _ := getRequiredJWTUserID(c)
+	return userID
 }
 
 // Create godoc
@@ -55,6 +73,7 @@ func getJWTUserID(c *gin.Context) string {
 // @Param        request body dto.CreateInput true "Account info"
 // @Success      201  {object}  dto.CreateOutput
 // @Failure      400  {object}  ErrorResponse
+// @Failure      401  {object}  ErrorResponse
 // @Failure      429  {object}  ErrorResponse
 // @Failure      500  {object}  ErrorResponse
 // @Security     ServiceName
@@ -71,8 +90,14 @@ func (h *AccountHandler) Create(c *gin.Context) {
 		return
 	}
 
-	// Set UserID from JWT context
-	req.UserID = getJWTUserID(c)
+	// Set UserID from JWT context (required — accounts must have an owner)
+	userID, ok := getRequiredJWTUserID(c)
+	if !ok {
+		span.SetStatus(codes.Error, "authentication required")
+		httpgin.SendError(c, http.StatusUnauthorized, "authentication required")
+		return
+	}
+	req.UserID = userID
 
 	span.SetAttributes(attribute.String("account.name", req.Name), attribute.String("account.type", req.Type))
 
@@ -93,7 +118,6 @@ func (h *AccountHandler) Create(c *gin.Context) {
 // @Produce      json
 // @Param        id   path      string  true  "Account ID"
 // @Success      200  {object}  dto.GetOutput
-// @Failure      403  {object}  ErrorResponse
 // @Failure      404  {object}  ErrorResponse
 // @Failure      429  {object}  ErrorResponse
 // @Failure      500  {object}  ErrorResponse
@@ -107,16 +131,13 @@ func (h *AccountHandler) GetByID(c *gin.Context) {
 	id := c.Param("id")
 	span.SetAttributes(attribute.String("account.id", id))
 
-	res, execErr := h.GetUC.Execute(ctx, dto.GetInput{ID: id})
+	// Ownership enforced in use case — returns 404 for non-owner (no existence oracle)
+	res, execErr := h.GetUC.Execute(ctx, dto.GetInput{
+		ID:               id,
+		RequestingUserID: ownershipUserID(c),
+	})
 	if execErr != nil {
 		HandleError(c, span, execErr)
-		return
-	}
-
-	// Ownership check: account belongs to user, or admin/service-key
-	if !isAdminOrOwner(c, res.UserID) {
-		span.SetStatus(codes.Error, "forbidden")
-		httpgin.SendError(c, http.StatusForbidden, "forbidden")
 		return
 	}
 
@@ -134,6 +155,7 @@ func (h *AccountHandler) GetByID(c *gin.Context) {
 // @Param        type        query     string  false  "Filter by type"
 // @Param        active_only query     bool    false  "Filter by active status"
 // @Success      200         {object}  dto.ListOutput
+// @Failure      401         {object}  ErrorResponse
 // @Failure      429         {object}  ErrorResponse
 // @Failure      500         {object}  ErrorResponse
 // @Security     ServiceName
@@ -150,8 +172,14 @@ func (h *AccountHandler) List(c *gin.Context) {
 		return
 	}
 
-	// Scope to authenticated user's accounts
-	req.UserID = getJWTUserID(c)
+	// Scope to authenticated user's accounts (required)
+	userID, ok := getRequiredJWTUserID(c)
+	if !ok {
+		span.SetStatus(codes.Error, "authentication required")
+		httpgin.SendError(c, http.StatusUnauthorized, "authentication required")
+		return
+	}
+	req.UserID = userID
 
 	span.SetAttributes(
 		attribute.Int("filter.page", req.Page),
@@ -178,7 +206,6 @@ func (h *AccountHandler) List(c *gin.Context) {
 // @Param        request  body      dto.UpdateInput  true  "Update info"
 // @Success      200      {object}  dto.UpdateOutput
 // @Failure      400      {object}  ErrorResponse
-// @Failure      403      {object}  ErrorResponse
 // @Failure      404      {object}  ErrorResponse
 // @Failure      429      {object}  ErrorResponse
 // @Failure      500      {object}  ErrorResponse
@@ -192,19 +219,6 @@ func (h *AccountHandler) Update(c *gin.Context) {
 	id := c.Param("id")
 	span.SetAttributes(attribute.String("account.id", id))
 
-	// Fetch account to check ownership before allowing update
-	existing, getErr := h.GetUC.Execute(ctx, dto.GetInput{ID: id})
-	if getErr != nil {
-		HandleError(c, span, getErr)
-		return
-	}
-
-	if !isAdminOrOwner(c, existing.UserID) {
-		span.SetStatus(codes.Error, "forbidden")
-		httpgin.SendError(c, http.StatusForbidden, "forbidden")
-		return
-	}
-
 	var req dto.UpdateInput
 	if bindErr := c.ShouldBindJSON(&req); bindErr != nil {
 		span.SetStatus(codes.Error, "invalid request body")
@@ -212,6 +226,7 @@ func (h *AccountHandler) Update(c *gin.Context) {
 		return
 	}
 	req.ID = id
+	req.RequestingUserID = ownershipUserID(c)
 
 	res, execErr := h.UpdateUC.Execute(ctx, req)
 	if execErr != nil {
@@ -229,7 +244,6 @@ func (h *AccountHandler) Update(c *gin.Context) {
 // @Produce      json
 // @Param        id   path      string  true  "Account ID"
 // @Success      204
-// @Failure      403  {object}  ErrorResponse
 // @Failure      404  {object}  ErrorResponse
 // @Failure      429  {object}  ErrorResponse
 // @Failure      500  {object}  ErrorResponse
@@ -243,20 +257,10 @@ func (h *AccountHandler) Delete(c *gin.Context) {
 	id := c.Param("id")
 	span.SetAttributes(attribute.String("account.id", id))
 
-	// Fetch account to check ownership before allowing delete
-	existing, getErr := h.GetUC.Execute(ctx, dto.GetInput{ID: id})
-	if getErr != nil {
-		HandleError(c, span, getErr)
-		return
-	}
-
-	if !isAdminOrOwner(c, existing.UserID) {
-		span.SetStatus(codes.Error, "forbidden")
-		httpgin.SendError(c, http.StatusForbidden, "forbidden")
-		return
-	}
-
-	_, execErr := h.DeleteUC.Execute(ctx, dto.DeleteInput{ID: id})
+	_, execErr := h.DeleteUC.Execute(ctx, dto.DeleteInput{
+		ID:               id,
+		RequestingUserID: ownershipUserID(c),
+	})
 	if execErr != nil {
 		HandleError(c, span, execErr)
 		return

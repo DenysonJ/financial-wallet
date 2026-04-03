@@ -6,7 +6,8 @@ package dto
 
 // GetInput representa os dados de entrada para buscar uma account.
 type GetInput struct {
-	ID string `json:"id"` // UUID v7 da account
+	ID               string `json:"id"` // UUID v7 da account
+	RequestingUserID string `json:"-"`  // JWT user_id (empty = skip ownership check, e.g. admin/service-key)
 }
 
 // GetOutput representa os dados de saída da account encontrada.

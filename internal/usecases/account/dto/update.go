@@ -6,9 +6,10 @@ package dto
 
 // UpdateInput representa os dados de entrada para atualizar uma account.
 type UpdateInput struct {
-	ID          string  `json:"-"`                                                  // ID vem da URL
-	Name        *string `json:"name,omitempty" binding:"omitempty,max=255"`         // Nome (opcional)
-	Description *string `json:"description,omitempty" binding:"omitempty,max=1000"` // Descrição (opcional)
+	ID               string  `json:"-"`                                                  // ID vem da URL
+	RequestingUserID string  `json:"-"`                                                  // JWT user_id (empty = skip ownership check)
+	Name             *string `json:"name,omitempty" binding:"omitempty,max=255"`         // Nome (opcional)
+	Description      *string `json:"description,omitempty" binding:"omitempty,max=1000"` // Descrição (opcional)
 }
 
 // UpdateOutput representa os dados de saída após atualização.
