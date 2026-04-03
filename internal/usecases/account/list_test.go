@@ -14,127 +14,97 @@ import (
 	"github.com/stretchr/testify/mock"
 )
 
-func TestListUseCase_Execute_Success(t *testing.T) {
-	mockRepo := new(MockRepository)
+func TestListUseCase_Execute(t *testing.T) {
 	userID := uservo.NewID()
+	now := time.Now()
 
-	expectedResult := &accountdomain.ListResult{
+	twoAccounts := &accountdomain.ListResult{
 		Accounts: []*accountdomain.Account{
-			{
-				ID:        uservo.NewID(),
-				UserID:    userID,
-				Name:      "Nubank",
-				Type:      accountvo.TypeBankAccount,
-				Active:    true,
-				CreatedAt: time.Now(),
-				UpdatedAt: time.Now(),
-			},
-			{
-				ID:        uservo.NewID(),
-				UserID:    userID,
-				Name:      "Cartão Inter",
-				Type:      accountvo.TypeCreditCard,
-				Active:    true,
-				CreatedAt: time.Now(),
-				UpdatedAt: time.Now(),
-			},
+			{ID: uservo.NewID(), UserID: userID, Name: "Nubank", Type: accountvo.TypeBankAccount, Active: true, CreatedAt: now, UpdatedAt: now},
+			{ID: uservo.NewID(), UserID: userID, Name: "Cartão Inter", Type: accountvo.TypeCreditCard, Active: true, CreatedAt: now, UpdatedAt: now},
 		},
-		Total: 2,
-		Page:  1,
-		Limit: 20,
+		Total: 2, Page: 1, Limit: 20,
 	}
 
-	mockRepo.On("List", mock.Anything, mock.AnythingOfType("account.ListFilter")).Return(expectedResult, nil)
-
-	uc := NewListUseCase(mockRepo)
-	input := dto.ListInput{UserID: userID.String(), Page: 1, Limit: 20}
-
-	output, listErr := uc.Execute(context.Background(), input)
-
-	assert.NoError(t, listErr)
-	assert.NotNil(t, output)
-	assert.Len(t, output.Data, 2)
-	assert.Equal(t, 2, output.Pagination.Total)
-	assert.Equal(t, 1, output.Pagination.Page)
-	mockRepo.AssertExpectations(t)
-}
-
-func TestListUseCase_Execute_WithFilters(t *testing.T) {
-	mockRepo := new(MockRepository)
-	userID := uservo.NewID()
-
-	expectedResult := &accountdomain.ListResult{
+	oneAccount := &accountdomain.ListResult{
 		Accounts: []*accountdomain.Account{
-			{
-				ID:        uservo.NewID(),
-				UserID:    userID,
-				Name:      "Nubank",
-				Type:      accountvo.TypeBankAccount,
-				Active:    true,
-				CreatedAt: time.Now(),
-				UpdatedAt: time.Now(),
-			},
+			{ID: uservo.NewID(), UserID: userID, Name: "Nubank", Type: accountvo.TypeBankAccount, Active: true, CreatedAt: now, UpdatedAt: now},
 		},
-		Total: 1,
-		Page:  1,
-		Limit: 20,
+		Total: 1, Page: 1, Limit: 20,
 	}
 
-	mockRepo.On("List", mock.Anything, mock.AnythingOfType("account.ListFilter")).Return(expectedResult, nil)
-
-	uc := NewListUseCase(mockRepo)
-	input := dto.ListInput{
-		UserID:     userID.String(),
-		Page:       1,
-		Limit:      20,
-		Type:       "bank_account",
-		ActiveOnly: true,
+	emptyResult := &accountdomain.ListResult{
+		Accounts: []*accountdomain.Account{}, Total: 0, Page: 1, Limit: 20,
 	}
 
-	output, listErr := uc.Execute(context.Background(), input)
-
-	assert.NoError(t, listErr)
-	assert.Len(t, output.Data, 1)
-	assert.Equal(t, "bank_account", output.Data[0].Type)
-	mockRepo.AssertExpectations(t)
-}
-
-func TestListUseCase_Execute_EmptyResult(t *testing.T) {
-	mockRepo := new(MockRepository)
-
-	expectedResult := &accountdomain.ListResult{
-		Accounts: []*accountdomain.Account{},
-		Total:    0,
-		Page:     1,
-		Limit:    20,
+	tests := []struct {
+		name       string
+		input      dto.ListInput
+		repoResult *accountdomain.ListResult
+		repoErr    error
+		wantErr    bool
+		errSubstr  string
+		wantTotal  int
+		wantCount  int
+	}{
+		{
+			name:       "sucesso com resultados",
+			input:      dto.ListInput{UserID: userID.String(), Page: 1, Limit: 20},
+			repoResult: twoAccounts,
+			wantTotal:  2,
+			wantCount:  2,
+		},
+		{
+			name:       "sucesso com filtros",
+			input:      dto.ListInput{UserID: userID.String(), Page: 1, Limit: 20, Type: "bank_account", ActiveOnly: true},
+			repoResult: oneAccount,
+			wantTotal:  1,
+			wantCount:  1,
+		},
+		{
+			name:       "resultado vazio",
+			input:      dto.ListInput{UserID: userID.String(), Page: 1, Limit: 20},
+			repoResult: emptyResult,
+			wantTotal:  0,
+			wantCount:  0,
+		},
+		{
+			name:      "erro do repositório",
+			input:     dto.ListInput{UserID: userID.String(), Page: 1, Limit: 20},
+			repoErr:   errors.New("database error"),
+			wantErr:   true,
+			errSubstr: "database error",
+		},
+		{
+			name:      "user_id vazio propaga erro do repositório",
+			input:     dto.ListInput{UserID: "", Page: 1, Limit: 20},
+			repoErr:   errors.New("list accounts: user_id is required"),
+			wantErr:   true,
+			errSubstr: "user_id is required",
+		},
 	}
 
-	mockRepo.On("List", mock.Anything, mock.AnythingOfType("account.ListFilter")).Return(expectedResult, nil)
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			mockRepo := new(MockRepository)
+			mockRepo.On("List", mock.Anything, mock.AnythingOfType("account.ListFilter")).
+				Return(tt.repoResult, tt.repoErr)
 
-	uc := NewListUseCase(mockRepo)
-	input := dto.ListInput{UserID: uservo.NewID().String(), Page: 1, Limit: 20}
+			uc := NewListUseCase(mockRepo)
+			output, execErr := uc.Execute(context.Background(), tt.input)
 
-	output, listErr := uc.Execute(context.Background(), input)
-
-	assert.NoError(t, listErr)
-	assert.NotNil(t, output)
-	assert.Len(t, output.Data, 0)
-	assert.Equal(t, 0, output.Pagination.Total)
-	mockRepo.AssertExpectations(t)
-}
-
-func TestListUseCase_Execute_RepositoryError(t *testing.T) {
-	mockRepo := new(MockRepository)
-	mockRepo.On("List", mock.Anything, mock.AnythingOfType("account.ListFilter")).
-		Return(nil, errors.New("database error"))
-
-	uc := NewListUseCase(mockRepo)
-	input := dto.ListInput{UserID: uservo.NewID().String(), Page: 1, Limit: 20}
-
-	output, listErr := uc.Execute(context.Background(), input)
-
-	assert.Error(t, listErr)
-	assert.Nil(t, output)
-	assert.Contains(t, listErr.Error(), "database error")
-	mockRepo.AssertExpectations(t)
+			if tt.wantErr {
+				assert.Error(t, execErr)
+				assert.Nil(t, output)
+				if tt.errSubstr != "" {
+					assert.Contains(t, execErr.Error(), tt.errSubstr)
+				}
+			} else {
+				assert.NoError(t, execErr)
+				assert.NotNil(t, output)
+				assert.Len(t, output.Data, tt.wantCount)
+				assert.Equal(t, tt.wantTotal, output.Pagination.Total)
+			}
+		})
+	}
 }

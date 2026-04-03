@@ -14,86 +14,111 @@ import (
 	"github.com/stretchr/testify/mock"
 )
 
-func TestDeleteUseCase_Execute_Success(t *testing.T) {
-	mockRepo := new(MockRepository)
-	id := uservo.NewID()
-	mockRepo.On("Delete", mock.Anything, id).Return(nil)
-
-	uc := NewDeleteUseCase(mockRepo)
-	output, deleteErr := uc.Execute(context.Background(), dto.DeleteInput{ID: id.String()})
-
-	assert.NoError(t, deleteErr)
-	assert.NotNil(t, output)
-	assert.Equal(t, id.String(), output.ID)
-	assert.NotEmpty(t, output.DeletedAt)
-	mockRepo.AssertExpectations(t)
-}
-
-func TestDeleteUseCase_Execute_NotFound(t *testing.T) {
-	mockRepo := new(MockRepository)
-	mockRepo.On("Delete", mock.Anything, mock.AnythingOfType("vo.ID")).
-		Return(accountdomain.ErrAccountNotFound)
-
-	uc := NewDeleteUseCase(mockRepo)
-	output, deleteErr := uc.Execute(context.Background(), dto.DeleteInput{ID: "018e4a2c-6b4d-7000-9410-abcdef123456"})
-
-	assert.Error(t, deleteErr)
-	assert.Nil(t, output)
-	assert.ErrorIs(t, deleteErr, accountdomain.ErrAccountNotFound)
-	mockRepo.AssertExpectations(t)
-}
-
-func TestDeleteUseCase_Execute_InvalidID(t *testing.T) {
-	mockRepo := new(MockRepository)
-	uc := NewDeleteUseCase(mockRepo)
-
-	output, deleteErr := uc.Execute(context.Background(), dto.DeleteInput{ID: "invalid"})
-
-	assert.Error(t, deleteErr)
-	assert.Nil(t, output)
-	mockRepo.AssertNotCalled(t, "Delete")
-}
-
-func TestDeleteUseCase_Execute_RepositoryError(t *testing.T) {
-	mockRepo := new(MockRepository)
-	id := uservo.NewID()
-	mockRepo.On("Delete", mock.Anything, id).Return(errors.New("db error"))
-
-	uc := NewDeleteUseCase(mockRepo)
-	output, deleteErr := uc.Execute(context.Background(), dto.DeleteInput{ID: id.String()})
-
-	assert.Error(t, deleteErr)
-	assert.Nil(t, output)
-	assert.Contains(t, deleteErr.Error(), "db error")
-	mockRepo.AssertExpectations(t)
-}
-
-func TestDeleteUseCase_Execute_OwnershipCheck_NotOwner(t *testing.T) {
-	mockRepo := new(MockRepository)
-	id := uservo.NewID()
+func TestDeleteUseCase_Execute(t *testing.T) {
+	validID := uservo.NewID()
 	ownerID := uservo.NewID()
 	otherUserID := uservo.NewID()
+	now := time.Now()
 
-	existing := &accountdomain.Account{
-		ID:        id,
-		UserID:    ownerID,
-		Name:      "Nubank",
-		Type:      accountvo.TypeBankAccount,
-		Active:    true,
-		CreatedAt: time.Now(),
-		UpdatedAt: time.Now(),
+	ownedAccount := &accountdomain.Account{
+		ID: validID, UserID: ownerID, Name: "Nubank", Type: accountvo.TypeBankAccount,
+		Active: true, CreatedAt: now, UpdatedAt: now,
 	}
 
-	mockRepo.On("FindByID", mock.Anything, id).Return(existing, nil)
+	tests := []struct {
+		name           string
+		input          dto.DeleteInput
+		findResult     *accountdomain.Account
+		findErr        error
+		deleteErr      error
+		wantErr        error
+		wantErrMsg     string
+		wantOutput     bool
+		skipFindCall   bool
+		skipDeleteCall bool
+	}{
+		{
+			name:       "sucesso sem ownership check",
+			input:      dto.DeleteInput{ID: validID.String()},
+			wantOutput: true,
+		},
+		{
+			name:       "sucesso com ownership check - dono",
+			input:      dto.DeleteInput{ID: validID.String(), RequestingUserID: ownerID.String()},
+			findResult: ownedAccount,
+			wantOutput: true,
+		},
+		{
+			name:         "não encontrado",
+			input:        dto.DeleteInput{ID: "018e4a2c-6b4d-7000-9410-abcdef123456"},
+			deleteErr:    accountdomain.ErrAccountNotFound,
+			wantErr:      accountdomain.ErrAccountNotFound,
+			skipFindCall: true,
+		},
+		{
+			name:           "ID inválido",
+			input:          dto.DeleteInput{ID: "invalid"},
+			wantErr:        uservo.ErrInvalidID,
+			skipFindCall:   true,
+			skipDeleteCall: true,
+		},
+		{
+			name:       "erro do repositório",
+			input:      dto.DeleteInput{ID: validID.String()},
+			deleteErr:  errors.New("db error"),
+			wantErrMsg: "db error",
+		},
+		{
+			name:           "ownership check - não é dono (retorna not found)",
+			input:          dto.DeleteInput{ID: validID.String(), RequestingUserID: otherUserID.String()},
+			findResult:     ownedAccount,
+			wantErr:        accountdomain.ErrAccountNotFound,
+			skipDeleteCall: true,
+		},
+		{
+			name:         "double delete - já deletado retorna not found",
+			input:        dto.DeleteInput{ID: validID.String()},
+			deleteErr:    accountdomain.ErrAccountNotFound,
+			wantErr:      accountdomain.ErrAccountNotFound,
+			skipFindCall: true,
+		},
+	}
 
-	uc := NewDeleteUseCase(mockRepo)
-	output, deleteErr := uc.Execute(context.Background(), dto.DeleteInput{
-		ID:               id.String(),
-		RequestingUserID: otherUserID.String(),
-	})
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			mockRepo := new(MockRepository)
 
-	assert.Error(t, deleteErr)
-	assert.Nil(t, output)
-	assert.ErrorIs(t, deleteErr, accountdomain.ErrAccountNotFound)
-	mockRepo.AssertNotCalled(t, "Delete")
+			// Setup FindByID mock (only for ownership check cases)
+			if !tt.skipFindCall && tt.input.RequestingUserID != "" {
+				mockRepo.On("FindByID", mock.Anything, mock.AnythingOfType("vo.ID")).
+					Return(tt.findResult, tt.findErr)
+			}
+
+			// Setup Delete mock
+			if !tt.skipDeleteCall {
+				mockRepo.On("Delete", mock.Anything, mock.AnythingOfType("vo.ID")).
+					Return(tt.deleteErr)
+			}
+
+			uc := NewDeleteUseCase(mockRepo)
+			output, execErr := uc.Execute(context.Background(), tt.input)
+
+			if tt.wantErr != nil {
+				assert.ErrorIs(t, execErr, tt.wantErr)
+				assert.Nil(t, output)
+			} else if tt.wantErrMsg != "" {
+				assert.Error(t, execErr)
+				assert.Contains(t, execErr.Error(), tt.wantErrMsg)
+				assert.Nil(t, output)
+			} else {
+				assert.NoError(t, execErr)
+				assert.NotNil(t, output)
+				assert.NotEmpty(t, output.DeletedAt)
+			}
+
+			if tt.skipDeleteCall {
+				mockRepo.AssertNotCalled(t, "Delete")
+			}
+		})
+	}
 }

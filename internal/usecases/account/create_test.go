@@ -12,77 +12,78 @@ import (
 	"github.com/stretchr/testify/mock"
 )
 
-func TestCreateUseCase_Execute_Success(t *testing.T) {
-	mockRepo := new(MockRepository)
-	mockRepo.On("Create", mock.Anything, mock.AnythingOfType("*account.Account")).Return(nil)
-
-	uc := NewCreateUseCase(mockRepo)
-	input := dto.CreateInput{
-		UserID:      uservo.NewID().String(),
-		Name:        "Nubank",
-		Type:        "bank_account",
-		Description: "Conta corrente",
+func TestCreateUseCase_Execute(t *testing.T) {
+	tests := []struct {
+		name         string
+		input        dto.CreateInput
+		repoErr      error
+		wantErr      error
+		wantErrMsg   string
+		wantOutput   bool
+		skipRepoCall bool
+	}{
+		{
+			name: "sucesso",
+			input: dto.CreateInput{
+				UserID: uservo.NewID().String(), Name: "Nubank", Type: "bank_account", Description: "Conta corrente",
+			},
+			wantOutput: true,
+		},
+		{
+			name: "user ID inválido",
+			input: dto.CreateInput{
+				UserID: "invalid-id", Name: "Nubank", Type: "bank_account",
+			},
+			wantErr:      uservo.ErrInvalidID,
+			skipRepoCall: true,
+		},
+		{
+			name: "tipo inválido",
+			input: dto.CreateInput{
+				UserID: uservo.NewID().String(), Name: "Nubank", Type: "savings",
+			},
+			wantErr:      accountvo.ErrInvalidAccountType,
+			skipRepoCall: true,
+		},
+		{
+			name: "erro do repositório",
+			input: dto.CreateInput{
+				UserID: uservo.NewID().String(), Name: "Nubank", Type: "bank_account",
+			},
+			repoErr:    errors.New("database connection failed"),
+			wantErrMsg: "database connection failed",
+		},
 	}
 
-	output, createErr := uc.Execute(context.Background(), input)
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			mockRepo := new(MockRepository)
+			if !tt.skipRepoCall {
+				mockRepo.On("Create", mock.Anything, mock.AnythingOfType("*account.Account")).Return(tt.repoErr)
+			}
 
-	assert.NoError(t, createErr)
-	assert.NotNil(t, output)
-	assert.NotEmpty(t, output.ID)
-	assert.NotEmpty(t, output.CreatedAt)
-	mockRepo.AssertExpectations(t)
-}
+			uc := NewCreateUseCase(mockRepo)
+			output, execErr := uc.Execute(context.Background(), tt.input)
 
-func TestCreateUseCase_Execute_InvalidUserID(t *testing.T) {
-	mockRepo := new(MockRepository)
-	uc := NewCreateUseCase(mockRepo)
-	input := dto.CreateInput{
-		UserID: "invalid-id",
-		Name:   "Nubank",
-		Type:   "bank_account",
+			if tt.wantErr != nil {
+				assert.ErrorIs(t, execErr, tt.wantErr)
+				assert.Nil(t, output)
+			} else if tt.wantErrMsg != "" {
+				assert.Error(t, execErr)
+				assert.Contains(t, execErr.Error(), tt.wantErrMsg)
+				assert.Nil(t, output)
+			} else {
+				assert.NoError(t, execErr)
+				assert.NotNil(t, output)
+				assert.NotEmpty(t, output.ID)
+				assert.NotEmpty(t, output.CreatedAt)
+			}
+
+			if tt.skipRepoCall {
+				mockRepo.AssertNotCalled(t, "Create")
+			} else {
+				mockRepo.AssertExpectations(t)
+			}
+		})
 	}
-
-	output, createErr := uc.Execute(context.Background(), input)
-
-	assert.Error(t, createErr)
-	assert.Nil(t, output)
-	assert.ErrorIs(t, createErr, uservo.ErrInvalidID)
-	mockRepo.AssertNotCalled(t, "Create")
-}
-
-func TestCreateUseCase_Execute_InvalidType(t *testing.T) {
-	mockRepo := new(MockRepository)
-	uc := NewCreateUseCase(mockRepo)
-	input := dto.CreateInput{
-		UserID: uservo.NewID().String(),
-		Name:   "Nubank",
-		Type:   "savings",
-	}
-
-	output, createErr := uc.Execute(context.Background(), input)
-
-	assert.Error(t, createErr)
-	assert.Nil(t, output)
-	assert.ErrorIs(t, createErr, accountvo.ErrInvalidAccountType)
-	mockRepo.AssertNotCalled(t, "Create")
-}
-
-func TestCreateUseCase_Execute_RepositoryError(t *testing.T) {
-	mockRepo := new(MockRepository)
-	mockRepo.On("Create", mock.Anything, mock.AnythingOfType("*account.Account")).
-		Return(errors.New("database connection failed"))
-
-	uc := NewCreateUseCase(mockRepo)
-	input := dto.CreateInput{
-		UserID: uservo.NewID().String(),
-		Name:   "Nubank",
-		Type:   "bank_account",
-	}
-
-	output, createErr := uc.Execute(context.Background(), input)
-
-	assert.Error(t, createErr)
-	assert.Nil(t, output)
-	assert.Contains(t, createErr.Error(), "database connection failed")
-	mockRepo.AssertExpectations(t)
 }
