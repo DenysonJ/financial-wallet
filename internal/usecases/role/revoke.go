@@ -62,6 +62,14 @@ func (uc *RevokeRoleUseCase) Execute(ctx context.Context, input dto.RevokeRoleIn
 		attribute.String("role.id", input.RoleID),
 	)
 
+	// Verify role exists
+	_, findErr := uc.repo.FindByID(ctx, roleID)
+	if findErr != nil {
+		span.SetStatus(otelcodes.Error, findErr.Error())
+		logutil.LogWarn(ctx, "role revoke failed: role not found", "error", findErr.Error())
+		return findErr
+	}
+
 	// Revoke role
 	revokeErr := uc.repo.RevokeRole(ctx, userID, roleID)
 	if revokeErr != nil {
