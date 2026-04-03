@@ -1,10 +1,12 @@
 package account
 
+import uservo "github.com/DenysonJ/financial-wallet/internal/domain/user/vo"
+
 // ListFilter contém os parâmetros de filtragem e paginação para listagem de accounts.
 type ListFilter struct {
 	Page       int
 	Limit      int
-	UserID     string
+	UserID     uservo.ID
 	Name       string
 	Type       string
 	ActiveOnly bool

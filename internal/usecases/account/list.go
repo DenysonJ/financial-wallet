@@ -10,6 +10,7 @@ import (
 	otelcodes "go.opentelemetry.io/otel/codes"
 
 	accountdomain "github.com/DenysonJ/financial-wallet/internal/domain/account"
+	uservo "github.com/DenysonJ/financial-wallet/internal/domain/user/vo"
 	"github.com/DenysonJ/financial-wallet/internal/usecases/account/dto"
 	"github.com/DenysonJ/financial-wallet/internal/usecases/account/interfaces"
 	"github.com/DenysonJ/financial-wallet/pkg/logutil"
@@ -32,6 +33,14 @@ func (uc *ListUseCase) Execute(ctx context.Context, input dto.ListInput) (*dto.L
 
 	ctx = injectLogContext(ctx, resourceAccount, logutil.ActionList)
 
+	// Validar UserID
+	userID, parseErr := uservo.ParseID(input.UserID)
+	if parseErr != nil {
+		span.SetStatus(otelcodes.Error, parseErr.Error())
+		logutil.LogWarn(ctx, "account list failed: invalid user ID", "error", parseErr.Error())
+		return nil, parseErr
+	}
+
 	span.SetAttributes(
 		attribute.Int("filter.page", input.Page),
 		attribute.Int("filter.limit", input.Limit),
@@ -42,7 +51,7 @@ func (uc *ListUseCase) Execute(ctx context.Context, input dto.ListInput) (*dto.L
 	filter := accountdomain.ListFilter{
 		Page:       input.Page,
 		Limit:      input.Limit,
-		UserID:     input.UserID,
+		UserID:     userID,
 		Name:       input.Name,
 		Type:       input.Type,
 		ActiveOnly: input.ActiveOnly,

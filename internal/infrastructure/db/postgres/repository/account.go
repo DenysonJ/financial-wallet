@@ -110,13 +110,13 @@ func (r *AccountRepository) List(ctx context.Context, filter accountdomain.ListF
 	filter.Normalize()
 
 	// user_id is mandatory — reject queries without it to prevent cross-user data leak
-	if filter.UserID == "" {
+	if filter.UserID.String() == "" {
 		return nil, fmt.Errorf("list accounts: user_id is required")
 	}
 
 	// Build dynamic query with filters
 	conditions := []string{"user_id = :user_id"}
-	args := map[string]interface{}{"user_id": filter.UserID}
+	args := map[string]interface{}{"user_id": filter.UserID.String()}
 
 	if filter.ActiveOnly {
 		conditions = append(conditions, "active = true")

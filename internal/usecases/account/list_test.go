@@ -76,11 +76,10 @@ func TestListUseCase_Execute(t *testing.T) {
 			errSubstr: "database error",
 		},
 		{
-			name:      "user_id vazio propaga erro do repositório",
+			name:      "user_id vazio falha na validação",
 			input:     dto.ListInput{UserID: "", Page: 1, Limit: 20},
-			repoErr:   errors.New("list accounts: user_id is required"),
 			wantErr:   true,
-			errSubstr: "user_id is required",
+			errSubstr: "invalid ID",
 		},
 	}
 

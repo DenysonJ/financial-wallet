@@ -270,7 +270,7 @@ func TestAccountRepository_List(t *testing.T) {
 	}{
 		{
 			name:   "sucesso com resultados",
-			filter: accountdomain.ListFilter{Page: 1, Limit: 20, UserID: testUserID.String()},
+			filter: accountdomain.ListFilter{Page: 1, Limit: 20, UserID: testUserID},
 			setupMock: func(mock sqlmock.Sqlmock) {
 				mock.ExpectBegin()
 				mock.ExpectQuery("SELECT COUNT\\(\\*\\) FROM accounts WHERE user_id").
@@ -285,7 +285,7 @@ func TestAccountRepository_List(t *testing.T) {
 		},
 		{
 			name:   "resultado vazio",
-			filter: accountdomain.ListFilter{Page: 1, Limit: 20, UserID: testUserID.String()},
+			filter: accountdomain.ListFilter{Page: 1, Limit: 20, UserID: testUserID},
 			setupMock: func(mock sqlmock.Sqlmock) {
 				mock.ExpectBegin()
 				mock.ExpectQuery("SELECT COUNT\\(\\*\\) FROM accounts WHERE user_id").
@@ -306,7 +306,7 @@ func TestAccountRepository_List(t *testing.T) {
 		},
 		{
 			name:   "com filtro de tipo",
-			filter: accountdomain.ListFilter{Page: 1, Limit: 20, UserID: testUserID.String(), Type: "bank_account"},
+			filter: accountdomain.ListFilter{Page: 1, Limit: 20, UserID: testUserID, Type: "bank_account"},
 			setupMock: func(mock sqlmock.Sqlmock) {
 				mock.ExpectBegin()
 				mock.ExpectQuery("SELECT COUNT\\(\\*\\) FROM accounts WHERE user_id.+AND type").
@@ -321,7 +321,7 @@ func TestAccountRepository_List(t *testing.T) {
 		},
 		{
 			name:   "erro ao iniciar transação",
-			filter: accountdomain.ListFilter{Page: 1, Limit: 20, UserID: testUserID.String()},
+			filter: accountdomain.ListFilter{Page: 1, Limit: 20, UserID: testUserID},
 			setupMock: func(mock sqlmock.Sqlmock) {
 				mock.ExpectBegin().WillReturnError(sql.ErrConnDone)
 			},
@@ -330,7 +330,7 @@ func TestAccountRepository_List(t *testing.T) {
 		},
 		{
 			name:   "erro na query de contagem",
-			filter: accountdomain.ListFilter{Page: 1, Limit: 20, UserID: testUserID.String()},
+			filter: accountdomain.ListFilter{Page: 1, Limit: 20, UserID: testUserID},
 			setupMock: func(mock sqlmock.Sqlmock) {
 				mock.ExpectBegin()
 				mock.ExpectQuery("SELECT COUNT\\(\\*\\) FROM accounts").
