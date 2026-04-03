@@ -279,7 +279,15 @@ func buildDependencies(cluster *database.DBCluster, sqlxWriter, sqlxReader *sqlx
 	}
 
 	// --- Permission Loader (RBAC authorization) ---
-	permissionLoader := middleware.NewCachedPermissionLoader(&permissionRepoAdapter{repo: roleRepo}, redisClient)
+	var permissionCache cache.Cache
+	if redisClient != nil {
+		permissionTTL, permissionTTLErr := time.ParseDuration(cfg.Redis.PermissionsTTL)
+		if permissionTTLErr != nil {
+			permissionTTL = 5 * time.Minute
+		}
+		permissionCache = redisClient.WithTTL(permissionTTL)
+	}
+	permissionLoader := middleware.NewCachedPermissionLoader(&permissionRepoAdapter{repo: roleRepo}, permissionCache)
 
 	return router.Dependencies{
 		HealthChecker:    checker,

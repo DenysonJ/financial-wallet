@@ -135,6 +135,14 @@ func (r *RedisClient) UnderlyingClient() *redis.Client {
 	return r.client
 }
 
+// WithTTL returns a new RedisClient sharing the same connection but with a different TTL.
+func (r *RedisClient) WithTTL(ttl time.Duration) *RedisClient {
+	return &RedisClient{
+		client: r.client,
+		ttl:    ttl,
+	}
+}
+
 // Ping checks the Redis connection.
 func (r *RedisClient) Ping(ctx context.Context) error {
 	if r == nil {
