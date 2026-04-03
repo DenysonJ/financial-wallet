@@ -205,12 +205,6 @@ func (r *AccountRepository) List(ctx context.Context, filter accountdomain.ListF
 }
 
 func (r *AccountRepository) Update(ctx context.Context, a *accountdomain.Account) error {
-	tx, txErr := r.writer.BeginTxx(ctx, nil)
-	if txErr != nil {
-		return fmt.Errorf("beginning transaction: %w", txErr)
-	}
-	defer func() { _ = tx.Rollback() }()
-
 	query := `
 		UPDATE accounts SET
 			name = :name,
@@ -221,7 +215,7 @@ func (r *AccountRepository) Update(ctx context.Context, a *accountdomain.Account
 	`
 
 	dbModel := fromDomainAccount(a)
-	result, execErr := tx.NamedExecContext(ctx, query, dbModel)
+	result, execErr := r.writer.NamedExecContext(ctx, query, dbModel)
 	if execErr != nil {
 		return execErr
 	}
@@ -233,11 +227,6 @@ func (r *AccountRepository) Update(ctx context.Context, a *accountdomain.Account
 
 	if rowsAffected == 0 {
 		return accountdomain.ErrAccountNotFound
-	}
-
-	commitErr := tx.Commit()
-	if commitErr != nil {
-		return fmt.Errorf("committing transaction: %w", commitErr)
 	}
 
 	return nil
