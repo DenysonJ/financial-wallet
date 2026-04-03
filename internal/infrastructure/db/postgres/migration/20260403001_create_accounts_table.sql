@@ -13,7 +13,7 @@ CREATE TABLE accounts (
 );
 
 CREATE INDEX idx_accounts_user_id ON accounts(user_id);
-CREATE INDEX idx_accounts_type ON accounts(type);
+CREATE INDEX idx_accounts_user_type ON accounts(user_id, type);
 CREATE INDEX idx_accounts_user_active ON accounts(user_id, created_at DESC) WHERE active = true;
 
 -- Seed: account permissions
@@ -34,7 +34,8 @@ INSERT INTO role_permissions (role_id, permission_id) VALUES
 INSERT INTO role_permissions (role_id, permission_id) VALUES
     ('00000000-0000-0000-0000-100000000002', '00000000-0000-0000-0000-000000000007'),
     ('00000000-0000-0000-0000-100000000002', '00000000-0000-0000-0000-000000000008'),
-    ('00000000-0000-0000-0000-100000000002', '00000000-0000-0000-0000-000000000009');
+    ('00000000-0000-0000-0000-100000000002', '00000000-0000-0000-0000-000000000009'),
+    ('00000000-0000-0000-0000-100000000002', '00000000-0000-0000-0000-000000000010');
 
 -- +goose Down
 DELETE FROM role_permissions WHERE permission_id IN (
@@ -50,6 +51,6 @@ DELETE FROM permissions WHERE id IN (
     '00000000-0000-0000-0000-000000000010'
 );
 DROP INDEX IF EXISTS idx_accounts_user_active;
-DROP INDEX IF EXISTS idx_accounts_type;
+DROP INDEX IF EXISTS idx_accounts_user_type;
 DROP INDEX IF EXISTS idx_accounts_user_id;
 DROP TABLE IF EXISTS accounts;
