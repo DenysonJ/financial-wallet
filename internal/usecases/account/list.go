@@ -71,7 +71,13 @@ func (uc *ListUseCase) Execute(ctx context.Context, input dto.ListInput) (*dto.L
 		})
 	}
 
-	totalPages := int(math.Ceil(float64(result.Total) / float64(result.Limit)))
+	total := float64(result.Total)
+	limit := float64(result.Limit)
+	totalPages := 0
+
+	if limit > 0 {
+		totalPages = int(math.Ceil(total / limit))
+	}
 
 	span.SetAttributes(attribute.Int("result.total", result.Total))
 	logutil.LogInfo(ctx, "accounts listed", "total", result.Total, "page", result.Page)

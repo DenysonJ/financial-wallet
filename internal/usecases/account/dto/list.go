@@ -6,12 +6,12 @@ package dto
 
 // ListInput representa os dados de entrada para listar accounts.
 type ListInput struct {
-	UserID     string `form:"-"`                      // Vem do JWT context
-	Page       int    `form:"page"`                   // Página atual (1-indexed)
-	Limit      int    `form:"limit"`                  // Itens por página
-	Name       string `form:"name" binding:"max=255"` // Filtro por nome
-	Type       string `form:"type" binding:"max=50"`  // Filtro por tipo
-	ActiveOnly bool   `form:"active_only"`            // Apenas ativos
+	UserID     string `form:"-"`                       // Vem do JWT context
+	Page       int    `form:"page"`                    // Página atual (1-indexed)
+	Limit      int    `form:"limit" binding:"min=1"`   // Itens por página
+	Name       string `form:"name"  binding:"max=255"` // Filtro por nome
+	Type       string `form:"type"  binding:"max=50"`  // Filtro por tipo
+	ActiveOnly bool   `form:"active_only"`             // Apenas ativos
 }
 
 // ListOutput representa os dados de saída da listagem.
