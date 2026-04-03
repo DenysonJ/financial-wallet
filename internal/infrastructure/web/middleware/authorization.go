@@ -10,6 +10,9 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
+const ContextKeyPermissions = "user_permissions"
+const ContextKeyRoles = "user_roles"
+
 // PermissionLoader loads permissions and roles for a given user ID.
 type PermissionLoader interface {
 	GetPermissions(ctx context.Context, userID string) ([]string, error)
@@ -67,8 +70,8 @@ func RequirePermission(loader PermissionLoader, requiredPermission string) gin.H
 		}
 
 		// Store permissions and roles in context for downstream use
-		c.Set("user_permissions", permissions)
-		c.Set("user_roles", roles)
+		c.Set(ContextKeyPermissions, permissions)
+		c.Set(ContextKeyRoles, roles)
 		c.Next()
 	}
 }
