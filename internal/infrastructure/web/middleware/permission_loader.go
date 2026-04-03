@@ -4,6 +4,7 @@ import (
 	"context"
 
 	"github.com/DenysonJ/financial-wallet/internal/domain/user/vo"
+	"github.com/DenysonJ/financial-wallet/internal/usecases/role/interfaces"
 	"github.com/DenysonJ/financial-wallet/pkg/cache"
 	"github.com/DenysonJ/financial-wallet/pkg/logutil"
 )
@@ -26,7 +27,7 @@ func NewCachedPermissionLoader(repo PermissionRepository, c cache.Cache) *Cached
 
 // GetPermissions returns the user's permissions, checking cache first.
 func (l *CachedPermissionLoader) GetPermissions(ctx context.Context, userID string) ([]string, error) {
-	cacheKey := "permissions:user:" + userID
+	cacheKey := interfaces.PermissionCacheKeyPrefix + userID
 
 	// 1. Try cache
 	if l.cache != nil {
