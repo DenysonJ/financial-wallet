@@ -110,7 +110,12 @@ func Start(ctx context.Context, cfg *config.Config) error {
 	if clusterErr != nil {
 		return clusterErr
 	}
-	defer cluster.Close()
+	defer func(cluster *database.DBCluster) {
+		err := cluster.Close()
+		if err != nil {
+			slog.Error("Error closing database cluster", "error", err)
+		}
+	}(cluster)
 
 	// Wrap stdlib connections for sqlx-based repositories
 	sqlxWriter := sqlx.NewDb(cluster.Writer(), "postgres")
