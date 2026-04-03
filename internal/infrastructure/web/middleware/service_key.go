@@ -11,6 +11,8 @@ import (
 	"github.com/DenysonJ/financial-wallet/pkg/logutil"
 )
 
+const ContextKeyServiceKey = "serviceKey"
+
 // ServiceKeyConfig contém a configuração de autenticação por Service Key.
 type ServiceKeyConfig struct {
 	// Enabled indica se a autenticação está habilitada.
@@ -120,6 +122,7 @@ func ServiceKeyAuth(config ServiceKeyConfig) gin.HandlerFunc {
 		lc, _ := logutil.Extract(c.Request.Context())
 		lc.CallerService = serviceName
 		c.Request = c.Request.WithContext(logutil.Inject(c.Request.Context(), lc))
+		c.Set(ContextKeyServiceKey, serviceName)
 
 		c.Next()
 	}
