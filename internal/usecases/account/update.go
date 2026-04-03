@@ -30,7 +30,7 @@ func (uc *UpdateUseCase) Execute(ctx context.Context, input dto.UpdateInput) (*d
 	ctx, span := otel.Tracer("usecase").Start(ctx, "UseCase.Account.Update")
 	defer span.End()
 
-	ctx = injectLogContext(ctx, "account", "update")
+	ctx = injectLogContext(ctx, resourceAccount, logutil.ActionUpdate)
 
 	// Validar ID
 	id, parseErr := uservo.ParseID(input.ID)

@@ -30,7 +30,7 @@ func (uc *GetUseCase) Execute(ctx context.Context, input dto.GetInput) (*dto.Get
 	ctx, span := otel.Tracer("usecase").Start(ctx, "UseCase.Account.Get")
 	defer span.End()
 
-	ctx = injectLogContext(ctx, "account", "get")
+	ctx = injectLogContext(ctx, resourceAccount, logutil.ActionGet)
 
 	// Validar ID
 	id, parseErr := uservo.ParseID(input.ID)
