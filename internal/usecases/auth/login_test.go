@@ -2,6 +2,7 @@ package auth
 
 import (
 	"context"
+	"errors"
 	"testing"
 	"time"
 
@@ -36,6 +37,7 @@ func TestLoginUseCase_Execute(t *testing.T) {
 		email      string
 		password   string
 		wantErr    error
+		wantErrMsg string
 		wantTokens bool
 	}{
 		{
@@ -96,6 +98,27 @@ func TestLoginUseCase_Execute(t *testing.T) {
 			password: "Str0ng!Pass",
 			wantErr:  userdomain.ErrInvalidCredentials,
 		},
+		{
+			name: "erro ao gerar access token",
+			setupMock: func(repo *authuci.MockUserRepository, token *authuci.MockTokenService, user *userdomain.User) {
+				repo.On("FindByEmail", mock.Anything, mock.Anything).Return(user, nil)
+				token.On("GenerateAccessToken", user.ID.String()).Return("", errors.New("signing key error"))
+			},
+			email:      "test@example.com",
+			password:   "Str0ng!Pass",
+			wantErrMsg: "signing key error",
+		},
+		{
+			name: "erro ao gerar refresh token",
+			setupMock: func(repo *authuci.MockUserRepository, token *authuci.MockTokenService, user *userdomain.User) {
+				repo.On("FindByEmail", mock.Anything, mock.Anything).Return(user, nil)
+				token.On("GenerateAccessToken", user.ID.String()).Return("access-token", nil)
+				token.On("GenerateRefreshToken", user.ID.String()).Return("", errors.New("refresh signing error"))
+			},
+			email:      "test@example.com",
+			password:   "Str0ng!Pass",
+			wantErrMsg: "refresh signing error",
+		},
 	}
 
 	for _, tt := range tests {
@@ -117,6 +140,10 @@ func TestLoginUseCase_Execute(t *testing.T) {
 
 			if tt.wantErr != nil {
 				assert.ErrorIs(t, execErr, tt.wantErr)
+				assert.Nil(t, output)
+			} else if tt.wantErrMsg != "" {
+				assert.Error(t, execErr)
+				assert.Contains(t, execErr.Error(), tt.wantErrMsg)
 				assert.Nil(t, output)
 			} else {
 				assert.NoError(t, execErr)
