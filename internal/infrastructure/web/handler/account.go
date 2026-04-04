@@ -3,7 +3,6 @@ package handler
 import (
 	"net/http"
 
-	"github.com/DenysonJ/financial-wallet/internal/infrastructure/web/middleware"
 	accountuc "github.com/DenysonJ/financial-wallet/internal/usecases/account"
 	"github.com/DenysonJ/financial-wallet/internal/usecases/account/dto"
 	"github.com/DenysonJ/financial-wallet/pkg/httputil/httpgin"
@@ -37,31 +36,6 @@ func NewAccountHandler(
 		UpdateUC: updateUC,
 		DeleteUC: deleteUC,
 	}
-}
-
-// getRequiredJWTUserID extracts the user ID from JWT context.
-// Returns empty string for service-key or admin requests (ownership check skipped).
-// Returns the user ID for regular JWT users (ownership enforced in use case).
-func getRequiredJWTUserID(c *gin.Context) (userID string, ok bool) {
-	raw, exists := c.Get(middleware.ContextKeyUserID)
-	if !exists {
-		return "", false
-	}
-	userIDStr, _ := raw.(string)
-	if userIDStr == "" {
-		return "", false
-	}
-	return userIDStr, true
-}
-
-// ownershipUserID returns the user ID for ownership enforcement.
-// Admin and service-key requests return "" (skip check); regular users return their ID.
-func ownershipUserID(c *gin.Context) string {
-	if isServiceKeyRequest(c) || isAdmin(c) {
-		return ""
-	}
-	userID, _ := getRequiredJWTUserID(c)
-	return userID
 }
 
 // Create godoc

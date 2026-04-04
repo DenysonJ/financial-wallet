@@ -2,7 +2,6 @@ package handler
 
 import (
 	"net/http"
-	"slices"
 
 	"github.com/DenysonJ/financial-wallet/internal/infrastructure/telemetry"
 	"github.com/DenysonJ/financial-wallet/internal/infrastructure/web/middleware"
@@ -49,41 +48,6 @@ func NewUserHandler(
 		DeleteUC: deleteUC,
 		Metrics:  metrics,
 	}
-}
-
-// isServiceKeyRequest returns true if the request was authenticated via Service Key (no JWT user_id).
-func isServiceKeyRequest(c *gin.Context) bool {
-	_, exists := c.Get(middleware.ContextKeyServiceKey)
-	return exists
-}
-
-// isAdmin checks if the JWT user has the "admin" role.
-func isAdmin(c *gin.Context) bool {
-	roles, exists := c.Get("user_roles")
-	if !exists {
-		return false
-	}
-	if roleSlice, ok := roles.([]string); ok {
-		return slices.Contains(roleSlice, "admin")
-	}
-	return false
-}
-
-// isAdminOrOwner checks if the JWT user is the resource owner or has admin-level permissions.
-// Returns true for Service Key requests (trusted), admin users, or matching owner.
-func isAdminOrOwner(c *gin.Context, resourceUserID string) bool {
-	if isServiceKeyRequest(c) {
-		return true
-	}
-
-	jwtUserID, _ := c.Get(middleware.ContextKeyUserID)
-	jwtUserIDStr, _ := jwtUserID.(string)
-
-	if jwtUserIDStr == resourceUserID {
-		return true
-	}
-
-	return isAdmin(c)
 }
 
 // Create godoc
