@@ -273,8 +273,7 @@ func buildDependencies(cluster *database.DBCluster, sqlxWriter, sqlxReader *sqlx
 
 	// --- Auth Use Cases ---
 	var authHandler *handler.AuthHandler
-	var tokenAdapter *infraauth.JWTTokenAdapter
-	tokenAdapter = infraauth.NewJWTTokenAdapter(jwtService)
+	tokenAdapter := infraauth.NewJWTTokenAdapter(jwtService)
 	loginUC := authuc.NewLoginUseCase(repo, tokenAdapter)
 	refreshUC := authuc.NewRefreshUseCase(tokenAdapter)
 	authHandler = handler.NewAuthHandler(loginUC, refreshUC)
