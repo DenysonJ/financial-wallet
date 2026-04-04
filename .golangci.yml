@@ -7,7 +7,6 @@ run:
   modules-download-mode: readonly
 
 output:
-  sort-results: true
   sort-order:
     - severity
 
@@ -71,23 +70,23 @@ linters:
     misspell:
       locale: US
 
+  exclusions:
+    rules:
+      # Exclude test files from some linters
+      - path: _test\.go
+        linters:
+          - errcheck
+          - gosec
+          - gocritic
+
+      # Exclude main.go from wrapcheck
+      - path: cmd/api/main\.go
+        linters:
+          - wrapcheck
+
 issues:
   max-issues-per-linter: 50
   max-same-issues: 3
-
-exclusions:
-  rules:
-    # Exclude test files from some linters
-    - path: _test\.go
-      linters:
-        - errcheck
-        - gosec
-        - gocritic
-
-    # Exclude main.go from wrapcheck
-    - path: cmd/api/main\.go
-      linters:
-        - wrapcheck
 
 formatters:
   enable:
