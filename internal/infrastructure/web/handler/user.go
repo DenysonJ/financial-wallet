@@ -308,7 +308,7 @@ func (h *UserHandler) Delete(c *gin.Context) {
 		return
 	}
 
-	res, execErr := h.DeleteUC.Execute(ctx, dto.DeleteInput{ID: id})
+	_, execErr := h.DeleteUC.Execute(ctx, dto.DeleteInput{ID: id})
 	if execErr != nil {
 		HandleError(c, span, execErr)
 		return
@@ -319,5 +319,5 @@ func (h *UserHandler) Delete(c *gin.Context) {
 		h.Metrics.RecordDelete(ctx)
 	}
 
-	httpgin.SendSuccess(c, http.StatusOK, res)
+	c.Status(http.StatusNoContent)
 }

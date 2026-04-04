@@ -38,6 +38,7 @@ type Dependencies struct {
 	HealthChecker    *health.Checker
 	UserHandler      *handler.UserHandler
 	RoleHandler      *handler.RoleHandler
+	AccountHandler   *handler.AccountHandler
 	AuthHandler      *handler.AuthHandler
 	PasswordHandler  *handler.PasswordHandler
 	JWTService       interfaces.TokenService
@@ -121,6 +122,17 @@ func Setup(deps Dependencies) *gin.Engine {
 	} else {
 		RegisterUserRoutes(protected, deps.UserHandler, deps.PermissionLoader)
 		// ChangePassword requires JWT (ContextKeyUserID) — not registered without JWT
+	}
+
+	// Account routes: Service Key OR JWT authentication
+	if deps.AccountHandler != nil {
+		if deps.Config.JWTEnabled && deps.JWTService != nil {
+			accountGroup := protected.Group("")
+			accountGroup.Use(middleware.JWTAuth(deps.JWTService))
+			RegisterAccountRoutes(accountGroup, deps.AccountHandler, deps.PermissionLoader)
+		} else {
+			RegisterAccountRoutes(protected, deps.AccountHandler, deps.PermissionLoader)
+		}
 	}
 
 	// Role routes: Service Key + Admin JWT

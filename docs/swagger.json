@@ -4,6 +4,330 @@
         "contact": {}
     },
     "paths": {
+        "/accounts": {
+            "get": {
+                "security": [
+                    {
+                        "ServiceName": []
+                    },
+                    {
+                        "ServiceKey": []
+                    }
+                ],
+                "description": "Get a paginated list of the authenticated user's accounts",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "accounts"
+                ],
+                "summary": "List accounts",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "Page number",
+                        "name": "page",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "description": "Items per page",
+                        "name": "limit",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Filter by name",
+                        "name": "name",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Filter by type",
+                        "name": "type",
+                        "in": "query"
+                    },
+                    {
+                        "type": "boolean",
+                        "description": "Filter by active status",
+                        "name": "active_only",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_DenysonJ_financial-wallet_internal_usecases_account_dto.ListOutput"
+                        }
+                    },
+                    "429": {
+                        "description": "Too Many Requests",
+                        "schema": {
+                            "$ref": "#/definitions/internal_infrastructure_web_handler.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/internal_infrastructure_web_handler.ErrorResponse"
+                        }
+                    }
+                }
+            },
+            "post": {
+                "security": [
+                    {
+                        "ServiceName": []
+                    },
+                    {
+                        "ServiceKey": []
+                    }
+                ],
+                "description": "Create a new financial account for the authenticated user",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "accounts"
+                ],
+                "summary": "Create a new account",
+                "parameters": [
+                    {
+                        "description": "Account info",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/github_com_DenysonJ_financial-wallet_internal_usecases_account_dto.CreateInput"
+                        }
+                    }
+                ],
+                "responses": {
+                    "201": {
+                        "description": "Created",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_DenysonJ_financial-wallet_internal_usecases_account_dto.CreateOutput"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/internal_infrastructure_web_handler.ErrorResponse"
+                        }
+                    },
+                    "429": {
+                        "description": "Too Many Requests",
+                        "schema": {
+                            "$ref": "#/definitions/internal_infrastructure_web_handler.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/internal_infrastructure_web_handler.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/accounts/{id}": {
+            "get": {
+                "security": [
+                    {
+                        "ServiceName": []
+                    },
+                    {
+                        "ServiceKey": []
+                    }
+                ],
+                "description": "Get account details by unique ID",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "accounts"
+                ],
+                "summary": "Get an account by ID",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Account ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_DenysonJ_financial-wallet_internal_usecases_account_dto.GetOutput"
+                        }
+                    },
+                    "403": {
+                        "description": "Forbidden",
+                        "schema": {
+                            "$ref": "#/definitions/internal_infrastructure_web_handler.ErrorResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/internal_infrastructure_web_handler.ErrorResponse"
+                        }
+                    },
+                    "429": {
+                        "description": "Too Many Requests",
+                        "schema": {
+                            "$ref": "#/definitions/internal_infrastructure_web_handler.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/internal_infrastructure_web_handler.ErrorResponse"
+                        }
+                    }
+                }
+            },
+            "put": {
+                "security": [
+                    {
+                        "ServiceName": []
+                    },
+                    {
+                        "ServiceKey": []
+                    }
+                ],
+                "description": "Update account details by ID",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "accounts"
+                ],
+                "summary": "Update an account",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Account ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "Update info",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/github_com_DenysonJ_financial-wallet_internal_usecases_account_dto.UpdateInput"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_DenysonJ_financial-wallet_internal_usecases_account_dto.UpdateOutput"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/internal_infrastructure_web_handler.ErrorResponse"
+                        }
+                    },
+                    "403": {
+                        "description": "Forbidden",
+                        "schema": {
+                            "$ref": "#/definitions/internal_infrastructure_web_handler.ErrorResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/internal_infrastructure_web_handler.ErrorResponse"
+                        }
+                    },
+                    "429": {
+                        "description": "Too Many Requests",
+                        "schema": {
+                            "$ref": "#/definitions/internal_infrastructure_web_handler.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/internal_infrastructure_web_handler.ErrorResponse"
+                        }
+                    }
+                }
+            },
+            "delete": {
+                "security": [
+                    {
+                        "ServiceName": []
+                    },
+                    {
+                        "ServiceKey": []
+                    }
+                ],
+                "description": "Soft delete an account by ID",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "accounts"
+                ],
+                "summary": "Delete an account",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Account ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "204": {
+                        "description": "No Content"
+                    },
+                    "403": {
+                        "description": "Forbidden",
+                        "schema": {
+                            "$ref": "#/definitions/internal_infrastructure_web_handler.ErrorResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/internal_infrastructure_web_handler.ErrorResponse"
+                        }
+                    },
+                    "429": {
+                        "description": "Too Many Requests",
+                        "schema": {
+                            "$ref": "#/definitions/internal_infrastructure_web_handler.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/internal_infrastructure_web_handler.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
         "/auth/login": {
             "post": {
                 "description": "Authenticate with email and password, returns JWT tokens",
@@ -171,6 +495,12 @@
                             "$ref": "#/definitions/internal_infrastructure_web_handler.ErrorResponse"
                         }
                     },
+                    "403": {
+                        "description": "Forbidden",
+                        "schema": {
+                            "$ref": "#/definitions/internal_infrastructure_web_handler.ErrorResponse"
+                        }
+                    },
                     "429": {
                         "description": "Too Many Requests",
                         "schema": {
@@ -229,6 +559,12 @@
                             "$ref": "#/definitions/internal_infrastructure_web_handler.ErrorResponse"
                         }
                     },
+                    "403": {
+                        "description": "Forbidden",
+                        "schema": {
+                            "$ref": "#/definitions/internal_infrastructure_web_handler.ErrorResponse"
+                        }
+                    },
                     "429": {
                         "description": "Too Many Requests",
                         "schema": {
@@ -276,6 +612,158 @@
                         "description": "OK",
                         "schema": {
                             "$ref": "#/definitions/github_com_DenysonJ_financial-wallet_internal_usecases_role_dto.DeleteOutput"
+                        }
+                    },
+                    "403": {
+                        "description": "Forbidden",
+                        "schema": {
+                            "$ref": "#/definitions/internal_infrastructure_web_handler.ErrorResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/internal_infrastructure_web_handler.ErrorResponse"
+                        }
+                    },
+                    "429": {
+                        "description": "Too Many Requests",
+                        "schema": {
+                            "$ref": "#/definitions/internal_infrastructure_web_handler.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/internal_infrastructure_web_handler.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/roles/{id}/assign": {
+            "post": {
+                "security": [
+                    {
+                        "ServiceName": []
+                    },
+                    {
+                        "ServiceKey": []
+                    }
+                ],
+                "description": "Assign the specified role to a user",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "roles"
+                ],
+                "summary": "Assign a role to a user",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Role ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "User to assign",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/github_com_DenysonJ_financial-wallet_internal_usecases_role_dto.AssignRoleInput"
+                        }
+                    }
+                ],
+                "responses": {
+                    "204": {
+                        "description": "No Content"
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/internal_infrastructure_web_handler.ErrorResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/internal_infrastructure_web_handler.ErrorResponse"
+                        }
+                    },
+                    "409": {
+                        "description": "Conflict",
+                        "schema": {
+                            "$ref": "#/definitions/internal_infrastructure_web_handler.ErrorResponse"
+                        }
+                    },
+                    "429": {
+                        "description": "Too Many Requests",
+                        "schema": {
+                            "$ref": "#/definitions/internal_infrastructure_web_handler.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/internal_infrastructure_web_handler.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/roles/{id}/revoke": {
+            "post": {
+                "security": [
+                    {
+                        "ServiceName": []
+                    },
+                    {
+                        "ServiceKey": []
+                    }
+                ],
+                "description": "Revoke the specified role from a user",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "roles"
+                ],
+                "summary": "Revoke a role from a user",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Role ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "User to revoke",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/github_com_DenysonJ_financial-wallet_internal_usecases_role_dto.RevokeRoleInput"
+                        }
+                    }
+                ],
+                "responses": {
+                    "204": {
+                        "description": "No Content"
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/internal_infrastructure_web_handler.ErrorResponse"
                         }
                     },
                     "404": {
@@ -354,6 +842,12 @@
                         "description": "OK",
                         "schema": {
                             "$ref": "#/definitions/github_com_DenysonJ_financial-wallet_internal_usecases_user_dto.ListOutput"
+                        }
+                    },
+                    "403": {
+                        "description": "Forbidden",
+                        "schema": {
+                            "$ref": "#/definitions/internal_infrastructure_web_handler.ErrorResponse"
                         }
                     },
                     "429": {
@@ -596,6 +1090,12 @@
                             "$ref": "#/definitions/github_com_DenysonJ_financial-wallet_internal_usecases_user_dto.GetOutput"
                         }
                     },
+                    "403": {
+                        "description": "Forbidden",
+                        "schema": {
+                            "$ref": "#/definitions/internal_infrastructure_web_handler.ErrorResponse"
+                        }
+                    },
                     "404": {
                         "description": "Not Found",
                         "schema": {
@@ -667,6 +1167,12 @@
                             "$ref": "#/definitions/internal_infrastructure_web_handler.ErrorResponse"
                         }
                     },
+                    "403": {
+                        "description": "Forbidden",
+                        "schema": {
+                            "$ref": "#/definitions/internal_infrastructure_web_handler.ErrorResponse"
+                        }
+                    },
                     "404": {
                         "description": "Not Found",
                         "schema": {
@@ -720,6 +1226,12 @@
                             "$ref": "#/definitions/github_com_DenysonJ_financial-wallet_internal_usecases_user_dto.DeleteOutput"
                         }
                     },
+                    "403": {
+                        "description": "Forbidden",
+                        "schema": {
+                            "$ref": "#/definitions/internal_infrastructure_web_handler.ErrorResponse"
+                        }
+                    },
                     "404": {
                         "description": "Not Found",
                         "schema": {
@@ -743,6 +1255,144 @@
         }
     },
     "definitions": {
+        "github_com_DenysonJ_financial-wallet_internal_usecases_account_dto.CreateInput": {
+            "type": "object",
+            "required": [
+                "name",
+                "type"
+            ],
+            "properties": {
+                "description": {
+                    "description": "Descrição opcional",
+                    "type": "string",
+                    "maxLength": 1000
+                },
+                "name": {
+                    "description": "Nome da conta",
+                    "type": "string",
+                    "maxLength": 255
+                },
+                "type": {
+                    "description": "Tipo: bank_account, credit_card, cash",
+                    "type": "string",
+                    "maxLength": 50
+                }
+            }
+        },
+        "github_com_DenysonJ_financial-wallet_internal_usecases_account_dto.CreateOutput": {
+            "type": "object",
+            "properties": {
+                "created_at": {
+                    "description": "Timestamp no formato RFC3339",
+                    "type": "string"
+                },
+                "id": {
+                    "description": "ID gerado (UUID v7)",
+                    "type": "string"
+                }
+            }
+        },
+        "github_com_DenysonJ_financial-wallet_internal_usecases_account_dto.GetOutput": {
+            "type": "object",
+            "properties": {
+                "active": {
+                    "type": "boolean"
+                },
+                "created_at": {
+                    "type": "string"
+                },
+                "description": {
+                    "type": "string"
+                },
+                "id": {
+                    "type": "string"
+                },
+                "name": {
+                    "type": "string"
+                },
+                "type": {
+                    "type": "string"
+                },
+                "updated_at": {
+                    "type": "string"
+                },
+                "user_id": {
+                    "type": "string"
+                }
+            }
+        },
+        "github_com_DenysonJ_financial-wallet_internal_usecases_account_dto.ListOutput": {
+            "type": "object",
+            "properties": {
+                "data": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/github_com_DenysonJ_financial-wallet_internal_usecases_account_dto.GetOutput"
+                    }
+                },
+                "pagination": {
+                    "$ref": "#/definitions/github_com_DenysonJ_financial-wallet_internal_usecases_account_dto.PaginationOutput"
+                }
+            }
+        },
+        "github_com_DenysonJ_financial-wallet_internal_usecases_account_dto.PaginationOutput": {
+            "type": "object",
+            "properties": {
+                "limit": {
+                    "type": "integer"
+                },
+                "page": {
+                    "type": "integer"
+                },
+                "total": {
+                    "type": "integer"
+                },
+                "total_pages": {
+                    "type": "integer"
+                }
+            }
+        },
+        "github_com_DenysonJ_financial-wallet_internal_usecases_account_dto.UpdateInput": {
+            "type": "object",
+            "properties": {
+                "description": {
+                    "description": "Descrição (opcional)",
+                    "type": "string",
+                    "maxLength": 1000
+                },
+                "name": {
+                    "description": "Nome (opcional)",
+                    "type": "string",
+                    "maxLength": 255
+                }
+            }
+        },
+        "github_com_DenysonJ_financial-wallet_internal_usecases_account_dto.UpdateOutput": {
+            "type": "object",
+            "properties": {
+                "active": {
+                    "type": "boolean"
+                },
+                "description": {
+                    "type": "string"
+                },
+                "id": {
+                    "type": "string"
+                },
+                "name": {
+                    "type": "string"
+                },
+                "type": {
+                    "type": "string"
+                },
+                "updated_at": {
+                    "type": "string"
+                },
+                "user_id": {
+                    "type": "string"
+                }
+            }
+        },
         "github_com_DenysonJ_financial-wallet_internal_usecases_auth_dto.LoginInput": {
             "type": "object",
             "required": [
@@ -794,6 +1444,18 @@
                 },
                 "refresh_token": {
                     "description": "Novo JWT refresh token",
+                    "type": "string"
+                }
+            }
+        },
+        "github_com_DenysonJ_financial-wallet_internal_usecases_role_dto.AssignRoleInput": {
+            "type": "object",
+            "required": [
+                "user_id"
+            ],
+            "properties": {
+                "user_id": {
+                    "description": "ID do usuário",
                     "type": "string"
                 }
             }
@@ -869,6 +1531,18 @@
                 },
                 "total_pages": {
                     "type": "integer"
+                }
+            }
+        },
+        "github_com_DenysonJ_financial-wallet_internal_usecases_role_dto.RevokeRoleInput": {
+            "type": "object",
+            "required": [
+                "user_id"
+            ],
+            "properties": {
+                "user_id": {
+                    "description": "ID do usuário",
+                    "type": "string"
                 }
             }
         },

@@ -22,6 +22,15 @@ const (
 	StepMiddleware = "middleware"
 )
 
+// Action constants for standard CRUD operations.
+const (
+	ActionCreate = "create"
+	ActionGet    = "get"
+	ActionList   = "list"
+	ActionUpdate = "update"
+	ActionDelete = "delete"
+)
+
 // Known domain error codes that should NOT include stack traces.
 var domainErrorCodes = map[string]bool{
 	"NOT_FOUND":       true,
