@@ -54,7 +54,7 @@ func NewUserHandler(
 // isServiceKeyRequest returns true if the request was authenticated via Service Key (no JWT user_id).
 func isServiceKeyRequest(c *gin.Context) bool {
 	_, exists := c.Get(middleware.ContextKeyServiceKey)
-	return !exists
+	return exists
 }
 
 // isAdmin checks if the JWT user has the "admin" role.
