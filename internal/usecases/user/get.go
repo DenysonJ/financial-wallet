@@ -49,7 +49,7 @@ func (uc *GetUseCase) WithFlight(fg *cache.FlightGroup) *GetUseCase {
 //  2. Se cache miss, busca no DB
 //  3. Armazena no cache para próximas requisições
 func (uc *GetUseCase) Execute(ctx context.Context, input dto.GetInput) (*dto.GetOutput, error) {
-	ctx, span := otel.Tracer("usecase").Start(ctx, "UseCase.User.Get")
+	ctx, span := otel.Tracer(TracerKey).Start(ctx, "UseCase.User.Get")
 	defer span.End()
 
 	ctx = injectLogContext(ctx, "get")

@@ -27,7 +27,7 @@ func NewListUseCase(repo interfaces.Repository) *ListUseCase {
 
 // Execute retorna uma lista paginada de accounts filtrada por user_id.
 func (uc *ListUseCase) Execute(ctx context.Context, input dto.ListInput) (*dto.ListOutput, error) {
-	ctx, span := otel.Tracer("usecase").Start(ctx, "UseCase.Account.List")
+	ctx, span := otel.Tracer(TracerKey).Start(ctx, "UseCase.Account.List")
 	defer span.End()
 
 	ctx = injectLogContext(ctx, logutil.ActionList)

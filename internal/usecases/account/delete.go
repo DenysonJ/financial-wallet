@@ -27,7 +27,7 @@ func NewDeleteUseCase(repo interfaces.Repository) *DeleteUseCase {
 
 // Execute realiza soft delete de uma account.
 func (uc *DeleteUseCase) Execute(ctx context.Context, input dto.DeleteInput) (*dto.DeleteOutput, error) {
-	ctx, span := otel.Tracer("usecase").Start(ctx, "UseCase.Account.Delete")
+	ctx, span := otel.Tracer(TracerKey).Start(ctx, "UseCase.Account.Delete")
 	defer span.End()
 
 	ctx = injectLogContext(ctx, logutil.ActionDelete)

@@ -27,7 +27,7 @@ func NewGetUseCase(repo interfaces.Repository) *GetUseCase {
 
 // Execute busca uma account pelo ID.
 func (uc *GetUseCase) Execute(ctx context.Context, input dto.GetInput) (*dto.GetOutput, error) {
-	ctx, span := otel.Tracer("usecase").Start(ctx, "UseCase.Account.Get")
+	ctx, span := otel.Tracer(TracerKey).Start(ctx, "UseCase.Account.Get")
 	defer span.End()
 
 	ctx = injectLogContext(ctx, logutil.ActionGet)

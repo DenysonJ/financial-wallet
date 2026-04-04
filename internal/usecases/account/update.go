@@ -27,7 +27,7 @@ func NewUpdateUseCase(repo interfaces.Repository) *UpdateUseCase {
 
 // Execute atualiza uma account existente (partial update de name/description).
 func (uc *UpdateUseCase) Execute(ctx context.Context, input dto.UpdateInput) (*dto.UpdateOutput, error) {
-	ctx, span := otel.Tracer("usecase").Start(ctx, "UseCase.Account.Update")
+	ctx, span := otel.Tracer(TracerKey).Start(ctx, "UseCase.Account.Update")
 	defer span.End()
 
 	ctx = injectLogContext(ctx, logutil.ActionUpdate)

@@ -32,7 +32,7 @@ func NewDeleteUseCase(repo interfaces.Repository) *DeleteUseCase {
 //  1. Validar ID
 //  2. Deletar role
 func (uc *DeleteUseCase) Execute(ctx context.Context, input dto.DeleteInput) (*dto.DeleteOutput, error) {
-	ctx, span := otel.Tracer("usecase").Start(ctx, "UseCase.Role.Delete")
+	ctx, span := otel.Tracer(TracerKey).Start(ctx, "UseCase.Role.Delete")
 	defer span.End()
 
 	ctx = injectLogContext(ctx, "delete")

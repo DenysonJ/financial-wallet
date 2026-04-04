@@ -38,7 +38,7 @@ func (uc *RevokeRoleUseCase) WithCache(c cache.Cache) *RevokeRoleUseCase {
 //  2. Revogar role do usuário
 //  3. Invalidar cache de permissions do usuário
 func (uc *RevokeRoleUseCase) Execute(ctx context.Context, input dto.RevokeRoleInput) error {
-	ctx, span := otel.Tracer("usecase").Start(ctx, "UseCase.Role.Revoke")
+	ctx, span := otel.Tracer(TracerKey).Start(ctx, "UseCase.Role.Revoke")
 	defer span.End()
 
 	ctx = injectLogContext(ctx, "revoke")

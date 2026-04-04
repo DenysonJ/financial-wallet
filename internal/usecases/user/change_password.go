@@ -43,7 +43,7 @@ func (uc *ChangePasswordUseCase) WithBcryptCost(cost int) *ChangePasswordUseCase
 //  4. Criar novo hash bcrypt via Value Object
 //  5. Persistir novo hash no banco
 func (uc *ChangePasswordUseCase) Execute(ctx context.Context, input dto.ChangePasswordInput) error {
-	ctx, span := otel.Tracer("usecase").Start(ctx, "UseCase.User.ChangePassword")
+	ctx, span := otel.Tracer(TracerKey).Start(ctx, "UseCase.User.ChangePassword")
 	defer span.End()
 
 	ctx = injectLogContext(ctx, "change_password")

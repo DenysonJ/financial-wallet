@@ -28,7 +28,7 @@ func NewCreateUseCase(repo interfaces.Repository) *CreateUseCase {
 
 // Execute executa o caso de uso de criação de account.
 func (uc *CreateUseCase) Execute(ctx context.Context, input dto.CreateInput) (*dto.CreateOutput, error) {
-	ctx, span := otel.Tracer("usecase").Start(ctx, "UseCase.Account.Create")
+	ctx, span := otel.Tracer(TracerKey).Start(ctx, "UseCase.Account.Create")
 	defer span.End()
 
 	ctx = injectLogContext(ctx, logutil.ActionCreate)

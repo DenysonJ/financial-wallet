@@ -31,7 +31,7 @@ func NewRefreshUseCase(token interfaces.TokenService) *RefreshUseCase {
 //  2. Verificar que o tipo é "refresh"
 //  3. Gerar novo access token e refresh token
 func (uc *RefreshUseCase) Execute(ctx context.Context, input dto.RefreshInput) (*dto.RefreshOutput, error) {
-	ctx, span := otel.Tracer("usecase").Start(ctx, "UseCase.Auth.Refresh")
+	ctx, span := otel.Tracer(TracerKey).Start(ctx, "UseCase.Auth.Refresh")
 	defer span.End()
 
 	ctx = injectLogContext(ctx, "refresh")

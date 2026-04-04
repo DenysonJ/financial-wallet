@@ -39,7 +39,7 @@ func (uc *AssignRoleUseCase) WithCache(c cache.Cache) *AssignRoleUseCase {
 //  3. Atribuir role ao usuário
 //  4. Invalidar cache de permissions do usuário
 func (uc *AssignRoleUseCase) Execute(ctx context.Context, input dto.AssignRoleInput) error {
-	ctx, span := otel.Tracer("usecase").Start(ctx, "UseCase.Role.Assign")
+	ctx, span := otel.Tracer(TracerKey).Start(ctx, "UseCase.Role.Assign")
 	defer span.End()
 
 	ctx = injectLogContext(ctx, "assign")
