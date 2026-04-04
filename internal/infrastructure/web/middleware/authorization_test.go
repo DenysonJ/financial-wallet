@@ -62,6 +62,20 @@ func TestRequirePermission(t *testing.T) {
 			wantStatus: http.StatusForbidden,
 		},
 		{
+			name: "GetRoles error returns 500",
+			setupContext: func(c *gin.Context) {
+				c.Set(ContextKeyUserID, "user-123")
+			},
+			setupLoader: func(loader *middlewaremock.MockPermissionLoader) {
+				loader.On("GetPermissions", mock.Anything, "user-123").
+					Return([]string{"user:read"}, nil)
+				loader.On("GetRoles", mock.Anything, "user-123").
+					Return(nil, errors.New("db connection failed"))
+			},
+			permission: "user:read",
+			wantStatus: http.StatusInternalServerError,
+		},
+		{
 			name: "has permission passes through",
 			setupContext: func(c *gin.Context) {
 				c.Set(ContextKeyUserID, "user-123")
