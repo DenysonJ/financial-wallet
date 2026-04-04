@@ -10,12 +10,12 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-func newTestContext() (*gin.Context, *httptest.ResponseRecorder) {
+func newTestContext() *gin.Context {
 	gin.SetMode(gin.TestMode)
 	w := httptest.NewRecorder()
 	c, _ := gin.CreateTestContext(w)
 	c.Request = httptest.NewRequest(http.MethodGet, "/", nil)
-	return c, w
+	return c
 }
 
 func TestIsServiceKeyRequest(t *testing.T) {
@@ -38,7 +38,7 @@ func TestIsServiceKeyRequest(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			c, _ := newTestContext()
+			c := newTestContext()
 			tt.setup(c)
 			assert.Equal(t, tt.expected, isServiceKeyRequest(c))
 		})
@@ -85,7 +85,7 @@ func TestIsAdmin(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			c, _ := newTestContext()
+			c := newTestContext()
 			tt.setup(c)
 			assert.Equal(t, tt.expected, isAdmin(c))
 		})
@@ -141,7 +141,7 @@ func TestIsAdminOrOwner(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			c, _ := newTestContext()
+			c := newTestContext()
 			tt.setup(c)
 			assert.Equal(t, tt.expected, isAdminOrOwner(c, tt.resourceUserID))
 		})
@@ -183,7 +183,7 @@ func TestGetRequiredJWTUserID(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			c, _ := newTestContext()
+			c := newTestContext()
 			tt.setup(c)
 			id, ok := getRequiredJWTUserID(c)
 			assert.Equal(t, tt.expectedID, id)
@@ -231,7 +231,7 @@ func TestOwnershipUserID(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			c, _ := newTestContext()
+			c := newTestContext()
 			tt.setup(c)
 			assert.Equal(t, tt.expected, ownershipUserID(c))
 		})
