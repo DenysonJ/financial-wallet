@@ -272,22 +272,20 @@ func (c *Config) Validate() error {
 	}
 
 	// JWT: enabled but no secret
-	if c.JWT.Enabled && c.JWT.Secret == "" {
-		return fmt.Errorf("JWT_ENABLED=true requires JWT_SECRET to be set")
+	if c.JWT.Secret == "" {
+		return fmt.Errorf("JWT_SECRET can't be empty")
 	}
 
 	// JWT: validate TTL strings are parseable
-	if c.JWT.Enabled {
-		if _, parseErr := time.ParseDuration(c.JWT.AccessTTL); parseErr != nil {
-			return fmt.Errorf("JWT_ACCESS_TTL=%q is not a valid duration: %w", c.JWT.AccessTTL, parseErr)
-		}
-		if _, parseErr := time.ParseDuration(c.JWT.RefreshTTL); parseErr != nil {
-			return fmt.Errorf("JWT_REFRESH_TTL=%q is not a valid duration: %w", c.JWT.RefreshTTL, parseErr)
-		}
-		// BcryptCost: must be greater than 8 and less than 64
-		if c.JWT.BcryptCost < 8 || c.JWT.BcryptCost > 64 {
-			return fmt.Errorf("JWT_BCRYPT_COST should be between 8 and 64, got %d", c.JWT.BcryptCost)
-		}
+	if _, parseErr := time.ParseDuration(c.JWT.AccessTTL); parseErr != nil {
+		return fmt.Errorf("JWT_ACCESS_TTL=%q is not a valid duration: %w", c.JWT.AccessTTL, parseErr)
+	}
+	if _, parseErr := time.ParseDuration(c.JWT.RefreshTTL); parseErr != nil {
+		return fmt.Errorf("JWT_REFRESH_TTL=%q is not a valid duration: %w", c.JWT.RefreshTTL, parseErr)
+	}
+	// BcryptCost: must be greater than 8 and less than 64
+	if c.JWT.BcryptCost < 8 || c.JWT.BcryptCost > 64 {
+		return fmt.Errorf("JWT_BCRYPT_COST should be between 8 and 64, got %d", c.JWT.BcryptCost)
 	}
 
 	// RateLimit: enabled but Redis disabled

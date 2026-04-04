@@ -260,28 +260,24 @@ func buildDependencies(cluster *database.DBCluster, sqlxWriter, sqlxReader *sqlx
 	accountDeleteUC := accountuc.NewDeleteUseCase(accountRepo)
 	accountHandler := handler.NewAccountHandler(accountCreateUC, accountGetUC, accountListUC, accountUpdateUC, accountDeleteUC)
 
-	// --- JWT Service (optional) ---
+	// --- JWT Service ---
 	var jwtService *pkgjwt.Service
-	if cfg.JWT.Enabled {
-		accessTTL, _ := time.ParseDuration(cfg.JWT.AccessTTL)
-		refreshTTL, _ := time.ParseDuration(cfg.JWT.RefreshTTL)
-		jwtService = pkgjwt.NewService(cfg.JWT.Secret, accessTTL, refreshTTL)
-	}
+	accessTTL, _ := time.ParseDuration(cfg.JWT.AccessTTL)
+	refreshTTL, _ := time.ParseDuration(cfg.JWT.RefreshTTL)
+	jwtService = pkgjwt.NewService(cfg.JWT.Secret, accessTTL, refreshTTL)
 
 	// --- Password Use Cases ---
 	setPasswordUC := useruc.NewSetPasswordUseCase(repo).WithBcryptCost(cfg.JWT.BcryptCost)
 	changePasswordUC := useruc.NewChangePasswordUseCase(repo).WithBcryptCost(cfg.JWT.BcryptCost)
 	passwordHandler := handler.NewPasswordHandler(setPasswordUC, changePasswordUC)
 
-	// --- Auth Use Cases (optional — only when JWT is enabled) ---
+	// --- Auth Use Cases ---
 	var authHandler *handler.AuthHandler
 	var tokenAdapter *infraauth.JWTTokenAdapter
-	if jwtService != nil {
-		tokenAdapter = infraauth.NewJWTTokenAdapter(jwtService)
-		loginUC := authuc.NewLoginUseCase(repo, tokenAdapter)
-		refreshUC := authuc.NewRefreshUseCase(tokenAdapter)
-		authHandler = handler.NewAuthHandler(loginUC, refreshUC)
-	}
+	tokenAdapter = infraauth.NewJWTTokenAdapter(jwtService)
+	loginUC := authuc.NewLoginUseCase(repo, tokenAdapter)
+	refreshUC := authuc.NewRefreshUseCase(tokenAdapter)
+	authHandler = handler.NewAuthHandler(loginUC, refreshUC)
 
 	// --- Handlers ---
 	userHandler := handler.NewUserHandler(createUC, getUC, listUC, updateUC, deleteUC, businessMetrics)
@@ -321,7 +317,6 @@ func buildDependencies(cluster *database.DBCluster, sqlxWriter, sqlxReader *sqlx
 			ServiceKeysEnabled: cfg.Auth.Enabled,
 			ServiceKeys:        cfg.Auth.ServiceKeys,
 			SwaggerEnabled:     cfg.Swagger.Enabled,
-			JWTEnabled:         cfg.JWT.Enabled,
 			RateLimitEnabled:   cfg.RateLimit.Enabled,
 			RateLimitRequests:  cfg.RateLimit.Requests,
 			RateLimitWindow:    rlWindow,

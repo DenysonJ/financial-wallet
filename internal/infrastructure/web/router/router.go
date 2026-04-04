@@ -25,7 +25,6 @@ type Config struct {
 	ServiceKeysEnabled bool   // fail-closed em HML/PRD se keys vazio
 	ServiceKeys        string // "service1:key1,service2:key2"
 	SwaggerEnabled     bool
-	JWTEnabled         bool
 	RateLimitEnabled   bool
 	RateLimitRequests  int
 	RateLimitWindow    time.Duration
@@ -111,38 +110,25 @@ func Setup(deps Dependencies) *gin.Engine {
 		RegisterSetPasswordRoute(protected, deps.PasswordHandler, deps.PermissionLoader)
 	}
 
-	// User routes + Change Password: Service Key OR JWT authentication
-	if deps.Config.JWTEnabled && deps.JWTService != nil {
-		jwtProtected := protected.Group("")
-		jwtProtected.Use(middleware.JWTAuth(deps.JWTService))
-		RegisterUserRoutes(jwtProtected, deps.UserHandler, deps.PermissionLoader)
-		if deps.PasswordHandler != nil {
-			RegisterChangePasswordRoute(jwtProtected, deps.PasswordHandler, deps.PermissionLoader)
-		}
-	} else {
-		RegisterUserRoutes(protected, deps.UserHandler, deps.PermissionLoader)
-		// ChangePassword requires JWT (ContextKeyUserID) — not registered without JWT
+	// User routes + Change Password: JWT authentication
+	jwtProtected := protected.Group("")
+	jwtProtected.Use(middleware.JWTAuth(deps.JWTService))
+	RegisterUserRoutes(jwtProtected, deps.UserHandler, deps.PermissionLoader)
+	if deps.PasswordHandler != nil {
+		RegisterChangePasswordRoute(jwtProtected, deps.PasswordHandler, deps.PermissionLoader)
 	}
 
-	// Account routes: Service Key OR JWT authentication
+	// Account routes: JWT authentication
 	if deps.AccountHandler != nil {
-		if deps.Config.JWTEnabled && deps.JWTService != nil {
-			accountGroup := protected.Group("")
-			accountGroup.Use(middleware.JWTAuth(deps.JWTService))
-			RegisterAccountRoutes(accountGroup, deps.AccountHandler, deps.PermissionLoader)
-		} else {
-			RegisterAccountRoutes(protected, deps.AccountHandler, deps.PermissionLoader)
-		}
+		accountGroup := protected.Group("")
+		accountGroup.Use(middleware.JWTAuth(deps.JWTService))
+		RegisterAccountRoutes(accountGroup, deps.AccountHandler, deps.PermissionLoader)
 	}
 
 	// Role routes: Service Key + Admin JWT
-	if deps.Config.JWTEnabled && deps.JWTService != nil {
-		roleGroup := protected.Group("")
-		roleGroup.Use(middleware.JWTAuth(deps.JWTService))
-		RegisterRoleRoutes(roleGroup, deps.RoleHandler, deps.PermissionLoader)
-	} else {
-		RegisterRoleRoutes(protected, deps.RoleHandler, deps.PermissionLoader)
-	}
+	roleGroup := protected.Group("")
+	roleGroup.Use(middleware.JWTAuth(deps.JWTService))
+	RegisterRoleRoutes(roleGroup, deps.RoleHandler, deps.PermissionLoader)
 
 	return r
 }
