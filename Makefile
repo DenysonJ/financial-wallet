@@ -35,7 +35,7 @@ ENV_FILE := $(shell test -f .env && echo "--env-file .env" || echo "")
 
 # Declara todos os targets que não são arquivos
 .PHONY: help setup tools go-tools-check docker-check k6-check kind-check \
-        dev run run-stop build clean lint security vulncheck swagger \
+        dev run run-stop build clean lint security vulncheck swagger mocks \
         test test-unit test-e2e test-coverage \
         load-smoke load-test load-stress load-spike load-kind load-clean \
         docker-up docker-down docker-build \
@@ -177,6 +177,11 @@ swagger: go-tools-check ## Regenera documentacao Swagger
 	@$(GOBIN)/swag init -g cmd/api/main.go -o docs --parseDependency --parseInternal || \
 		swag init -g cmd/api/main.go -o docs --parseDependency --parseInternal
 	@echo "Swagger docs generated in docs/"
+
+mocks: ## Regenera mocks com mockery (requer mockery instalado)
+	@rm -rf internal/mocks
+	@mockery
+	@echo "Mocks generated in internal/mocks/"
 
 # ============================================
 # TESTES

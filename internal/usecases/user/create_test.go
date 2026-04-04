@@ -6,6 +6,7 @@ import (
 	"testing"
 
 	"github.com/DenysonJ/financial-wallet/internal/domain/user/vo"
+	"github.com/DenysonJ/financial-wallet/internal/mocks/useruci"
 	"github.com/DenysonJ/financial-wallet/internal/usecases/user/dto"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
@@ -13,7 +14,7 @@ import (
 
 func TestCreateUseCase_Execute_Success(t *testing.T) {
 	// Arrange
-	mockRepo := new(MockRepository)
+	mockRepo := useruci.NewMockRepository(t)
 	mockRepo.On("Create", mock.Anything, mock.AnythingOfType("*user.User")).Return(nil)
 
 	uc := NewCreateUseCase(mockRepo)
@@ -35,7 +36,7 @@ func TestCreateUseCase_Execute_Success(t *testing.T) {
 
 func TestCreateUseCase_Execute_InvalidEmail(t *testing.T) {
 	// Arrange
-	mockRepo := new(MockRepository)
+	mockRepo := useruci.NewMockRepository(t)
 	uc := NewCreateUseCase(mockRepo)
 	input := dto.CreateInput{
 		Name:  "João Silva",
@@ -54,7 +55,7 @@ func TestCreateUseCase_Execute_InvalidEmail(t *testing.T) {
 
 func TestCreateUseCase_Execute_RepositoryError(t *testing.T) {
 	// Arrange
-	mockRepo := new(MockRepository)
+	mockRepo := useruci.NewMockRepository(t)
 	mockRepo.On("Create", mock.Anything, mock.AnythingOfType("*user.User")).
 		Return(errors.New("database connection failed"))
 

@@ -5,6 +5,7 @@ import (
 	"testing"
 
 	userdomain "github.com/DenysonJ/financial-wallet/internal/domain/user"
+	"github.com/DenysonJ/financial-wallet/internal/mocks/authuci"
 	"github.com/DenysonJ/financial-wallet/internal/usecases/auth/dto"
 	"github.com/DenysonJ/financial-wallet/internal/usecases/auth/interfaces"
 	"github.com/DenysonJ/financial-wallet/pkg/jwt"
@@ -12,7 +13,7 @@ import (
 )
 
 func TestRefreshUseCase_Execute_Success(t *testing.T) {
-	mockToken := new(MockTokenService)
+	mockToken := authuci.NewMockTokenService(t)
 
 	mockToken.On("ValidateToken", "valid-refresh").Return(&interfaces.TokenClaims{
 		UserID:    "user-123",
@@ -33,7 +34,7 @@ func TestRefreshUseCase_Execute_Success(t *testing.T) {
 }
 
 func TestRefreshUseCase_Execute_InvalidToken(t *testing.T) {
-	mockToken := new(MockTokenService)
+	mockToken := authuci.NewMockTokenService(t)
 
 	mockToken.On("ValidateToken", "invalid-token").Return(nil, jwt.ErrInvalidToken)
 
@@ -47,7 +48,7 @@ func TestRefreshUseCase_Execute_InvalidToken(t *testing.T) {
 }
 
 func TestRefreshUseCase_Execute_WrongTokenType(t *testing.T) {
-	mockToken := new(MockTokenService)
+	mockToken := authuci.NewMockTokenService(t)
 
 	mockToken.On("ValidateToken", "access-token").Return(&interfaces.TokenClaims{
 		UserID:    "user-123",

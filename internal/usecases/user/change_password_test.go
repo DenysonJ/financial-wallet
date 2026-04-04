@@ -7,6 +7,7 @@ import (
 
 	userdomain "github.com/DenysonJ/financial-wallet/internal/domain/user"
 	"github.com/DenysonJ/financial-wallet/internal/domain/user/vo"
+	"github.com/DenysonJ/financial-wallet/internal/mocks/useruci"
 	"github.com/DenysonJ/financial-wallet/internal/usecases/user/dto"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
@@ -29,7 +30,7 @@ func newUserWithPassword(t *testing.T) (*userdomain.User, string) {
 }
 
 func TestChangePasswordUseCase_Execute_Success(t *testing.T) {
-	mockRepo := new(MockRepository)
+	mockRepo := useruci.NewMockRepository(t)
 	existingUser, oldPlain := newUserWithPassword(t)
 
 	mockRepo.On("FindByID", mock.Anything, existingUser.ID).Return(existingUser, nil)
@@ -50,7 +51,7 @@ func TestChangePasswordUseCase_Execute_Success(t *testing.T) {
 }
 
 func TestChangePasswordUseCase_Execute_WrongCurrentPassword(t *testing.T) {
-	mockRepo := new(MockRepository)
+	mockRepo := useruci.NewMockRepository(t)
 	existingUser, _ := newUserWithPassword(t)
 
 	mockRepo.On("FindByID", mock.Anything, existingUser.ID).Return(existingUser, nil)
@@ -70,7 +71,7 @@ func TestChangePasswordUseCase_Execute_WrongCurrentPassword(t *testing.T) {
 }
 
 func TestChangePasswordUseCase_Execute_NewPasswordMismatch(t *testing.T) {
-	mockRepo := new(MockRepository)
+	mockRepo := useruci.NewMockRepository(t)
 	existingUser, oldPlain := newUserWithPassword(t)
 
 	mockRepo.On("FindByID", mock.Anything, existingUser.ID).Return(existingUser, nil)

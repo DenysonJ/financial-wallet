@@ -7,6 +7,7 @@ import (
 
 	userdomain "github.com/DenysonJ/financial-wallet/internal/domain/user"
 	"github.com/DenysonJ/financial-wallet/internal/domain/user/vo"
+	"github.com/DenysonJ/financial-wallet/internal/mocks/authuci"
 	"github.com/DenysonJ/financial-wallet/internal/usecases/auth/dto"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
@@ -30,7 +31,7 @@ func makeUserWithPassword(t *testing.T) *userdomain.User {
 func TestLoginUseCase_Execute(t *testing.T) {
 	tests := []struct {
 		name       string
-		setupMock  func(repo *MockUserRepository, token *MockTokenService, user *userdomain.User)
+		setupMock  func(repo *authuci.MockUserRepository, token *authuci.MockTokenService, user *userdomain.User)
 		mutateUser func(user *userdomain.User)
 		email      string
 		password   string
@@ -39,7 +40,7 @@ func TestLoginUseCase_Execute(t *testing.T) {
 	}{
 		{
 			name: "success",
-			setupMock: func(repo *MockUserRepository, token *MockTokenService, user *userdomain.User) {
+			setupMock: func(repo *authuci.MockUserRepository, token *authuci.MockTokenService, user *userdomain.User) {
 				repo.On("FindByEmail", mock.Anything, mock.Anything).Return(user, nil)
 				token.On("GenerateAccessToken", user.ID.String()).Return("access-token", nil)
 				token.On("GenerateRefreshToken", user.ID.String()).Return("refresh-token", nil)
@@ -50,7 +51,7 @@ func TestLoginUseCase_Execute(t *testing.T) {
 		},
 		{
 			name: "user not found",
-			setupMock: func(repo *MockUserRepository, token *MockTokenService, _ *userdomain.User) {
+			setupMock: func(repo *authuci.MockUserRepository, token *authuci.MockTokenService, _ *userdomain.User) {
 				repo.On("FindByEmail", mock.Anything, mock.Anything).Return(nil, userdomain.ErrUserNotFound)
 			},
 			email:    "notfound@example.com",
@@ -59,7 +60,7 @@ func TestLoginUseCase_Execute(t *testing.T) {
 		},
 		{
 			name: "wrong password",
-			setupMock: func(repo *MockUserRepository, _ *MockTokenService, user *userdomain.User) {
+			setupMock: func(repo *authuci.MockUserRepository, _ *authuci.MockTokenService, user *userdomain.User) {
 				repo.On("FindByEmail", mock.Anything, mock.Anything).Return(user, nil)
 			},
 			email:    "test@example.com",
@@ -68,7 +69,7 @@ func TestLoginUseCase_Execute(t *testing.T) {
 		},
 		{
 			name: "inactive user",
-			setupMock: func(repo *MockUserRepository, _ *MockTokenService, user *userdomain.User) {
+			setupMock: func(repo *authuci.MockUserRepository, _ *authuci.MockTokenService, user *userdomain.User) {
 				repo.On("FindByEmail", mock.Anything, mock.Anything).Return(user, nil)
 			},
 			mutateUser: func(user *userdomain.User) { user.Active = false },
@@ -78,7 +79,7 @@ func TestLoginUseCase_Execute(t *testing.T) {
 		},
 		{
 			name: "no password set",
-			setupMock: func(repo *MockUserRepository, _ *MockTokenService, user *userdomain.User) {
+			setupMock: func(repo *authuci.MockUserRepository, _ *authuci.MockTokenService, user *userdomain.User) {
 				repo.On("FindByEmail", mock.Anything, mock.Anything).Return(user, nil)
 			},
 			mutateUser: func(user *userdomain.User) { user.PasswordHash = "" },
@@ -88,7 +89,7 @@ func TestLoginUseCase_Execute(t *testing.T) {
 		},
 		{
 			name: "invalid email",
-			setupMock: func(_ *MockUserRepository, _ *MockTokenService, _ *userdomain.User) {
+			setupMock: func(_ *authuci.MockUserRepository, _ *authuci.MockTokenService, _ *userdomain.User) {
 				// no mock setup needed — validation fails before repo call
 			},
 			email:    "not-an-email",
@@ -99,8 +100,8 @@ func TestLoginUseCase_Execute(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			mockRepo := new(MockUserRepository)
-			mockToken := new(MockTokenService)
+			mockRepo := authuci.NewMockUserRepository(t)
+			mockToken := authuci.NewMockTokenService(t)
 			user := makeUserWithPassword(t)
 
 			if tt.mutateUser != nil {

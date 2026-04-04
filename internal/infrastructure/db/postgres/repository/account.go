@@ -10,7 +10,7 @@ import (
 
 	accountdomain "github.com/DenysonJ/financial-wallet/internal/domain/account"
 	accountvo "github.com/DenysonJ/financial-wallet/internal/domain/account/vo"
-	uservo "github.com/DenysonJ/financial-wallet/internal/domain/user/vo"
+	uservo "github.com/DenysonJ/financial-wallet/pkg/vo"
 	"github.com/jmoiron/sqlx"
 )
 

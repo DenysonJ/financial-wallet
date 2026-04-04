@@ -9,6 +9,7 @@ import (
 	accountdomain "github.com/DenysonJ/financial-wallet/internal/domain/account"
 	accountvo "github.com/DenysonJ/financial-wallet/internal/domain/account/vo"
 	uservo "github.com/DenysonJ/financial-wallet/internal/domain/user/vo"
+	"github.com/DenysonJ/financial-wallet/internal/mocks/accountuci"
 	"github.com/DenysonJ/financial-wallet/internal/usecases/account/dto"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
@@ -38,14 +39,15 @@ func TestListUseCase_Execute(t *testing.T) {
 	}
 
 	tests := []struct {
-		name       string
-		input      dto.ListInput
-		repoResult *accountdomain.ListResult
-		repoErr    error
-		wantErr    bool
-		errSubstr  string
-		wantTotal  int
-		wantCount  int
+		name         string
+		input        dto.ListInput
+		repoResult   *accountdomain.ListResult
+		repoErr      error
+		wantErr      bool
+		errSubstr    string
+		wantTotal    int
+		wantCount    int
+		skipRepoCall bool
 	}{
 		{
 			name:       "sucesso com resultados",
@@ -76,18 +78,21 @@ func TestListUseCase_Execute(t *testing.T) {
 			errSubstr: "database error",
 		},
 		{
-			name:      "user_id vazio falha na validação",
-			input:     dto.ListInput{UserID: "", Page: 1, Limit: 20},
-			wantErr:   true,
-			errSubstr: "invalid ID",
+			name:         "user_id vazio falha na validação",
+			input:        dto.ListInput{UserID: "", Page: 1, Limit: 20},
+			wantErr:      true,
+			errSubstr:    "invalid ID",
+			skipRepoCall: true,
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			mockRepo := new(MockRepository)
-			mockRepo.On("List", mock.Anything, mock.AnythingOfType("account.ListFilter")).
-				Return(tt.repoResult, tt.repoErr)
+			mockRepo := accountuci.NewMockRepository(t)
+			if !tt.skipRepoCall {
+				mockRepo.On("List", mock.Anything, mock.AnythingOfType("account.ListFilter")).
+					Return(tt.repoResult, tt.repoErr)
+			}
 
 			uc := NewListUseCase(mockRepo)
 			output, execErr := uc.Execute(context.Background(), tt.input)

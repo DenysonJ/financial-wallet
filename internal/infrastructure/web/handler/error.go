@@ -8,9 +8,10 @@ import (
 	accountvo "github.com/DenysonJ/financial-wallet/internal/domain/account/vo"
 	roledomain "github.com/DenysonJ/financial-wallet/internal/domain/role"
 	userdomain "github.com/DenysonJ/financial-wallet/internal/domain/user"
-	"github.com/DenysonJ/financial-wallet/internal/domain/user/vo"
+	uservo "github.com/DenysonJ/financial-wallet/internal/domain/user/vo"
 	"github.com/DenysonJ/financial-wallet/pkg/apperror"
 	"github.com/DenysonJ/financial-wallet/pkg/httputil/httpgin"
+	"github.com/DenysonJ/financial-wallet/pkg/vo"
 	"github.com/gin-gonic/gin"
 	"go.opentelemetry.io/otel/codes"
 	"go.opentelemetry.io/otel/trace"
@@ -47,16 +48,16 @@ var domainErrors = []struct {
 	err     error
 	mapping domainErrorMapping
 }{
-	{vo.ErrInvalidEmail, domainErrorMapping{http.StatusBadRequest, apperror.CodeInvalidRequest, "invalid email"}},
+	{uservo.ErrInvalidEmail, domainErrorMapping{http.StatusBadRequest, apperror.CodeInvalidRequest, "invalid email"}},
 	{vo.ErrInvalidID, domainErrorMapping{http.StatusBadRequest, apperror.CodeInvalidRequest, "invalid ID"}},
-	{vo.ErrPasswordTooShort, domainErrorMapping{http.StatusBadRequest, apperror.CodeValidationError, "password must be at least 8 characters"}},
-	{vo.ErrPasswordNoLetter, domainErrorMapping{http.StatusBadRequest, apperror.CodeValidationError, "password must contain at least one letter"}},
-	{vo.ErrPasswordNoNumber, domainErrorMapping{http.StatusBadRequest, apperror.CodeValidationError, "password must contain at least one number"}},
-	{vo.ErrPasswordNoSpecial, domainErrorMapping{http.StatusBadRequest, apperror.CodeValidationError, "password must contain at least one special character"}},
+	{uservo.ErrPasswordTooShort, domainErrorMapping{http.StatusBadRequest, apperror.CodeValidationError, "password must be at least 8 characters"}},
+	{uservo.ErrPasswordNoLetter, domainErrorMapping{http.StatusBadRequest, apperror.CodeValidationError, "password must contain at least one letter"}},
+	{uservo.ErrPasswordNoNumber, domainErrorMapping{http.StatusBadRequest, apperror.CodeValidationError, "password must contain at least one number"}},
+	{uservo.ErrPasswordNoSpecial, domainErrorMapping{http.StatusBadRequest, apperror.CodeValidationError, "password must contain at least one special character"}},
 	{userdomain.ErrPasswordMismatch, domainErrorMapping{http.StatusBadRequest, apperror.CodeValidationError, "passwords do not match"}},
 	{userdomain.ErrPasswordAlreadySet, domainErrorMapping{http.StatusConflict, apperror.CodeConflict, "password already set"}},
 	{userdomain.ErrInvalidCredentials, domainErrorMapping{http.StatusUnauthorized, apperror.CodeUnauthorized, "invalid credentials"}},
-	{vo.ErrInvalidPassword, domainErrorMapping{http.StatusUnauthorized, apperror.CodeUnauthorized, "invalid password"}},
+	{uservo.ErrInvalidPassword, domainErrorMapping{http.StatusUnauthorized, apperror.CodeUnauthorized, "invalid password"}},
 	{userdomain.ErrUserInactive, domainErrorMapping{http.StatusUnauthorized, apperror.CodeUnauthorized, "invalid credentials"}},
 	{userdomain.ErrUserNotFound, domainErrorMapping{http.StatusNotFound, apperror.CodeNotFound, "user not found"}},
 	{roledomain.ErrRoleNotFound, domainErrorMapping{http.StatusNotFound, apperror.CodeNotFound, "role not found"}},

@@ -4,7 +4,7 @@ import (
 	"time"
 
 	"github.com/DenysonJ/financial-wallet/internal/domain/account/vo"
-	uservo "github.com/DenysonJ/financial-wallet/internal/domain/user/vo"
+	uservo "github.com/DenysonJ/financial-wallet/pkg/vo"
 )
 
 // Account é a Entidade principal (Aggregate Root) do domínio account.

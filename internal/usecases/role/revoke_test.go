@@ -7,6 +7,7 @@ import (
 
 	roledomain "github.com/DenysonJ/financial-wallet/internal/domain/role"
 	"github.com/DenysonJ/financial-wallet/internal/domain/user/vo"
+	"github.com/DenysonJ/financial-wallet/internal/mocks/roleuci"
 	"github.com/DenysonJ/financial-wallet/internal/usecases/role/dto"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
@@ -26,14 +27,14 @@ func TestRevokeRoleUseCase_Execute(t *testing.T) {
 		name      string
 		userID    string
 		roleID    string
-		setupMock func(repo *MockRepository)
+		setupMock func(repo *roleuci.MockRepository)
 		wantErr   error
 	}{
 		{
 			name:   "success",
 			userID: validUserID.String(),
 			roleID: validRoleID.String(),
-			setupMock: func(repo *MockRepository) {
+			setupMock: func(repo *roleuci.MockRepository) {
 				repo.On("FindByID", mock.Anything, validRoleID).Return(existingRole, nil)
 				repo.On("RevokeRole", mock.Anything, validUserID, validRoleID).Return(nil)
 			},
@@ -42,21 +43,21 @@ func TestRevokeRoleUseCase_Execute(t *testing.T) {
 			name:      "invalid user ID",
 			userID:    "not-a-uuid",
 			roleID:    validRoleID.String(),
-			setupMock: func(_ *MockRepository) {},
+			setupMock: func(_ *roleuci.MockRepository) {},
 			wantErr:   vo.ErrInvalidID,
 		},
 		{
 			name:      "invalid role ID",
 			userID:    validUserID.String(),
 			roleID:    "not-a-uuid",
-			setupMock: func(_ *MockRepository) {},
+			setupMock: func(_ *roleuci.MockRepository) {},
 			wantErr:   vo.ErrInvalidID,
 		},
 		{
 			name:   "role not found",
 			userID: validUserID.String(),
 			roleID: validRoleID.String(),
-			setupMock: func(repo *MockRepository) {
+			setupMock: func(repo *roleuci.MockRepository) {
 				repo.On("FindByID", mock.Anything, validRoleID).Return(nil, roledomain.ErrRoleNotFound)
 			},
 			wantErr: roledomain.ErrRoleNotFound,
@@ -65,7 +66,7 @@ func TestRevokeRoleUseCase_Execute(t *testing.T) {
 			name:   "role not assigned",
 			userID: validUserID.String(),
 			roleID: validRoleID.String(),
-			setupMock: func(repo *MockRepository) {
+			setupMock: func(repo *roleuci.MockRepository) {
 				repo.On("FindByID", mock.Anything, validRoleID).Return(existingRole, nil)
 				repo.On("RevokeRole", mock.Anything, validUserID, validRoleID).Return(roledomain.ErrRoleNotAssigned)
 			},
@@ -75,7 +76,7 @@ func TestRevokeRoleUseCase_Execute(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			mockRepo := new(MockRepository)
+			mockRepo := roleuci.NewMockRepository(t)
 			tt.setupMock(mockRepo)
 
 			uc := NewRevokeRoleUseCase(mockRepo)

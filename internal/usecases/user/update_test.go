@@ -9,6 +9,7 @@ import (
 	userdomain "github.com/DenysonJ/financial-wallet/internal/domain/user"
 
 	"github.com/DenysonJ/financial-wallet/internal/domain/user/vo"
+	"github.com/DenysonJ/financial-wallet/internal/mocks/useruci"
 	"github.com/DenysonJ/financial-wallet/internal/usecases/user/dto"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
@@ -16,7 +17,7 @@ import (
 
 func TestUpdateUseCase_Execute_Success(t *testing.T) {
 	// Arrange
-	mockRepo := new(MockRepository)
+	mockRepo := useruci.NewMockRepository(t)
 	id := vo.NewID()
 	email, _ := vo.NewEmail("joao@example.com")
 
@@ -51,7 +52,7 @@ func TestUpdateUseCase_Execute_Success(t *testing.T) {
 
 func TestUpdateUseCase_Execute_NotFound(t *testing.T) {
 	// Arrange
-	mockRepo := new(MockRepository)
+	mockRepo := useruci.NewMockRepository(t)
 	mockRepo.On("FindByID", mock.Anything, mock.AnythingOfType("vo.ID")).
 		Return(nil, userdomain.ErrUserNotFound)
 
@@ -74,7 +75,7 @@ func TestUpdateUseCase_Execute_NotFound(t *testing.T) {
 
 func TestUpdateUseCase_Execute_InvalidEmail(t *testing.T) {
 	// Arrange
-	mockRepo := new(MockRepository)
+	mockRepo := useruci.NewMockRepository(t)
 	id := vo.NewID()
 	email, _ := vo.NewEmail("joao@example.com")
 
@@ -108,7 +109,7 @@ func TestUpdateUseCase_Execute_InvalidEmail(t *testing.T) {
 
 func TestUpdateUseCase_Execute_InvalidID(t *testing.T) {
 	// Arrange
-	mockRepo := new(MockRepository)
+	mockRepo := useruci.NewMockRepository(t)
 	uc := NewUpdateUseCase(mockRepo)
 	newName := "Updated Name"
 	input := dto.UpdateInput{
@@ -127,8 +128,8 @@ func TestUpdateUseCase_Execute_InvalidID(t *testing.T) {
 
 func TestUpdateUseCase_Execute_CacheDeleteError_StillSucceeds(t *testing.T) {
 	// Arrange
-	mockRepo := new(MockRepository)
-	mockCache := new(MockCache)
+	mockRepo := useruci.NewMockRepository(t)
+	mockCache := useruci.NewMockCache(t)
 	id := vo.NewID()
 	email, _ := vo.NewEmail("joao@example.com")
 	cacheKey := "user:" + id.String()
@@ -165,8 +166,8 @@ func TestUpdateUseCase_Execute_CacheDeleteError_StillSucceeds(t *testing.T) {
 
 func TestUpdateUseCase_Execute_CacheInvalidation(t *testing.T) {
 	// Arrange
-	mockRepo := new(MockRepository)
-	mockCache := new(MockCache)
+	mockRepo := useruci.NewMockRepository(t)
+	mockCache := useruci.NewMockCache(t)
 	id := vo.NewID()
 	email, _ := vo.NewEmail("joao@example.com")
 	cacheKey := "user:" + id.String()

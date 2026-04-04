@@ -5,6 +5,8 @@ import (
 	"errors"
 	"testing"
 
+	"github.com/DenysonJ/financial-wallet/internal/mocks/middlewaremock"
+	"github.com/DenysonJ/financial-wallet/internal/mocks/useruci"
 	"github.com/DenysonJ/financial-wallet/pkg/cache"
 	"github.com/google/uuid"
 	"github.com/stretchr/testify/assert"
@@ -17,8 +19,8 @@ func TestCachedPermissionLoader_GetPermissions(t *testing.T) {
 	tests := []struct {
 		name       string
 		userID     string
-		setupCache func(c *mockCache)
-		setupRepo  func(r *mockPermissionRepo)
+		setupCache func(c *useruci.MockCache)
+		setupRepo  func(r *middlewaremock.MockPermissionRepository)
 		wantPerms  []string
 		wantErr    bool
 		noCache    bool
@@ -26,26 +28,26 @@ func TestCachedPermissionLoader_GetPermissions(t *testing.T) {
 		{
 			name:   "cache hit returns cached permissions",
 			userID: validID,
-			setupCache: func(c *mockCache) {
+			setupCache: func(c *useruci.MockCache) {
 				c.On("Get", mock.Anything, "permissions:user:"+validID, mock.Anything).
 					Run(func(args mock.Arguments) {
 						dest := args.Get(2).(*[]string)
 						*dest = []string{"user:read", "user:write"}
 					}).Return(nil)
 			},
-			setupRepo: func(_ *mockPermissionRepo) {},
+			setupRepo: func(_ *middlewaremock.MockPermissionRepository) {},
 			wantPerms: []string{"user:read", "user:write"},
 		},
 		{
 			name:   "cache miss queries DB and caches result",
 			userID: validID,
-			setupCache: func(c *mockCache) {
+			setupCache: func(c *useruci.MockCache) {
 				c.On("Get", mock.Anything, "permissions:user:"+validID, mock.Anything).
 					Return(cache.ErrCacheMiss)
 				c.On("Set", mock.Anything, "permissions:user:"+validID, []string{"user:read"}).
 					Return(nil)
 			},
-			setupRepo: func(r *mockPermissionRepo) {
+			setupRepo: func(r *middlewaremock.MockPermissionRepository) {
 				r.On("GetUserPermissions", mock.Anything, validID).
 					Return([]string{"user:read"}, nil)
 			},
@@ -54,11 +56,11 @@ func TestCachedPermissionLoader_GetPermissions(t *testing.T) {
 		{
 			name:   "DB error propagated",
 			userID: validID,
-			setupCache: func(c *mockCache) {
+			setupCache: func(c *useruci.MockCache) {
 				c.On("Get", mock.Anything, mock.Anything, mock.Anything).
 					Return(cache.ErrCacheMiss)
 			},
-			setupRepo: func(r *mockPermissionRepo) {
+			setupRepo: func(r *middlewaremock.MockPermissionRepository) {
 				r.On("GetUserPermissions", mock.Anything, validID).
 					Return(nil, errors.New("db connection failed"))
 			},
@@ -67,11 +69,11 @@ func TestCachedPermissionLoader_GetPermissions(t *testing.T) {
 		{
 			name:   "repo error on invalid user ID propagated",
 			userID: "not-a-uuid",
-			setupCache: func(c *mockCache) {
+			setupCache: func(c *useruci.MockCache) {
 				c.On("Get", mock.Anything, mock.Anything, mock.Anything).
 					Return(cache.ErrCacheMiss)
 			},
-			setupRepo: func(r *mockPermissionRepo) {
+			setupRepo: func(r *middlewaremock.MockPermissionRepository) {
 				r.On("GetUserPermissions", mock.Anything, "not-a-uuid").
 					Return(nil, errors.New("invalid ID"))
 			},
@@ -81,8 +83,8 @@ func TestCachedPermissionLoader_GetPermissions(t *testing.T) {
 			name:       "nil cache queries DB directly",
 			userID:     validID,
 			noCache:    true,
-			setupCache: func(_ *mockCache) {},
-			setupRepo: func(r *mockPermissionRepo) {
+			setupCache: func(_ *useruci.MockCache) {},
+			setupRepo: func(r *middlewaremock.MockPermissionRepository) {
 				r.On("GetUserPermissions", mock.Anything, validID).
 					Return([]string{"role:read"}, nil)
 			},
@@ -92,8 +94,8 @@ func TestCachedPermissionLoader_GetPermissions(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			mockRepo := new(mockPermissionRepo)
-			mockCacheInst := new(mockCache)
+			mockRepo := middlewaremock.NewMockPermissionRepository(t)
+			mockCacheInst := useruci.NewMockCache(t)
 
 			tt.setupCache(mockCacheInst)
 			tt.setupRepo(mockRepo)

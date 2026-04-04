@@ -3,8 +3,8 @@ package main
 import (
 	"context"
 
-	"github.com/DenysonJ/financial-wallet/internal/domain/user/vo"
 	roleinterfaces "github.com/DenysonJ/financial-wallet/internal/usecases/role/interfaces"
+	"github.com/DenysonJ/financial-wallet/pkg/vo"
 )
 
 // permissionRepoAdapter adapts role/interfaces.Repository (vo.ID params) to
