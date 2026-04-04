@@ -44,8 +44,9 @@ func TestRegisterDBPoolMetrics(t *testing.T) {
 				return
 			}
 
-			db, _, mockErr := sqlmock.New()
+			db, mock, mockErr := sqlmock.New()
 			require.NoError(t, mockErr)
+			mock.ExpectClose()
 			defer func() {
 				err := db.Close()
 				if err != nil {
