@@ -199,7 +199,7 @@ func (r *RoleRepository) FindByID(ctx context.Context, id vo.ID) (*roledomain.Ro
 	return dbModel.toRole()
 }
 
-func (r *RoleRepository) AssignRole(ctx context.Context, userID vo.ID, roleID vo.ID) error {
+func (r *RoleRepository) AssignRole(ctx context.Context, userID, roleID vo.ID) error {
 	query := `
 		INSERT INTO user_roles (user_id, role_id, created_at)
 		VALUES ($1, $2, $3)
@@ -223,7 +223,7 @@ func (r *RoleRepository) AssignRole(ctx context.Context, userID vo.ID, roleID vo
 	return nil
 }
 
-func (r *RoleRepository) RevokeRole(ctx context.Context, userID vo.ID, roleID vo.ID) error {
+func (r *RoleRepository) RevokeRole(ctx context.Context, userID, roleID vo.ID) error {
 	query := `
 		DELETE FROM user_roles
 		WHERE user_id = $1 AND role_id = $2

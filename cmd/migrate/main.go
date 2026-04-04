@@ -48,7 +48,12 @@ func run() error {
 	if openErr != nil {
 		return fmt.Errorf("opening database connection: %w", openErr)
 	}
-	defer db.Close()
+	defer func() {
+		err := db.Close()
+		if err != nil {
+			slog.Error("closing database connection", "error", err)
+		}
+	}()
 
 	// Verify connection
 	if pingErr := db.Ping(); pingErr != nil {

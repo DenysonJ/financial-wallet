@@ -331,10 +331,10 @@ func buildDependencies(cluster *database.DBCluster, sqlxWriter, sqlxReader *sqlx
 	}
 }
 
-func newServer(port string, handler http.Handler) *http.Server {
+func newServer(port string, h http.Handler) *http.Server {
 	return &http.Server{
 		Addr:              ":" + port,
-		Handler:           handler,
+		Handler:           h,
 		ReadHeaderTimeout: 10 * time.Second,
 		ReadTimeout:       30 * time.Second,
 		WriteTimeout:      30 * time.Second,
