@@ -14,11 +14,11 @@ import (
 
 // AccountHandler agrupa todos os handlers relacionados a Account.
 type AccountHandler struct {
-	CreateUC *accountuc.CreateUseCase
-	GetUC    *accountuc.GetUseCase
-	ListUC   *accountuc.ListUseCase
-	UpdateUC *accountuc.UpdateUseCase
-	DeleteUC *accountuc.DeleteUseCase
+	createUC *accountuc.CreateUseCase
+	getUC    *accountuc.GetUseCase
+	listUC   *accountuc.ListUseCase
+	updateUC *accountuc.UpdateUseCase
+	deleteUC *accountuc.DeleteUseCase
 }
 
 // NewAccountHandler cria um novo AccountHandler com todos os use cases.
@@ -30,11 +30,11 @@ func NewAccountHandler(
 	deleteUC *accountuc.DeleteUseCase,
 ) *AccountHandler {
 	return &AccountHandler{
-		CreateUC: createUC,
-		GetUC:    getUC,
-		ListUC:   listUC,
-		UpdateUC: updateUC,
-		DeleteUC: deleteUC,
+		createUC: createUC,
+		getUC:    getUC,
+		listUC:   listUC,
+		updateUC: updateUC,
+		deleteUC: deleteUC,
 	}
 }
 
@@ -75,7 +75,7 @@ func (h *AccountHandler) Create(c *gin.Context) {
 
 	span.SetAttributes(attribute.String("account.name", req.Name), attribute.String("account.type", req.Type))
 
-	res, execErr := h.CreateUC.Execute(ctx, req)
+	res, execErr := h.createUC.Execute(ctx, req)
 	if execErr != nil {
 		HandleError(c, span, execErr)
 		return
@@ -106,7 +106,7 @@ func (h *AccountHandler) GetByID(c *gin.Context) {
 	span.SetAttributes(attribute.String("account.id", id))
 
 	// Ownership enforced in use case — returns 404 for non-owner (no existence oracle)
-	res, execErr := h.GetUC.Execute(ctx, dto.GetInput{
+	res, execErr := h.getUC.Execute(ctx, dto.GetInput{
 		ID:               id,
 		RequestingUserID: ownershipUserID(c),
 	})
@@ -160,7 +160,7 @@ func (h *AccountHandler) List(c *gin.Context) {
 		attribute.Int("filter.limit", req.Limit),
 	)
 
-	res, execErr := h.ListUC.Execute(ctx, req)
+	res, execErr := h.listUC.Execute(ctx, req)
 	if execErr != nil {
 		HandleError(c, span, execErr)
 		return
@@ -202,7 +202,7 @@ func (h *AccountHandler) Update(c *gin.Context) {
 	req.ID = id
 	req.RequestingUserID = ownershipUserID(c)
 
-	res, execErr := h.UpdateUC.Execute(ctx, req)
+	res, execErr := h.updateUC.Execute(ctx, req)
 	if execErr != nil {
 		HandleError(c, span, execErr)
 		return
@@ -231,7 +231,7 @@ func (h *AccountHandler) Delete(c *gin.Context) {
 	id := c.Param("id")
 	span.SetAttributes(attribute.String("account.id", id))
 
-	_, execErr := h.DeleteUC.Execute(ctx, dto.DeleteInput{
+	_, execErr := h.deleteUC.Execute(ctx, dto.DeleteInput{
 		ID:               id,
 		RequestingUserID: ownershipUserID(c),
 	})
