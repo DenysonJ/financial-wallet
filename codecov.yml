@@ -1,2 +1,3 @@
 ignore:
   - "internal/infrastructure/web/router/**"
+  - "internal/mocks/**"
