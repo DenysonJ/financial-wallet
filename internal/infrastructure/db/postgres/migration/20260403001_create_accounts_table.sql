@@ -30,7 +30,7 @@ INSERT INTO role_permissions (role_id, permission_id) VALUES
     ('00000000-0000-0000-0000-100000000001', '00000000-0000-0000-0000-000000000009'),
     ('00000000-0000-0000-0000-100000000001', '00000000-0000-0000-0000-000000000010');
 
--- Seed: user gets read+write+update on own accounts
+-- Seed: user gets read+write+update+delete on own accounts
 INSERT INTO role_permissions (role_id, permission_id) VALUES
     ('00000000-0000-0000-0000-100000000002', '00000000-0000-0000-0000-000000000007'),
     ('00000000-0000-0000-0000-100000000002', '00000000-0000-0000-0000-000000000008'),
