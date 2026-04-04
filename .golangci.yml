@@ -2,7 +2,6 @@
 # Docs: https://golangci-lint.run/usage/configuration/
 
 run:
-  timeout: 5m
   tests: true
   modules-download-mode: readonly
 
