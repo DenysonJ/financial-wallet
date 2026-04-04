@@ -2,7 +2,6 @@ package account
 
 import (
 	"context"
-	"math"
 	"time"
 
 	"go.opentelemetry.io/otel"
@@ -80,12 +79,10 @@ func (uc *ListUseCase) Execute(ctx context.Context, input dto.ListInput) (*dto.L
 		})
 	}
 
-	total := float64(result.Total)
-	limit := float64(result.Limit)
 	totalPages := 0
 
-	if limit > 0 {
-		totalPages = int(math.Ceil(total / limit))
+	if result.Limit > 0 {
+		totalPages = (result.Total + result.Limit - 1) / result.Limit
 	}
 
 	span.SetAttributes(attribute.Int("result.total", result.Total))
