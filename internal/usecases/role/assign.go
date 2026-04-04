@@ -42,7 +42,7 @@ func (uc *AssignRoleUseCase) Execute(ctx context.Context, input dto.AssignRoleIn
 	ctx, span := otel.Tracer("usecase").Start(ctx, "UseCase.Role.Assign")
 	defer span.End()
 
-	ctx = injectLogContext(ctx, "role", "assign")
+	ctx = injectLogContext(ctx, "assign")
 
 	userID, userParseErr := vo.ParseID(input.UserID)
 	if userParseErr != nil {

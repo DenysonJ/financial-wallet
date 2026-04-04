@@ -46,7 +46,7 @@ func (uc *SetPasswordUseCase) Execute(ctx context.Context, input dto.SetPassword
 	ctx, span := otel.Tracer("usecase").Start(ctx, "UseCase.User.SetPassword")
 	defer span.End()
 
-	ctx = injectLogContext(ctx, "user", "set_password")
+	ctx = injectLogContext(ctx, "set_password")
 
 	id, parseErr := vo.ParseID(input.UserID)
 	if parseErr != nil {

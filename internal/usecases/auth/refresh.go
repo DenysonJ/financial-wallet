@@ -34,7 +34,7 @@ func (uc *RefreshUseCase) Execute(ctx context.Context, input dto.RefreshInput) (
 	ctx, span := otel.Tracer("usecase").Start(ctx, "UseCase.Auth.Refresh")
 	defer span.End()
 
-	ctx = injectLogContext(ctx, "auth", "refresh")
+	ctx = injectLogContext(ctx, "refresh")
 
 	claims, validateErr := uc.token.ValidateToken(input.RefreshToken)
 	if validateErr != nil {

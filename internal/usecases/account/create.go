@@ -31,7 +31,7 @@ func (uc *CreateUseCase) Execute(ctx context.Context, input dto.CreateInput) (*d
 	ctx, span := otel.Tracer("usecase").Start(ctx, "UseCase.Account.Create")
 	defer span.End()
 
-	ctx = injectLogContext(ctx, resourceAccount, logutil.ActionCreate)
+	ctx = injectLogContext(ctx, logutil.ActionCreate)
 
 	// Validar UserID
 	userID, parseErr := uservo.ParseID(input.UserID)

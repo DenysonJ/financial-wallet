@@ -41,7 +41,7 @@ func (uc *RevokeRoleUseCase) Execute(ctx context.Context, input dto.RevokeRoleIn
 	ctx, span := otel.Tracer("usecase").Start(ctx, "UseCase.Role.Revoke")
 	defer span.End()
 
-	ctx = injectLogContext(ctx, "role", "revoke")
+	ctx = injectLogContext(ctx, "revoke")
 
 	userID, userParseErr := vo.ParseID(input.UserID)
 	if userParseErr != nil {

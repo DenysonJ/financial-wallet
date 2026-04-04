@@ -41,7 +41,7 @@ func (uc *LoginUseCase) Execute(ctx context.Context, input dto.LoginInput) (*dto
 	ctx, span := otel.Tracer("usecase").Start(ctx, "UseCase.Auth.Login")
 	defer span.End()
 
-	ctx = injectLogContext(ctx, "auth", "login")
+	ctx = injectLogContext(ctx, "login")
 
 	emailVO, emailErr := vo.NewEmail(input.Email)
 	if emailErr != nil {

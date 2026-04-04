@@ -36,7 +36,7 @@ func (uc *CreateUseCase) Execute(ctx context.Context, input dto.CreateInput) (*d
 	ctx, span := otel.Tracer("usecase").Start(ctx, "UseCase.User.Create")
 	defer span.End()
 
-	ctx = injectLogContext(ctx, "user", "create")
+	ctx = injectLogContext(ctx, "create")
 
 	// PASSO 1: Converter primitivos para Value Objects
 	emailVO, emailErr := vo.NewEmail(input.Email)

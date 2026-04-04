@@ -35,7 +35,7 @@ func (uc *DeleteUseCase) Execute(ctx context.Context, input dto.DeleteInput) (*d
 	ctx, span := otel.Tracer("usecase").Start(ctx, "UseCase.Role.Delete")
 	defer span.End()
 
-	ctx = injectLogContext(ctx, "role", "delete")
+	ctx = injectLogContext(ctx, "delete")
 
 	// Validar e converter ID
 	id, parseErr := vo.ParseID(input.ID)

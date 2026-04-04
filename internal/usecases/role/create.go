@@ -36,7 +36,7 @@ func (uc *CreateUseCase) Execute(ctx context.Context, input dto.CreateInput) (*d
 	ctx, span := otel.Tracer("usecase").Start(ctx, "UseCase.Role.Create")
 	defer span.End()
 
-	ctx = injectLogContext(ctx, "role", "create")
+	ctx = injectLogContext(ctx, "create")
 
 	// PASSO 1: Verificar duplicidade de nome
 	existingRole, findErr := uc.repo.FindByName(ctx, input.Name)

@@ -30,7 +30,7 @@ func (uc *ListUseCase) Execute(ctx context.Context, input dto.ListInput) (*dto.L
 	ctx, span := otel.Tracer("usecase").Start(ctx, "UseCase.User.List")
 	defer span.End()
 
-	ctx = injectLogContext(ctx, "user", "list")
+	ctx = injectLogContext(ctx, "list")
 
 	span.SetAttributes(
 		attribute.Int("filter.page", input.Page),

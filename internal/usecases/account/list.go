@@ -31,7 +31,7 @@ func (uc *ListUseCase) Execute(ctx context.Context, input dto.ListInput) (*dto.L
 	ctx, span := otel.Tracer("usecase").Start(ctx, "UseCase.Account.List")
 	defer span.End()
 
-	ctx = injectLogContext(ctx, resourceAccount, logutil.ActionList)
+	ctx = injectLogContext(ctx, logutil.ActionList)
 
 	// Validar UserID
 	userID, parseErr := uservo.ParseID(input.UserID)

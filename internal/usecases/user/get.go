@@ -52,7 +52,7 @@ func (uc *GetUseCase) Execute(ctx context.Context, input dto.GetInput) (*dto.Get
 	ctx, span := otel.Tracer("usecase").Start(ctx, "UseCase.User.Get")
 	defer span.End()
 
-	ctx = injectLogContext(ctx, "user", "get")
+	ctx = injectLogContext(ctx, "get")
 
 	// Validar e converter ID
 	id, parseErr := vo.ParseID(input.ID)
