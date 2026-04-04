@@ -7,12 +7,11 @@ run:
   modules-download-mode: readonly
 
 output:
-  formats:
-    - format: colored-line-number
-  sort-results: true
+  sort-order:
+    - severity
 
 linters:
-  disable-all: true
+  default: none
   enable:
     # Default linters
     - errcheck # Checks for unchecked errors
@@ -43,7 +42,6 @@ linters:
 
     # Error handling
     - errorlint # Finds issues with error wrapping
-    # - wrapcheck    # Disabled: too strict, requires wrapping all external errors
 
 linters-settings:
   govet:
