@@ -8,28 +8,28 @@ import (
 
 	accountdomain "github.com/DenysonJ/financial-wallet/internal/domain/account"
 	accountvo "github.com/DenysonJ/financial-wallet/internal/domain/account/vo"
-	uservo "github.com/DenysonJ/financial-wallet/internal/domain/user/vo"
 	"github.com/DenysonJ/financial-wallet/internal/mocks/accountuci"
 	"github.com/DenysonJ/financial-wallet/internal/usecases/account/dto"
+	"github.com/DenysonJ/financial-wallet/pkg/vo"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 )
 
 func TestListUseCase_Execute(t *testing.T) {
-	userID := uservo.NewID()
+	userID := vo.NewID()
 	now := time.Now()
 
 	twoAccounts := &accountdomain.ListResult{
 		Accounts: []*accountdomain.Account{
-			{ID: uservo.NewID(), UserID: userID, Name: "Nubank", Type: accountvo.TypeBankAccount, Active: true, CreatedAt: now, UpdatedAt: now},
-			{ID: uservo.NewID(), UserID: userID, Name: "Cartão Inter", Type: accountvo.TypeCreditCard, Active: true, CreatedAt: now, UpdatedAt: now},
+			{ID: vo.NewID(), UserID: userID, Name: "Nubank", Type: accountvo.TypeBankAccount, Active: true, CreatedAt: now, UpdatedAt: now},
+			{ID: vo.NewID(), UserID: userID, Name: "Cartão Inter", Type: accountvo.TypeCreditCard, Active: true, CreatedAt: now, UpdatedAt: now},
 		},
 		Total: 2, Page: 1, Limit: 20,
 	}
 
 	oneAccount := &accountdomain.ListResult{
 		Accounts: []*accountdomain.Account{
-			{ID: uservo.NewID(), UserID: userID, Name: "Nubank", Type: accountvo.TypeBankAccount, Active: true, CreatedAt: now, UpdatedAt: now},
+			{ID: vo.NewID(), UserID: userID, Name: "Nubank", Type: accountvo.TypeBankAccount, Active: true, CreatedAt: now, UpdatedAt: now},
 		},
 		Total: 1, Page: 1, Limit: 20,
 	}

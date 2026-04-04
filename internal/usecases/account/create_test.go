@@ -6,9 +6,9 @@ import (
 	"testing"
 
 	accountvo "github.com/DenysonJ/financial-wallet/internal/domain/account/vo"
-	uservo "github.com/DenysonJ/financial-wallet/internal/domain/user/vo"
 	"github.com/DenysonJ/financial-wallet/internal/mocks/accountuci"
 	"github.com/DenysonJ/financial-wallet/internal/usecases/account/dto"
+	"github.com/DenysonJ/financial-wallet/pkg/vo"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 )
@@ -26,7 +26,7 @@ func TestCreateUseCase_Execute(t *testing.T) {
 		{
 			name: "sucesso",
 			input: dto.CreateInput{
-				UserID: uservo.NewID().String(), Name: "Nubank", Type: "bank_account", Description: "Conta corrente",
+				UserID: vo.NewID().String(), Name: "Nubank", Type: "bank_account", Description: "Conta corrente",
 			},
 			wantOutput: true,
 		},
@@ -35,13 +35,13 @@ func TestCreateUseCase_Execute(t *testing.T) {
 			input: dto.CreateInput{
 				UserID: "invalid-id", Name: "Nubank", Type: "bank_account",
 			},
-			wantErr:      uservo.ErrInvalidID,
+			wantErr:      vo.ErrInvalidID,
 			skipRepoCall: true,
 		},
 		{
 			name: "tipo inválido",
 			input: dto.CreateInput{
-				UserID: uservo.NewID().String(), Name: "Nubank", Type: "savings",
+				UserID: vo.NewID().String(), Name: "Nubank", Type: "savings",
 			},
 			wantErr:      accountvo.ErrInvalidAccountType,
 			skipRepoCall: true,
@@ -49,7 +49,7 @@ func TestCreateUseCase_Execute(t *testing.T) {
 		{
 			name: "erro do repositório",
 			input: dto.CreateInput{
-				UserID: uservo.NewID().String(), Name: "Nubank", Type: "bank_account",
+				UserID: vo.NewID().String(), Name: "Nubank", Type: "bank_account",
 			},
 			repoErr:    errors.New("database connection failed"),
 			wantErrMsg: "database connection failed",

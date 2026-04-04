@@ -8,16 +8,16 @@ import (
 
 	accountdomain "github.com/DenysonJ/financial-wallet/internal/domain/account"
 	accountvo "github.com/DenysonJ/financial-wallet/internal/domain/account/vo"
-	uservo "github.com/DenysonJ/financial-wallet/internal/domain/user/vo"
 	"github.com/DenysonJ/financial-wallet/internal/mocks/accountuci"
 	"github.com/DenysonJ/financial-wallet/internal/usecases/account/dto"
+	"github.com/DenysonJ/financial-wallet/pkg/vo"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 )
 
 func ptrStr(s string) *string { return &s }
 
-func newExistingAccount(id, ownerID uservo.ID) *accountdomain.Account {
+func newExistingAccount(id, ownerID vo.ID) *accountdomain.Account {
 	return &accountdomain.Account{
 		ID: id, UserID: ownerID, Name: "Nubank", Type: accountvo.TypeBankAccount,
 		Description: "Original", Active: true, CreatedAt: time.Now(), UpdatedAt: time.Now(),
@@ -25,9 +25,9 @@ func newExistingAccount(id, ownerID uservo.ID) *accountdomain.Account {
 }
 
 func TestUpdateUseCase_Execute(t *testing.T) {
-	validID := uservo.NewID()
-	ownerID := uservo.NewID()
-	otherUserID := uservo.NewID()
+	validID := vo.NewID()
+	ownerID := vo.NewID()
+	otherUserID := vo.NewID()
 
 	tests := []struct {
 		name           string
@@ -73,7 +73,7 @@ func TestUpdateUseCase_Execute(t *testing.T) {
 		{
 			name:           "ID inválido",
 			input:          dto.UpdateInput{ID: "invalid", Name: ptrStr("X")},
-			wantErr:        uservo.ErrInvalidID,
+			wantErr:        vo.ErrInvalidID,
 			skipFindCall:   true,
 			skipUpdateCall: true,
 		},

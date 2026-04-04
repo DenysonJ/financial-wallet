@@ -8,17 +8,17 @@ import (
 
 	accountdomain "github.com/DenysonJ/financial-wallet/internal/domain/account"
 	accountvo "github.com/DenysonJ/financial-wallet/internal/domain/account/vo"
-	uservo "github.com/DenysonJ/financial-wallet/internal/domain/user/vo"
 	"github.com/DenysonJ/financial-wallet/internal/mocks/accountuci"
 	"github.com/DenysonJ/financial-wallet/internal/usecases/account/dto"
+	"github.com/DenysonJ/financial-wallet/pkg/vo"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 )
 
 func TestDeleteUseCase_Execute(t *testing.T) {
-	validID := uservo.NewID()
-	ownerID := uservo.NewID()
-	otherUserID := uservo.NewID()
+	validID := vo.NewID()
+	ownerID := vo.NewID()
+	otherUserID := vo.NewID()
 	now := time.Now()
 
 	ownedAccount := &accountdomain.Account{
@@ -59,7 +59,7 @@ func TestDeleteUseCase_Execute(t *testing.T) {
 		{
 			name:           "ID inválido",
 			input:          dto.DeleteInput{ID: "invalid"},
-			wantErr:        uservo.ErrInvalidID,
+			wantErr:        vo.ErrInvalidID,
 			skipFindCall:   true,
 			skipDeleteCall: true,
 		},
