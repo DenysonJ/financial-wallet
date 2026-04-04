@@ -123,7 +123,7 @@ func (r *AccountRepository) List(ctx context.Context, filter accountdomain.ListF
 	}
 	if filter.Name != "" {
 		conditions = append(conditions, "name ILIKE :name")
-		args["name"] = "%" + filter.Name + "%"
+		args["name"] = "%" + escapeILIKE(filter.Name) + "%"
 	}
 	if filter.Type != "" {
 		conditions = append(conditions, "type = :type")
