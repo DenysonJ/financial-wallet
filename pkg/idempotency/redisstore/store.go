@@ -41,12 +41,18 @@ func (s *RedisStore) Lock(ctx context.Context, key, fingerprint string) (bool, e
 	}
 
 	// SET key value NX EX lockTTL — atomic, prevents race conditions
-	ok, setErr := s.client.SetNX(ctx, key, data, s.lockTTL).Result()
+	setErr := s.client.SetArgs(ctx, key, data, redis.SetArgs{
+		Mode: "NX",
+		TTL:  s.lockTTL,
+	}).Err()
 	if setErr != nil {
+		if errors.Is(setErr, redis.Nil) {
+			return false, nil // key already exists — lock not acquired
+		}
 		return false, setErr
 	}
 
-	return ok, nil
+	return true, nil
 }
 
 // Get returns the entry stored for the key.

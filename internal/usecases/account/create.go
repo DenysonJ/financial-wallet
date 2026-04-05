@@ -10,10 +10,10 @@ import (
 
 	accountdomain "github.com/DenysonJ/financial-wallet/internal/domain/account"
 	accountvo "github.com/DenysonJ/financial-wallet/internal/domain/account/vo"
-	uservo "github.com/DenysonJ/financial-wallet/internal/domain/user/vo"
 	"github.com/DenysonJ/financial-wallet/internal/usecases/account/dto"
 	"github.com/DenysonJ/financial-wallet/internal/usecases/account/interfaces"
 	"github.com/DenysonJ/financial-wallet/pkg/logutil"
+	uservo "github.com/DenysonJ/financial-wallet/pkg/vo"
 )
 
 // CreateUseCase implementa o caso de uso de criação de account.
@@ -28,10 +28,10 @@ func NewCreateUseCase(repo interfaces.Repository) *CreateUseCase {
 
 // Execute executa o caso de uso de criação de account.
 func (uc *CreateUseCase) Execute(ctx context.Context, input dto.CreateInput) (*dto.CreateOutput, error) {
-	ctx, span := otel.Tracer("usecase").Start(ctx, "UseCase.Account.Create")
+	ctx, span := otel.Tracer(TracerKey).Start(ctx, "UseCase.Account.Create")
 	defer span.End()
 
-	ctx = injectLogContext(ctx, resourceAccount, logutil.ActionCreate)
+	ctx = injectLogContext(ctx, logutil.ActionCreate)
 
 	// Validar UserID
 	userID, parseErr := uservo.ParseID(input.UserID)

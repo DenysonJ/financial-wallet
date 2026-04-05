@@ -81,6 +81,28 @@ func TestServiceKeyAuth_NoKeysConfigured(t *testing.T) {
 	assert.Equal(t, http.StatusOK, w.Code)
 }
 
+func TestServiceKeyAuth_EnabledButNoKeys_FailClosed(t *testing.T) {
+	config := ServiceKeyConfig{
+		Enabled: true,
+		Keys:    map[string]string{},
+	}
+
+	r := gin.New()
+	r.Use(ServiceKeyAuth(config))
+	r.GET("/test", func(c *gin.Context) {
+		c.JSON(http.StatusOK, gin.H{"status": "ok"})
+	})
+
+	w := httptest.NewRecorder()
+	req, _ := http.NewRequest("GET", "/test", nil)
+	req.Header.Set("X-Service-Name", "any-service")
+	req.Header.Set("X-Service-Key", "any-key")
+	r.ServeHTTP(w, req)
+
+	assert.Equal(t, http.StatusServiceUnavailable, w.Code)
+	assert.Contains(t, w.Body.String(), "service authentication not configured")
+}
+
 func TestServiceKeyAuth_ValidKey(t *testing.T) {
 	config := ServiceKeyConfig{
 		Enabled: true,

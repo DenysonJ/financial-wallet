@@ -6,6 +6,7 @@ import (
 	"testing"
 
 	roledomain "github.com/DenysonJ/financial-wallet/internal/domain/role"
+	"github.com/DenysonJ/financial-wallet/internal/mocks/roleuci"
 	"github.com/DenysonJ/financial-wallet/internal/usecases/role/dto"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
@@ -13,7 +14,7 @@ import (
 
 func TestCreateUseCase_Execute_Success(t *testing.T) {
 	// Arrange
-	mockRepo := new(MockRepository)
+	mockRepo := roleuci.NewMockRepository(t)
 	mockRepo.On("FindByName", mock.Anything, "admin").Return(nil, roledomain.ErrRoleNotFound)
 	mockRepo.On("Create", mock.Anything, mock.AnythingOfType("*role.Role")).Return(nil)
 
@@ -36,7 +37,7 @@ func TestCreateUseCase_Execute_Success(t *testing.T) {
 
 func TestCreateUseCase_Execute_DuplicateName(t *testing.T) {
 	// Arrange
-	mockRepo := new(MockRepository)
+	mockRepo := roleuci.NewMockRepository(t)
 	existingRole := roledomain.NewRole("admin", "Existing admin role")
 	mockRepo.On("FindByName", mock.Anything, "admin").Return(existingRole, nil)
 
@@ -58,7 +59,7 @@ func TestCreateUseCase_Execute_DuplicateName(t *testing.T) {
 
 func TestCreateUseCase_Execute_FindByNameError(t *testing.T) {
 	// Arrange
-	mockRepo := new(MockRepository)
+	mockRepo := roleuci.NewMockRepository(t)
 	mockRepo.On("FindByName", mock.Anything, "admin").
 		Return(nil, errors.New("database connection lost"))
 
@@ -80,7 +81,7 @@ func TestCreateUseCase_Execute_FindByNameError(t *testing.T) {
 
 func TestCreateUseCase_Execute_RepositoryError(t *testing.T) {
 	// Arrange
-	mockRepo := new(MockRepository)
+	mockRepo := roleuci.NewMockRepository(t)
 	mockRepo.On("FindByName", mock.Anything, "admin").Return(nil, roledomain.ErrRoleNotFound)
 	mockRepo.On("Create", mock.Anything, mock.AnythingOfType("*role.Role")).
 		Return(errors.New("database connection failed"))

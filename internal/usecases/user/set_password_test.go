@@ -7,6 +7,7 @@ import (
 
 	userdomain "github.com/DenysonJ/financial-wallet/internal/domain/user"
 	"github.com/DenysonJ/financial-wallet/internal/domain/user/vo"
+	"github.com/DenysonJ/financial-wallet/internal/mocks/useruci"
 	"github.com/DenysonJ/financial-wallet/internal/usecases/user/dto"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
@@ -27,7 +28,7 @@ func TestSetPasswordUseCase_Execute(t *testing.T) {
 
 	tests := []struct {
 		name       string
-		setupMock  func(repo *MockRepository, userID vo.ID)
+		setupMock  func(repo *useruci.MockRepository, userID vo.ID)
 		password   string
 		confirm    string
 		wantErr    error
@@ -35,7 +36,7 @@ func TestSetPasswordUseCase_Execute(t *testing.T) {
 	}{
 		{
 			name: "success",
-			setupMock: func(repo *MockRepository, userID vo.ID) {
+			setupMock: func(repo *useruci.MockRepository, userID vo.ID) {
 				repo.On("FindByID", mock.Anything, userID).Return(makeUser(userID, ""), nil)
 				repo.On("UpdatePassword", mock.Anything, userID, mock.AnythingOfType("string")).Return(nil)
 			},
@@ -46,7 +47,7 @@ func TestSetPasswordUseCase_Execute(t *testing.T) {
 		},
 		{
 			name: "password already set",
-			setupMock: func(repo *MockRepository, userID vo.ID) {
+			setupMock: func(repo *useruci.MockRepository, userID vo.ID) {
 				repo.On("FindByID", mock.Anything, userID).Return(makeUser(userID, "$2a$12$existinghash"), nil)
 			},
 			password: "Str0ng!Pass",
@@ -55,7 +56,7 @@ func TestSetPasswordUseCase_Execute(t *testing.T) {
 		},
 		{
 			name: "password mismatch",
-			setupMock: func(repo *MockRepository, userID vo.ID) {
+			setupMock: func(repo *useruci.MockRepository, userID vo.ID) {
 				repo.On("FindByID", mock.Anything, userID).Return(makeUser(userID, ""), nil)
 			},
 			password: "Str0ng!Pass",
@@ -64,7 +65,7 @@ func TestSetPasswordUseCase_Execute(t *testing.T) {
 		},
 		{
 			name: "password too short",
-			setupMock: func(repo *MockRepository, userID vo.ID) {
+			setupMock: func(repo *useruci.MockRepository, userID vo.ID) {
 				repo.On("FindByID", mock.Anything, userID).Return(makeUser(userID, ""), nil)
 			},
 			password: "Ab1!",
@@ -73,7 +74,7 @@ func TestSetPasswordUseCase_Execute(t *testing.T) {
 		},
 		{
 			name: "user not found",
-			setupMock: func(repo *MockRepository, userID vo.ID) {
+			setupMock: func(repo *useruci.MockRepository, userID vo.ID) {
 				repo.On("FindByID", mock.Anything, userID).Return(nil, userdomain.ErrUserNotFound)
 			},
 			password: "Str0ng!Pass",
@@ -84,7 +85,7 @@ func TestSetPasswordUseCase_Execute(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			mockRepo := new(MockRepository)
+			mockRepo := useruci.NewMockRepository(t)
 			userID := vo.NewID()
 			tt.setupMock(mockRepo, userID)
 

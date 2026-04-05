@@ -33,10 +33,10 @@ func NewCreateUseCase(repo interfaces.Repository) *CreateUseCase {
 //  3. Persiste no banco via Repository
 //  4. Retorna DTO com ID e timestamp
 func (uc *CreateUseCase) Execute(ctx context.Context, input dto.CreateInput) (*dto.CreateOutput, error) {
-	ctx, span := otel.Tracer("usecase").Start(ctx, "UseCase.Role.Create")
+	ctx, span := otel.Tracer(TracerKey).Start(ctx, "UseCase.Role.Create")
 	defer span.End()
 
-	ctx = injectLogContext(ctx, "role", "create")
+	ctx = injectLogContext(ctx, "create")
 
 	// PASSO 1: Verificar duplicidade de nome
 	existingRole, findErr := uc.repo.FindByName(ctx, input.Name)

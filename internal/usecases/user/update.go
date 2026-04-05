@@ -41,10 +41,10 @@ func (uc *UpdateUseCase) WithCache(c interfaces.Cache) *UpdateUseCase {
 //  3. Persistir alterações
 //  4. Invalidar cache
 func (uc *UpdateUseCase) Execute(ctx context.Context, input dto.UpdateInput) (*dto.UpdateOutput, error) {
-	ctx, span := otel.Tracer("usecase").Start(ctx, "UseCase.User.Update")
+	ctx, span := otel.Tracer(TracerKey).Start(ctx, "UseCase.User.Update")
 	defer span.End()
 
-	ctx = injectLogContext(ctx, "user", "update")
+	ctx = injectLogContext(ctx, "update")
 
 	// Validar e converter ID
 	id, parseErr := vo.ParseID(input.ID)

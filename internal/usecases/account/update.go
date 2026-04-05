@@ -9,10 +9,10 @@ import (
 	otelcodes "go.opentelemetry.io/otel/codes"
 
 	accountdomain "github.com/DenysonJ/financial-wallet/internal/domain/account"
-	uservo "github.com/DenysonJ/financial-wallet/internal/domain/user/vo"
 	"github.com/DenysonJ/financial-wallet/internal/usecases/account/dto"
 	"github.com/DenysonJ/financial-wallet/internal/usecases/account/interfaces"
 	"github.com/DenysonJ/financial-wallet/pkg/logutil"
+	uservo "github.com/DenysonJ/financial-wallet/pkg/vo"
 )
 
 // UpdateUseCase implementa o caso de uso de atualização de account.
@@ -27,10 +27,10 @@ func NewUpdateUseCase(repo interfaces.Repository) *UpdateUseCase {
 
 // Execute atualiza uma account existente (partial update de name/description).
 func (uc *UpdateUseCase) Execute(ctx context.Context, input dto.UpdateInput) (*dto.UpdateOutput, error) {
-	ctx, span := otel.Tracer("usecase").Start(ctx, "UseCase.Account.Update")
+	ctx, span := otel.Tracer(TracerKey).Start(ctx, "UseCase.Account.Update")
 	defer span.End()
 
-	ctx = injectLogContext(ctx, resourceAccount, logutil.ActionUpdate)
+	ctx = injectLogContext(ctx, logutil.ActionUpdate)
 
 	// Validar ID
 	id, parseErr := uservo.ParseID(input.ID)

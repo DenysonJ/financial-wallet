@@ -7,6 +7,7 @@ import (
 
 	roledomain "github.com/DenysonJ/financial-wallet/internal/domain/role"
 	"github.com/DenysonJ/financial-wallet/internal/domain/user/vo"
+	"github.com/DenysonJ/financial-wallet/internal/mocks/roleuci"
 	"github.com/DenysonJ/financial-wallet/internal/usecases/role/dto"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
@@ -14,7 +15,7 @@ import (
 
 func TestDeleteUseCase_Execute_Success(t *testing.T) {
 	// Arrange
-	mockRepo := new(MockRepository)
+	mockRepo := roleuci.NewMockRepository(t)
 	id := vo.NewID()
 
 	mockRepo.On("Delete", mock.Anything, id).Return(nil)
@@ -35,7 +36,7 @@ func TestDeleteUseCase_Execute_Success(t *testing.T) {
 
 func TestDeleteUseCase_Execute_NotFound(t *testing.T) {
 	// Arrange
-	mockRepo := new(MockRepository)
+	mockRepo := roleuci.NewMockRepository(t)
 	mockRepo.On("Delete", mock.Anything, mock.AnythingOfType("vo.ID")).
 		Return(roledomain.ErrRoleNotFound)
 
@@ -54,7 +55,7 @@ func TestDeleteUseCase_Execute_NotFound(t *testing.T) {
 
 func TestDeleteUseCase_Execute_InvalidID(t *testing.T) {
 	// Arrange
-	mockRepo := new(MockRepository)
+	mockRepo := roleuci.NewMockRepository(t)
 	uc := NewDeleteUseCase(mockRepo)
 	input := dto.DeleteInput{ID: "invalid-id"}
 
@@ -69,7 +70,7 @@ func TestDeleteUseCase_Execute_InvalidID(t *testing.T) {
 
 func TestDeleteUseCase_Execute_RepositoryError(t *testing.T) {
 	// Arrange
-	mockRepo := new(MockRepository)
+	mockRepo := roleuci.NewMockRepository(t)
 	mockRepo.On("Delete", mock.Anything, mock.AnythingOfType("vo.ID")).
 		Return(errors.New("database error"))
 

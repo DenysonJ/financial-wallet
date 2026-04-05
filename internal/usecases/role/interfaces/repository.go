@@ -4,7 +4,7 @@ import (
 	"context"
 
 	roledomain "github.com/DenysonJ/financial-wallet/internal/domain/role"
-	"github.com/DenysonJ/financial-wallet/internal/domain/user/vo"
+	"github.com/DenysonJ/financial-wallet/pkg/vo"
 )
 
 // Repository define o CONTRATO para persistencia de Role.

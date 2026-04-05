@@ -7,11 +7,11 @@ import (
 	"go.opentelemetry.io/otel/attribute"
 	otelcodes "go.opentelemetry.io/otel/codes"
 
-	"github.com/DenysonJ/financial-wallet/internal/domain/user/vo"
 	"github.com/DenysonJ/financial-wallet/internal/usecases/role/dto"
 	"github.com/DenysonJ/financial-wallet/internal/usecases/role/interfaces"
 	"github.com/DenysonJ/financial-wallet/pkg/cache"
 	"github.com/DenysonJ/financial-wallet/pkg/logutil"
+	"github.com/DenysonJ/financial-wallet/pkg/vo"
 )
 
 // AssignRoleUseCase implementa o caso de uso de atribuir uma role a um usuário.
@@ -39,10 +39,10 @@ func (uc *AssignRoleUseCase) WithCache(c cache.Cache) *AssignRoleUseCase {
 //  3. Atribuir role ao usuário
 //  4. Invalidar cache de permissions do usuário
 func (uc *AssignRoleUseCase) Execute(ctx context.Context, input dto.AssignRoleInput) error {
-	ctx, span := otel.Tracer("usecase").Start(ctx, "UseCase.Role.Assign")
+	ctx, span := otel.Tracer(TracerKey).Start(ctx, "UseCase.Role.Assign")
 	defer span.End()
 
-	ctx = injectLogContext(ctx, "role", "assign")
+	ctx = injectLogContext(ctx, "assign")
 
 	userID, userParseErr := vo.ParseID(input.UserID)
 	if userParseErr != nil {

@@ -1,0 +1,40 @@
+with-expecter: true
+resolve-type-alias: false
+disable-version-string: true
+issue-845-fix: true
+mockname: "Mock{{.InterfaceName}}"
+packages:
+  github.com/DenysonJ/financial-wallet/internal/usecases/user/interfaces:
+    config:
+      dir: "internal/mocks/useruci"
+      outpkg: "useruci"
+    interfaces:
+      Repository:
+      Cache:
+      Logger:
+  github.com/DenysonJ/financial-wallet/internal/usecases/account/interfaces:
+    config:
+      dir: "internal/mocks/accountuci"
+      outpkg: "accountuci"
+    interfaces:
+      Repository:
+  github.com/DenysonJ/financial-wallet/internal/usecases/role/interfaces:
+    config:
+      dir: "internal/mocks/roleuci"
+      outpkg: "roleuci"
+    interfaces:
+      Repository:
+  github.com/DenysonJ/financial-wallet/internal/usecases/auth/interfaces:
+    config:
+      dir: "internal/mocks/authuci"
+      outpkg: "authuci"
+    interfaces:
+      UserRepository:
+      TokenService:
+  github.com/DenysonJ/financial-wallet/internal/infrastructure/web/middleware:
+    config:
+      dir: "internal/mocks/middlewaremock"
+      outpkg: "middlewaremock"
+    interfaces:
+      PermissionLoader:
+      PermissionRepository:

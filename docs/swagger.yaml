@@ -375,6 +375,10 @@ paths:
           description: OK
           schema:
             $ref: '#/definitions/github_com_DenysonJ_financial-wallet_internal_usecases_account_dto.ListOutput'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/internal_infrastructure_web_handler.ErrorResponse'
         "429":
           description: Too Many Requests
           schema:
@@ -411,6 +415,10 @@ paths:
           description: Bad Request
           schema:
             $ref: '#/definitions/internal_infrastructure_web_handler.ErrorResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/internal_infrastructure_web_handler.ErrorResponse'
         "429":
           description: Too Many Requests
           schema:
@@ -439,10 +447,6 @@ paths:
       responses:
         "204":
           description: No Content
-        "403":
-          description: Forbidden
-          schema:
-            $ref: '#/definitions/internal_infrastructure_web_handler.ErrorResponse'
         "404":
           description: Not Found
           schema:
@@ -476,10 +480,6 @@ paths:
           description: OK
           schema:
             $ref: '#/definitions/github_com_DenysonJ_financial-wallet_internal_usecases_account_dto.GetOutput'
-        "403":
-          description: Forbidden
-          schema:
-            $ref: '#/definitions/internal_infrastructure_web_handler.ErrorResponse'
         "404":
           description: Not Found
           schema:
@@ -523,10 +523,6 @@ paths:
             $ref: '#/definitions/github_com_DenysonJ_financial-wallet_internal_usecases_account_dto.UpdateOutput'
         "400":
           description: Bad Request
-          schema:
-            $ref: '#/definitions/internal_infrastructure_web_handler.ErrorResponse'
-        "403":
-          description: Forbidden
           schema:
             $ref: '#/definitions/internal_infrastructure_web_handler.ErrorResponse'
         "404":

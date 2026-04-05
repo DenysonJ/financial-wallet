@@ -9,10 +9,10 @@ import (
 	otelcodes "go.opentelemetry.io/otel/codes"
 
 	accountdomain "github.com/DenysonJ/financial-wallet/internal/domain/account"
-	uservo "github.com/DenysonJ/financial-wallet/internal/domain/user/vo"
 	"github.com/DenysonJ/financial-wallet/internal/usecases/account/dto"
 	"github.com/DenysonJ/financial-wallet/internal/usecases/account/interfaces"
 	"github.com/DenysonJ/financial-wallet/pkg/logutil"
+	uservo "github.com/DenysonJ/financial-wallet/pkg/vo"
 )
 
 // DeleteUseCase implementa o caso de uso de deleção (soft delete) de account.
@@ -27,10 +27,10 @@ func NewDeleteUseCase(repo interfaces.Repository) *DeleteUseCase {
 
 // Execute realiza soft delete de uma account.
 func (uc *DeleteUseCase) Execute(ctx context.Context, input dto.DeleteInput) (*dto.DeleteOutput, error) {
-	ctx, span := otel.Tracer("usecase").Start(ctx, "UseCase.Account.Delete")
+	ctx, span := otel.Tracer(TracerKey).Start(ctx, "UseCase.Account.Delete")
 	defer span.End()
 
-	ctx = injectLogContext(ctx, resourceAccount, logutil.ActionDelete)
+	ctx = injectLogContext(ctx, logutil.ActionDelete)
 
 	// Validar ID
 	id, parseErr := uservo.ParseID(input.ID)

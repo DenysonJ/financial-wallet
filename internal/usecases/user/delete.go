@@ -40,10 +40,10 @@ func (uc *DeleteUseCase) WithCache(c interfaces.Cache) *DeleteUseCase {
 //  2. Realizar soft delete (active=false)
 //  3. Invalidar cache
 func (uc *DeleteUseCase) Execute(ctx context.Context, input dto.DeleteInput) (*dto.DeleteOutput, error) {
-	ctx, span := otel.Tracer("usecase").Start(ctx, "UseCase.User.Delete")
+	ctx, span := otel.Tracer(TracerKey).Start(ctx, "UseCase.User.Delete")
 	defer span.End()
 
-	ctx = injectLogContext(ctx, "user", "delete")
+	ctx = injectLogContext(ctx, "delete")
 
 	// Validar e converter ID
 	id, parseErr := vo.ParseID(input.ID)

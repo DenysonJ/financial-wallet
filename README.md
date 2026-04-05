@@ -2,10 +2,10 @@
 
 [![Go](https://img.shields.io/badge/Go-1.25+-00ADD8?logo=go)](https://go.dev/)
 [![Architecture](https://img.shields.io/badge/Architecture-Clean-blueviolet)](docs/adr/001-clean-architecture.md)
+[![CI](https://img.shields.io/badge/CI-GitHub_Actions-2088FF?logo=github-actions)](https://github.com/DenysonJ/financial-wallet/actions)
 [![Docker](https://img.shields.io/badge/Docker-Ready-2496ED?logo=docker)](docker/)
-[![Kubernetes](https://img.shields.io/badge/Kubernetes-Ready-326CE5?logo=kubernetes)](deploy/)
 
-**Padronização e Developer Experience como padrão.** 
+**Micro-serviço de finanças pessoais com Clean Architecture, PostgreSQL, Redis e OpenTelemetry.**
 
 ---
 
@@ -35,13 +35,6 @@ make lint         # Linters
 make run          # Tudo em Docker (sem Go local)
 ```
 
-### 4. Deploy
-
-```bash
-make kind-setup   # Testar localmente no Kubernetes
-# Push para develop → CI roda → deploy automático via ArgoCD
-```
-
 ---
 
 ## Comandos
@@ -57,9 +50,10 @@ make run-stop          # Para todos os containers
 make changelog         # Gera sugestão de changelog a partir dos commits
 
 # Qualidade
-make lint              # golangci-lint + gofmt
+make lint              # golangci-lint (v2) + gofmt + goimports
 make vulncheck         # Varredura de vulnerabilidades (govulncheck)
 make swagger           # Regenera documentação Swagger
+make mocks             # Regenera mocks com mockery
 
 # Testes
 make test              # Todos (unit + E2E)
@@ -72,7 +66,6 @@ make docker-up         # Sobe PostgreSQL + Redis
 make docker-down       # Para containers
 make observability-up  # ELK + OTel Collector
 make observability-setup # Dashboard + alertas no Kibana
-make kind-setup        # Kubernetes local completo
 
 # Load Tests
 make load-smoke        # Validação básica (5 VUs)
@@ -105,6 +98,12 @@ DB_NAME=users
 REDIS_ENABLED=true
 REDIS_URL=redis://localhost:6379
 
+# JWT
+JWT_ENABLED=true
+JWT_SECRET=your-secret-key
+JWT_ACCESS_TTL=15m
+JWT_REFRESH_TTL=168h
+
 # Swagger (desabilitado por padrão — habilite para desenvolvimento)
 SWAGGER_ENABLED=true
 
@@ -117,50 +116,93 @@ Ver `.env.example` para a lista completa e [ADR-003](docs/adr/003-config-strateg
 
 ### Autenticação
 
-Rotas protegidas requerem headers `Service-Name` e `Service-Key`:
+A API suporta duas formas de autenticação:
+
+#### JWT (principal)
+
+Autentique via `/auth/login` e use o token nas requisições:
+
+```bash
+# Login
+curl -X POST http://localhost:8080/auth/login \
+  -H "Content-Type: application/json" \
+  -d '{"email": "user@example.com", "password": "Str0ng!Pass1"}'
+
+# Usar o access_token retornado
+curl -X GET http://localhost:8080/users \
+  -H "Authorization: Bearer <access_token>"
+
+# Refresh quando o token expirar
+curl -X POST http://localhost:8080/auth/refresh \
+  -H "Content-Type: application/json" \
+  -d '{"refresh_token": "<refresh_token>"}'
+```
+
+#### Service Key (service-to-service)
+
+Para comunicação entre serviços, use headers `X-Service-Name` e `X-Service-Key`:
 
 ```bash
 curl -X GET http://localhost:8080/users \
-  -H "Service-Name: financial-wallet" \
-  -H "Service-Key: sk_financial_wallet_abc123"
+  -H "X-Service-Name: financial-wallet" \
+  -H "X-Service-Key: sk_financial_wallet_abc123"
 ```
 
-| Rota | Proteção |
-| ---- | -------- |
-| `/health`, `/ready` | Pública |
-| `/swagger/*` | Pública |
-| `/users/*` | Protegida |
-| `/roles/*` | Protegida |
+#### Rotas e permissões
+
+| Rota                           | Proteção                   | Permissão        |
+|--------------------------------|----------------------------|------------------|
+| `/health`, `/ready`            | Pública                    | —                |
+| `/swagger/*`                   | Pública                    | —                |
+| `/auth/login`, `/auth/refresh` | Pública (rate limited)     | —                |
+| `POST /users`                  | Service Key ou JWT         | `user:write`     |
+| `GET /users`, `GET /users/:id` | Service Key ou JWT         | `user:read`      |
+| `PUT /users/:id`               | Service Key ou JWT         | `user:write`     |
+| `DELETE /users/:id`            | Service Key ou JWT         | `user:delete`    |
+| `POST /accounts`               | JWT                        | `account:write`  |
+| `GET /accounts`                | JWT                        | `account:read`   |
+| `GET /accounts/:id`            | JWT                        | `account:read`   |
+| `PUT /accounts/:id`            | JWT                        | `account:update` |
+| `DELETE /accounts/:id`         | JWT                        | `account:delete` |
+| `/roles/*`                     | Service Key ou JWT (admin) | `role:*`         |
+
+**RBAC**: roles `admin` (todas as permissões) e `user` (read/write nas próprias contas e dados).
 
 **Comportamento por ambiente:**
 
-| Ambiente | `SERVICE_KEYS_ENABLED` | `SERVICE_KEYS` | Resultado |
-| -------- | ---------------------- | -------------- | --------- |
-| Desenvolvimento | `false` (padrão) | qualquer | Tudo permitido |
-| HML/PRD | `true` | configurado | Valida normalmente |
-| HML/PRD | `true` | **vazio** | **503 Service Unavailable** (fail-closed) |
+| Ambiente        | `SERVICE_KEYS_ENABLED`  | `JWT_ENABLED`           | Resultado                                 |
+|-----------------|-------------------------|-------------------------|-------------------------------------------|
+| Desenvolvimento | `false` (padrão)        | `true`                  | JWT ativo, service key bypass             |
+| HML/PRD         | `true`                  | `true`                  | Ambos ativos, validação completa          |
+| HML/PRD         | `true`                  | `true` + keys **vazio** | **503 Service Unavailable** (fail-closed) |
+
+### CI/CD
+
+| Feature            | O que faz                                                           | Onde roda                       |
+|--------------------|---------------------------------------------------------------------|---------------------------------|
+| **GitHub Actions** | Lint (golangci-lint v2) + testes + coverage (Codecov) + govulncheck | PRs para `main`/`develop`       |
+| **Dependabot**     | PRs automáticos para atualizar dependências Go e Actions            | Semanal (Go) / Mensal (Actions) |
 
 ### Qualidade automatizada
 
-| Feature | O que faz | Quando roda |
-| ------- | --------- | ----------- |
-| **291+ testes unitários + 22 E2E** | Unit + sqlmock + E2E com TestContainers | `make test` |
-| **75%+ de cobertura** | Domain, usecases, middleware, pkg — tudo coberto (10 pacotes com 100%) | CI exige 60% mínimo |
-| **golangci-lint** | 50+ linters incluindo gosec | Pre-commit + CI |
-| **govulncheck** | Varredura de vulnerabilidades em dependências | Pre-push + CI |
-| **Lefthook** | 3 camadas: pre-commit (formatação), commit-msg (convenção), pre-push (lint+testes+vuln) | Automático |
+| Feature                    | O que faz                                                                               | Quando roda     |
+|----------------------------|-----------------------------------------------------------------------------------------|-----------------|
+| **Testes unitários + E2E** | Unit + sqlmock + mockery + E2E com TestContainers                                       | `make test`     |
+| **golangci-lint v2**       | 15+ linters incluindo gosec, gocritic, errorlint                                        | Pre-commit + CI |
+| **govulncheck**            | Varredura de vulnerabilidades em dependências                                           | Pre-push + CI   |
+| **Mockery**                | Geração automática de mocks para todas as interfaces                                    | `make mocks`    |
+| **Lefthook**               | 3 camadas: pre-commit (formatação), commit-msg (convenção), pre-push (lint+testes+vuln) | Automático      |
+| **Codecov**                | Upload de cobertura com relatório em PRs                                                | CI              |
 
-### DevOps pronto
+### DevOps
 
-| Feature | O que faz | Comando |
-| ------- | --------- | ------- |
-| **Docker Compose** | DB + Redis + API tudo em Docker | `make run` |
-| **Hot Reload** | Air com rebuild automático | `make dev` |
-| **Kubernetes** | Kustomize overlays (dev, hml, prd) | `make kind-setup` |
-| **CI/CD** | 4 verificações paralelas + notificações Slack | Bitbucket Pipelines |
-| **Observabilidade** | ELK 8.13 + OTel + dashboard 20 painéis + 6 alertas | `make observability-up` |
-| **Load Tests** | k6 com 4 cenários (smoke, load, stress, spike) | `make load-smoke` |
-| **Migrations** | Goose SQL com ArgoCD PreSync | `make migrate-up` |
+| Feature             | O que faz                                      | Comando                 |
+|---------------------|------------------------------------------------|-------------------------|
+| **Docker Compose**  | DB + Redis + API tudo em Docker                | `make run`              |
+| **Hot Reload**      | Air com rebuild automático                     | `make dev`              |
+| **Observabilidade** | ELK 8.13 + OTel + dashboards + alertas         | `make observability-up` |
+| **Load Tests**      | k6 com 4 cenários (smoke, load, stress, spike) | `make load-smoke`       |
+| **Migrations**      | Goose SQL bidirecional                         | `make migrate-up`       |
 
 ---
 
@@ -200,7 +242,11 @@ Domain não conhece nada das camadas externas.
 ├── config/               # Configuração (godotenv + env vars)
 ├── internal/
 │   ├── domain/           # Entidades, Value Objects, erros (zero deps externas)
+│   │   ├── user/         # User aggregate (entity, VOs: Email, Password)
+│   │   ├── account/      # Account aggregate (entity, VO: AccountType)
+│   │   └── role/         # Role aggregate
 │   ├── usecases/         # Casos de uso + interfaces (1 arquivo por operação)
+│   ├── mocks/            # Mocks gerados pelo mockery
 │   └── infrastructure/   # Banco, cache, HTTP handlers, telemetria
 ├── pkg/                  # Pacotes reutilizáveis entre serviços
 │   ├── apperror/         # Erros estruturados
@@ -209,8 +255,8 @@ Domain não conhece nada das camadas externas.
 │   ├── httputil/         # Respostas padronizadas + wrappers Gin (httpgin/)
 │   ├── idempotency/      # Idempotência distribuída
 │   ├── logutil/          # Logging + mascaramento de dados pessoais
-│   └── telemetry/        # OpenTelemetry setup
-├── deploy/               # Kubernetes (Kustomize overlays)
+│   ├── telemetry/        # OpenTelemetry setup
+│   └── vo/               # Value Objects compartilhados (ID UUID v7)
 ├── docker/               # Dockerfile + docker-compose + observabilidade
 ├── docs/                 # ADRs + guias
 └── tests/                # E2E (TestContainers) + load (k6)
@@ -241,23 +287,17 @@ Domain não conhece nada das camadas externas.
 
 Estes pacotes podem ser importados por **qualquer serviço Go** — não só quem usa o template:
 
-| Pacote | O que faz |
-| ------ | --------- |
-| `pkg/apperror` | Erros estruturados com código, mensagem e status HTTP |
-| `pkg/httputil` | Respostas JSON padronizadas (`WriteSuccess`, `WriteError`) + wrappers Gin em `httputil/httpgin/` (`SendSuccess`, `SendError`) |
-| `pkg/cache` | Interface de cache + Redis + singleflight (proteção contra stampede) |
-| `pkg/database` | Conexão de banco driver-agnostic (`database/sql`) com Writer/Reader cluster — suporta postgres, mysql, sqlite3, etc. |
-| `pkg/idempotency` | Idempotência distribuída via Redis (lock/unlock, fingerprint SHA-256) |
-| `pkg/logutil` | Logging estruturado com propagação de contexto e mascaramento de dados pessoais (LGPD) |
-| `pkg/telemetry` | Setup OTel (traces + HTTP metrics + DB pool metrics) |
-| `pkg/health` | Health checker com verificação de dependências e timeouts |
-
-**Por que isso importa na prática?**
-
-- **Testabilidade**: use cases testados com mocks simples, sem precisar de banco rodando
-- **Onboarding**: dev novo sabe exatamente onde colocar cada tipo de código
-- **Extensibilidade**: trocar Postgres por DynamoDB? Só muda a infra, use cases não mudam. Quer adicionar gRPC? Só mais um adapter na infrastructure
-- **Trabalho em paralelo**: 5 devs podem trabalhar em features diferentes sem conflito
+| Pacote            | O que faz                                                                                        |
+|-------------------|--------------------------------------------------------------------------------------------------|
+| `pkg/vo`          | Value Object ID compartilhado (UUID v7) — usado por todos os domínios                            |
+| `pkg/apperror`    | Erros estruturados com código, mensagem e status HTTP                                            |
+| `pkg/httputil`    | Respostas JSON padronizadas (`WriteSuccess`, `WriteError`) + wrappers Gin em `httputil/httpgin/` |
+| `pkg/cache`       | Interface de cache + Redis + singleflight (proteção contra stampede)                             |
+| `pkg/database`    | Conexão de banco driver-agnostic (`database/sql`) com Writer/Reader cluster                      |
+| `pkg/idempotency` | Idempotência distribuída via Redis (lock/unlock, fingerprint SHA-256)                            |
+| `pkg/logutil`     | Logging estruturado com propagação de contexto e mascaramento de PII                             |
+| `pkg/telemetry`   | Setup OTel (traces + HTTP metrics + DB pool metrics)                                             |
+| `pkg/health`      | Health checker com verificação de dependências e timeouts                                        |
 
 ---
 
@@ -265,23 +305,24 @@ Estes pacotes podem ser importados por **qualquer serviço Go** — não só que
 
 #### Skills (slash commands)
 
-| Skill | O que faz |
-| ----- | --------- |
-| `/spec` | Gera especificação estruturada (SDD) com requisitos, design e tasks |
-| `/ralph-loop` | Execução autônoma task-by-task a partir de uma spec |
-| `/spec-review` | Valida implementação contra os requisitos da spec |
-| `/new-endpoint` | Scaffold de endpoint seguindo Clean Architecture |
-| `/fix-issue` | Fluxo completo de bug fix (entender → planejar → implementar → testar) |
-| `/validate` | Pipeline de validação (build, lint, testes, Kind, smoke) |
-| `/full-review-team` | Review paralelo com 3 agentes (arquitetura + segurança + DB) |
-| `/security-review-team` | Auditoria de segurança paralela com 3 especialistas |
-| `/debug-team` | Investigação paralela de bugs com hipóteses concorrentes |
-| `/migrate` | Gerenciamento de migrations Goose |
-| `/load-test` | Testes de carga com k6 |
+| Skill                   | O que faz                                                              |
+|-------------------------|------------------------------------------------------------------------|
+| `/spec`                 | Gera especificação estruturada (SDD) com requisitos, design e tasks    |
+| `/ralph-loop`           | Execução autônoma task-by-task a partir de uma spec                    |
+| `/spec-review`          | Valida implementação contra os requisitos da spec                      |
+| `/new-endpoint`         | Scaffold de endpoint seguindo Clean Architecture                       |
+| `/fix-issue`            | Fluxo completo de bug fix (entender → planejar → implementar → testar) |
+| `/validate`             | Pipeline de validação (build, lint, testes)                            |
+| `/review`               | Code review (arquitetura + segurança + convenções)                     |
+| `/full-review-team`     | Review paralelo com 3 agentes (arquitetura + segurança + DB)           |
+| `/security-review-team` | Auditoria de segurança paralela com 3 especialistas                    |
+| `/debug-team`           | Investigação paralela de bugs com hipóteses concorrentes               |
+| `/migrate`              | Gerenciamento de migrations Goose                                      |
+| `/load-test`            | Testes de carga com k6                                                 |
 
 #### SDD + Ralph Loop — Desenvolvimento Orientado a Especificação
 
-Para features complexas, o template oferece um fluxo spec-driven com execução autônoma:
+Para features complexas, o projeto oferece um fluxo spec-driven com execução autônoma:
 
 ```text
 /spec "Add audit logging to user write operations"
@@ -313,7 +354,7 @@ A spec é agnóstica de arquitetura — funciona tanto com camadas separadas qua
 
 3 agentes com memória persistente, usados pelos skills de review e debug:
 
-- **code-reviewer** — Compliance de arquitetura, idiomas Go, padrões do template
+- **code-reviewer** — Compliance de arquitetura, idiomas Go, padrões do projeto
 - **security-reviewer** — OWASP Top 10, injeção, auth, dados sensíveis
 - **db-analyst** — Schema, performance de queries, migrations, pool
 
@@ -338,7 +379,7 @@ make sandbox-status   # Mostra status do container e volumes
 
 ### O que vem instalado no container
 
-- Go 1.25 + todas as dev tools (air, goose, lefthook, golangci-lint, swag, gopls, goimports)
+- Go 1.25 + todas as dev tools (air, goose, lefthook, golangci-lint, swag, gopls, goimports, mockery)
 - Node.js 20 + Claude Code
 - Docker-in-Docker (para rodar `docker compose` dentro do container)
 - zsh com Powerline10k
@@ -349,7 +390,7 @@ make sandbox-status   # Mostra status do container e volumes
 O container roda com `--cap-add=NET_ADMIN` e um script de firewall (`init-firewall.sh`) que:
 
 1. Bloqueia **todo** tráfego de saída por padrão
-2. Permite apenas domínios necessários: Anthropic (Claude), GitHub, Go modules, Bitbucket, Docker Hub, Kibana
+2. Permite apenas domínios necessários: Anthropic (Claude), GitHub, Go modules, Docker Hub, Kibana
 3. Permite tráfego local (host network, Docker network)
 
 Isso garante que o Claude Code com `--dangerously-skip-permissions` não consiga acessar serviços externos não autorizados.
@@ -360,13 +401,10 @@ Isso garante que o Claude Code com `--dangerously-skip-permissions` não consiga
 
 O projeto inclui 8 ADRs (Architecture Decision Records) em `docs/adr/` explicando o **porquê** de cada decisão técnica, e guias práticos em `docs/guides/`:
 
-| Guia | Sobre |
-| ---- | ----- |
-| [architecture.md](docs/guides/architecture.md) | Diagramas e visão geral |
-| [cache.md](docs/guides/cache.md) | Cache com Redis, singleflight e pool config |
-| [kubernetes.md](docs/guides/kubernetes.md) | Deploy, Kind e operação |
-| [fx-dependency-injection.md](docs/guides/fx-dependency-injection.md) | Uber Fx como alternativa ao DI manual |
-| [multi-database.md](docs/guides/multi-database.md) | Estratégia para serviços com múltiplos bancos |
+| Guia                                               | Sobre                                                      |
+|----------------------------------------------------|------------------------------------------------------------|
+| [architecture.md](docs/guides/architecture.md)     | Diagramas e visão geral                                    |
+| [cache.md](docs/guides/cache.md)                   | Cache com Redis, singleflight e pool config                |
 | [sdd-ralph-loop.md](docs/guides/sdd-ralph-loop.md) | SDD + Ralph Loop — fluxo spec-driven com execução autônoma |
 
 Para agentes de IA, ver [AGENTS.md](AGENTS.md) e [CLAUDE.md](CLAUDE.md).
@@ -377,10 +415,14 @@ Para agentes de IA, ver [AGENTS.md](AGENTS.md) e [CLAUDE.md](CLAUDE.md).
 
 O app está em constante evolução. Próximas features planejadas:
 
-- [ ] A
+- [ ] **Statements (Registros financeiros)** — CRUD de lançamentos (receitas/despesas) vinculados a accounts, com categorização e data de competência
+- [ ] **Parser de arquivos OFX** — Import automático de extratos bancários no formato OFX (Open Financial Exchange) para popular statements
+- [ ] **Dashboard de resumo** — Endpoints para consolidação: saldo por account, totais por categoria, fluxo mensal
+- [ ] **Orçamentos (Orçamentos)** — Definição de limites mensais por categoria com alerta de ultrapassagem
+- [ ] **Tags e categorias** — Sistema flexível de categorização de statements com tags customizáveis
+- [ ] **Export CSV/PDF** — Geração de relatórios exportáveis para uso externo
 
 ---
-
 
 ## FAQ
 

@@ -38,10 +38,10 @@ func NewLoginUseCase(repo interfaces.UserRepository, token interfaces.TokenServi
 //
 // Retorna ErrInvalidCredentials para qualquer falha (sem revelar causa específica).
 func (uc *LoginUseCase) Execute(ctx context.Context, input dto.LoginInput) (*dto.LoginOutput, error) {
-	ctx, span := otel.Tracer("usecase").Start(ctx, "UseCase.Auth.Login")
+	ctx, span := otel.Tracer(TracerKey).Start(ctx, "UseCase.Auth.Login")
 	defer span.End()
 
-	ctx = injectLogContext(ctx, "auth", "login")
+	ctx = injectLogContext(ctx, "login")
 
 	emailVO, emailErr := vo.NewEmail(input.Email)
 	if emailErr != nil {
