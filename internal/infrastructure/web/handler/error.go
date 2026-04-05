@@ -68,7 +68,6 @@ var domainErrors = []struct {
 	// Account domain errors
 	{accountvo.ErrInvalidAccountType, domainErrorMapping{http.StatusBadRequest, apperror.CodeInvalidRequest, "invalid account type"}},
 	{accountdomain.ErrAccountNotFound, domainErrorMapping{http.StatusNotFound, apperror.CodeNotFound, "account not found"}},
-	{accountdomain.ErrForbidden, domainErrorMapping{http.StatusForbidden, apperror.CodeForbidden, "forbidden"}},
 }
 
 // HandleError handles errors in a centralized and consistent way.
