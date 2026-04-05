@@ -72,6 +72,12 @@ const docTemplate = `{
                             "$ref": "#/definitions/github_com_DenysonJ_financial-wallet_internal_usecases_account_dto.ListOutput"
                         }
                     },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/internal_infrastructure_web_handler.ErrorResponse"
+                        }
+                    },
                     "429": {
                         "description": "Too Many Requests",
                         "schema": {
@@ -130,6 +136,12 @@ const docTemplate = `{
                             "$ref": "#/definitions/internal_infrastructure_web_handler.ErrorResponse"
                         }
                     },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/internal_infrastructure_web_handler.ErrorResponse"
+                        }
+                    },
                     "429": {
                         "description": "Too Many Requests",
                         "schema": {
@@ -177,12 +189,6 @@ const docTemplate = `{
                         "description": "OK",
                         "schema": {
                             "$ref": "#/definitions/github_com_DenysonJ_financial-wallet_internal_usecases_account_dto.GetOutput"
-                        }
-                    },
-                    "403": {
-                        "description": "Forbidden",
-                        "schema": {
-                            "$ref": "#/definitions/internal_infrastructure_web_handler.ErrorResponse"
                         }
                     },
                     "404": {
@@ -256,12 +262,6 @@ const docTemplate = `{
                             "$ref": "#/definitions/internal_infrastructure_web_handler.ErrorResponse"
                         }
                     },
-                    "403": {
-                        "description": "Forbidden",
-                        "schema": {
-                            "$ref": "#/definitions/internal_infrastructure_web_handler.ErrorResponse"
-                        }
-                    },
                     "404": {
                         "description": "Not Found",
                         "schema": {
@@ -311,12 +311,6 @@ const docTemplate = `{
                 "responses": {
                     "204": {
                         "description": "No Content"
-                    },
-                    "403": {
-                        "description": "Forbidden",
-                        "schema": {
-                            "$ref": "#/definitions/internal_infrastructure_web_handler.ErrorResponse"
-                        }
                     },
                     "404": {
                         "description": "Not Found",

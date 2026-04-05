@@ -4,7 +4,7 @@ import (
 	"context"
 
 	accountdomain "github.com/DenysonJ/financial-wallet/internal/domain/account"
-	uservo "github.com/DenysonJ/financial-wallet/internal/domain/user/vo"
+	uservo "github.com/DenysonJ/financial-wallet/pkg/vo"
 )
 
 // Repository define o contrato para persistência de Account.

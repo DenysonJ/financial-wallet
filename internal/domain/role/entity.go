@@ -3,7 +3,7 @@ package role
 import (
 	"time"
 
-	"github.com/DenysonJ/financial-wallet/internal/domain/user/vo"
+	"github.com/DenysonJ/financial-wallet/pkg/vo"
 )
 
 // Role é a Entidade principal (Aggregate Root) do domínio de roles.

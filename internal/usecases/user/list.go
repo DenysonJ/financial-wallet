@@ -27,10 +27,10 @@ func NewListUseCase(repo interfaces.Repository) *ListUseCase {
 
 // Execute retorna uma lista paginada de users.
 func (uc *ListUseCase) Execute(ctx context.Context, input dto.ListInput) (*dto.ListOutput, error) {
-	ctx, span := otel.Tracer("usecase").Start(ctx, "UseCase.User.List")
+	ctx, span := otel.Tracer(TracerKey).Start(ctx, "UseCase.User.List")
 	defer span.End()
 
-	ctx = injectLogContext(ctx, "user", "list")
+	ctx = injectLogContext(ctx, "list")
 
 	span.SetAttributes(
 		attribute.Int("filter.page", input.Page),

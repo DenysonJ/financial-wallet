@@ -8,10 +8,10 @@ import (
 	"go.opentelemetry.io/otel/attribute"
 	otelcodes "go.opentelemetry.io/otel/codes"
 
-	"github.com/DenysonJ/financial-wallet/internal/domain/user/vo"
 	"github.com/DenysonJ/financial-wallet/internal/usecases/role/dto"
 	"github.com/DenysonJ/financial-wallet/internal/usecases/role/interfaces"
 	"github.com/DenysonJ/financial-wallet/pkg/logutil"
+	"github.com/DenysonJ/financial-wallet/pkg/vo"
 )
 
 // DeleteUseCase implementa o caso de uso de delecao de role.
@@ -32,10 +32,10 @@ func NewDeleteUseCase(repo interfaces.Repository) *DeleteUseCase {
 //  1. Validar ID
 //  2. Deletar role
 func (uc *DeleteUseCase) Execute(ctx context.Context, input dto.DeleteInput) (*dto.DeleteOutput, error) {
-	ctx, span := otel.Tracer("usecase").Start(ctx, "UseCase.Role.Delete")
+	ctx, span := otel.Tracer(TracerKey).Start(ctx, "UseCase.Role.Delete")
 	defer span.End()
 
-	ctx = injectLogContext(ctx, "role", "delete")
+	ctx = injectLogContext(ctx, "delete")
 
 	// Validar e converter ID
 	id, parseErr := vo.ParseID(input.ID)

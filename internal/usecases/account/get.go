@@ -9,10 +9,10 @@ import (
 	otelcodes "go.opentelemetry.io/otel/codes"
 
 	accountdomain "github.com/DenysonJ/financial-wallet/internal/domain/account"
-	uservo "github.com/DenysonJ/financial-wallet/internal/domain/user/vo"
 	"github.com/DenysonJ/financial-wallet/internal/usecases/account/dto"
 	"github.com/DenysonJ/financial-wallet/internal/usecases/account/interfaces"
 	"github.com/DenysonJ/financial-wallet/pkg/logutil"
+	uservo "github.com/DenysonJ/financial-wallet/pkg/vo"
 )
 
 // GetUseCase implementa o caso de uso de buscar account por ID.
@@ -27,10 +27,10 @@ func NewGetUseCase(repo interfaces.Repository) *GetUseCase {
 
 // Execute busca uma account pelo ID.
 func (uc *GetUseCase) Execute(ctx context.Context, input dto.GetInput) (*dto.GetOutput, error) {
-	ctx, span := otel.Tracer("usecase").Start(ctx, "UseCase.Account.Get")
+	ctx, span := otel.Tracer(TracerKey).Start(ctx, "UseCase.Account.Get")
 	defer span.End()
 
-	ctx = injectLogContext(ctx, resourceAccount, logutil.ActionGet)
+	ctx = injectLogContext(ctx, logutil.ActionGet)
 
 	// Validar ID
 	id, parseErr := uservo.ParseID(input.ID)

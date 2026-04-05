@@ -7,11 +7,11 @@ import (
 	"go.opentelemetry.io/otel/attribute"
 	otelcodes "go.opentelemetry.io/otel/codes"
 
-	"github.com/DenysonJ/financial-wallet/internal/domain/user/vo"
 	"github.com/DenysonJ/financial-wallet/internal/usecases/role/dto"
 	"github.com/DenysonJ/financial-wallet/internal/usecases/role/interfaces"
 	"github.com/DenysonJ/financial-wallet/pkg/cache"
 	"github.com/DenysonJ/financial-wallet/pkg/logutil"
+	"github.com/DenysonJ/financial-wallet/pkg/vo"
 )
 
 // RevokeRoleUseCase implementa o caso de uso de revogar uma role de um usuário.
@@ -38,10 +38,10 @@ func (uc *RevokeRoleUseCase) WithCache(c cache.Cache) *RevokeRoleUseCase {
 //  2. Revogar role do usuário
 //  3. Invalidar cache de permissions do usuário
 func (uc *RevokeRoleUseCase) Execute(ctx context.Context, input dto.RevokeRoleInput) error {
-	ctx, span := otel.Tracer("usecase").Start(ctx, "UseCase.Role.Revoke")
+	ctx, span := otel.Tracer(TracerKey).Start(ctx, "UseCase.Role.Revoke")
 	defer span.End()
 
-	ctx = injectLogContext(ctx, "role", "revoke")
+	ctx = injectLogContext(ctx, "revoke")
 
 	userID, userParseErr := vo.ParseID(input.UserID)
 	if userParseErr != nil {

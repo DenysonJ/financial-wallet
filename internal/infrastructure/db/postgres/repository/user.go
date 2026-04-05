@@ -138,11 +138,11 @@ func (r *UserRepository) List(ctx context.Context, filter userdomain.ListFilter)
 	}
 	if filter.Name != "" {
 		conditions = append(conditions, "name ILIKE :name")
-		args["name"] = "%" + filter.Name + "%"
+		args["name"] = "%" + escapeILIKE(filter.Name) + "%"
 	}
 	if filter.Email != "" {
 		conditions = append(conditions, "email ILIKE :email")
-		args["email"] = "%" + filter.Email + "%"
+		args["email"] = "%" + escapeILIKE(filter.Email) + "%"
 	}
 
 	whereClause := ""

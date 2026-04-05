@@ -2,7 +2,6 @@ package account
 
 import (
 	"context"
-	"math"
 	"time"
 
 	"go.opentelemetry.io/otel"
@@ -10,10 +9,10 @@ import (
 	otelcodes "go.opentelemetry.io/otel/codes"
 
 	accountdomain "github.com/DenysonJ/financial-wallet/internal/domain/account"
-	uservo "github.com/DenysonJ/financial-wallet/internal/domain/user/vo"
 	"github.com/DenysonJ/financial-wallet/internal/usecases/account/dto"
 	"github.com/DenysonJ/financial-wallet/internal/usecases/account/interfaces"
 	"github.com/DenysonJ/financial-wallet/pkg/logutil"
+	uservo "github.com/DenysonJ/financial-wallet/pkg/vo"
 )
 
 // ListUseCase implementa o caso de uso de listar accounts.
@@ -28,10 +27,10 @@ func NewListUseCase(repo interfaces.Repository) *ListUseCase {
 
 // Execute retorna uma lista paginada de accounts filtrada por user_id.
 func (uc *ListUseCase) Execute(ctx context.Context, input dto.ListInput) (*dto.ListOutput, error) {
-	ctx, span := otel.Tracer("usecase").Start(ctx, "UseCase.Account.List")
+	ctx, span := otel.Tracer(TracerKey).Start(ctx, "UseCase.Account.List")
 	defer span.End()
 
-	ctx = injectLogContext(ctx, resourceAccount, logutil.ActionList)
+	ctx = injectLogContext(ctx, logutil.ActionList)
 
 	// Validar UserID
 	userID, parseErr := uservo.ParseID(input.UserID)
@@ -80,12 +79,10 @@ func (uc *ListUseCase) Execute(ctx context.Context, input dto.ListInput) (*dto.L
 		})
 	}
 
-	total := float64(result.Total)
-	limit := float64(result.Limit)
 	totalPages := 0
 
-	if limit > 0 {
-		totalPages = int(math.Ceil(total / limit))
+	if result.Limit > 0 {
+		totalPages = (result.Total + result.Limit - 1) / result.Limit
 	}
 
 	span.SetAttributes(attribute.Int("result.total", result.Total))

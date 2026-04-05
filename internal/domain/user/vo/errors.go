@@ -1,20 +1,24 @@
 package vo
 
-import "errors"
+import (
+	"errors"
+
+	pkgvo "github.com/DenysonJ/financial-wallet/pkg/vo"
+)
 
 // =============================================================================
 // ERROS DE VALUE OBJECTS (PUROS)
 // =============================================================================
 //
-// Estes erros são usados pelos Value Objects (Email).
+// Estes erros são usados pelos Value Objects (Email, Password).
 // Ficam no pacote `vo` para evitar dependência circular com `user`.
+
+// ErrInvalidID is re-exported from pkg/vo for backward compatibility.
+var ErrInvalidID = pkgvo.ErrInvalidID
 
 var (
 	// ErrInvalidEmail indica que o email informado não é válido.
 	ErrInvalidEmail = errors.New("invalid email")
-
-	// ErrInvalidID is returned when a string is not a valid UUID v7.
-	ErrInvalidID = errors.New("invalid ID")
 
 	// ErrInvalidPassword is returned when a password does not match the stored hash.
 	ErrInvalidPassword = errors.New("invalid password")

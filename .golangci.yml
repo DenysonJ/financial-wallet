@@ -1,22 +1,20 @@
 # golangci-lint configuration
 # Docs: https://golangci-lint.run/usage/configuration/
+version: "2"
 
 run:
-  timeout: 5m
   tests: true
   modules-download-mode: readonly
 
 output:
-  formats:
-    - format: colored-line-number
-  sort-results: true
+  sort-order:
+    - severity
 
 linters:
-  disable-all: true
+  default: none
   enable:
     # Default linters
     - errcheck # Checks for unchecked errors
-    - gosimple # Simplify code
     - govet # Reports suspicious constructs
     - ineffassign # Detects unused variable assignments
     - staticcheck # Static analysis
@@ -34,8 +32,6 @@ linters:
 
     # Style & Best Practices
     - gocritic # Highly extensible linter
-    - gofmt # Checks code is formatted
-    - goimports # Checks import statements
     - misspell # Finds commonly misspelled English words
     - unconvert # Unnecessary type conversions
     - unparam # Unused function parameters
@@ -43,66 +39,56 @@ linters:
 
     # Error handling
     - errorlint # Finds issues with error wrapping
-    # - wrapcheck    # Disabled: too strict, requires wrapping all external errors
 
-linters-settings:
-  govet:
-    enable-all: true
-    disable:
-      - fieldalignment # Too strict for most cases
+  settings:
+    govet:
+      enable-all: true
+      disable:
+        - fieldalignment # Too strict for most cases
 
-  gosec:
-    excludes:
-      - G104 # Unhandled errors (errcheck handles this)
-    config:
-      global:
-        audit: true
+    gosec:
+      excludes:
+        - G104 # Unhandled errors (errcheck handles this)
+      config:
+        global:
+          audit: true
 
-  gocritic:
-    enabled-tags:
-      - diagnostic
-      - style
-      - performance
-    disabled-checks:
-      - whyNoLint
-      - hugeParam # Can be too strict
+    gocritic:
+      enabled-tags:
+        - diagnostic
+        - style
+        - performance
+      disabled-checks:
+        - whyNoLint
+        - hugeParam # Can be too strict
 
-  errorlint:
-    errorf: true
-    asserts: true
-    comparison: true
+    errorlint:
+      errorf: true
+      asserts: true
+      comparison: true
 
-  wrapcheck:
-    ignoreSigs:
-      - .Errorf(
-      - errors.New(
-      - errors.Unwrap(
-      - errors.Join(
-      - .Wrap(
-      - .Wrapf(
-      - .WithMessage(
-      - .WithMessagef(
-      - .WithStack(
-    ignorePackageGlobs:
-      - github.com/tksventures/financial-wallet/internal/*
+    misspell:
+      locale: US
 
-  misspell:
-    locale: US
+  exclusions:
+    rules:
+      # Exclude test files from some linters
+      - path: _test\.go
+        linters:
+          - errcheck
+          - gosec
+          - gocritic
+
+      # Exclude main.go from wrapcheck
+      - path: cmd/api/main\.go
+        linters:
+          - wrapcheck
 
 issues:
-  exclude-rules:
-    # Exclude test files from some linters
-    - path: _test\.go
-      linters:
-        - errcheck
-        - gosec
-        - wrapcheck
-        - gocritic
-
-    # Exclude main.go from wrapcheck
-    - path: cmd/api/main\.go
-      linters:
-        - wrapcheck
-
   max-issues-per-linter: 50
   max-same-issues: 3
+
+formatters:
+  enable:
+    - gofmt
+    - goimports

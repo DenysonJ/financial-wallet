@@ -10,7 +10,7 @@ import (
 
 	accountdomain "github.com/DenysonJ/financial-wallet/internal/domain/account"
 	accountvo "github.com/DenysonJ/financial-wallet/internal/domain/account/vo"
-	uservo "github.com/DenysonJ/financial-wallet/internal/domain/user/vo"
+	uservo "github.com/DenysonJ/financial-wallet/pkg/vo"
 	"github.com/jmoiron/sqlx"
 )
 
@@ -123,7 +123,7 @@ func (r *AccountRepository) List(ctx context.Context, filter accountdomain.ListF
 	}
 	if filter.Name != "" {
 		conditions = append(conditions, "name ILIKE :name")
-		args["name"] = "%" + filter.Name + "%"
+		args["name"] = "%" + escapeILIKE(filter.Name) + "%"
 	}
 	if filter.Type != "" {
 		conditions = append(conditions, "type = :type")

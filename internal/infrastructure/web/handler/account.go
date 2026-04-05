@@ -3,7 +3,6 @@ package handler
 import (
 	"net/http"
 
-	"github.com/DenysonJ/financial-wallet/internal/infrastructure/web/middleware"
 	accountuc "github.com/DenysonJ/financial-wallet/internal/usecases/account"
 	"github.com/DenysonJ/financial-wallet/internal/usecases/account/dto"
 	"github.com/DenysonJ/financial-wallet/pkg/httputil/httpgin"
@@ -15,11 +14,11 @@ import (
 
 // AccountHandler agrupa todos os handlers relacionados a Account.
 type AccountHandler struct {
-	CreateUC *accountuc.CreateUseCase
-	GetUC    *accountuc.GetUseCase
-	ListUC   *accountuc.ListUseCase
-	UpdateUC *accountuc.UpdateUseCase
-	DeleteUC *accountuc.DeleteUseCase
+	createUC *accountuc.CreateUseCase
+	getUC    *accountuc.GetUseCase
+	listUC   *accountuc.ListUseCase
+	updateUC *accountuc.UpdateUseCase
+	deleteUC *accountuc.DeleteUseCase
 }
 
 // NewAccountHandler cria um novo AccountHandler com todos os use cases.
@@ -31,37 +30,12 @@ func NewAccountHandler(
 	deleteUC *accountuc.DeleteUseCase,
 ) *AccountHandler {
 	return &AccountHandler{
-		CreateUC: createUC,
-		GetUC:    getUC,
-		ListUC:   listUC,
-		UpdateUC: updateUC,
-		DeleteUC: deleteUC,
+		createUC: createUC,
+		getUC:    getUC,
+		listUC:   listUC,
+		updateUC: updateUC,
+		deleteUC: deleteUC,
 	}
-}
-
-// getRequiredJWTUserID extracts the user ID from JWT context.
-// Returns empty string for service-key or admin requests (ownership check skipped).
-// Returns the user ID for regular JWT users (ownership enforced in use case).
-func getRequiredJWTUserID(c *gin.Context) (userID string, ok bool) {
-	raw, exists := c.Get(middleware.ContextKeyUserID)
-	if !exists {
-		return "", false
-	}
-	userIDStr, _ := raw.(string)
-	if userIDStr == "" {
-		return "", false
-	}
-	return userIDStr, true
-}
-
-// ownershipUserID returns the user ID for ownership enforcement.
-// Admin and service-key requests return "" (skip check); regular users return their ID.
-func ownershipUserID(c *gin.Context) string {
-	if isServiceKeyRequest(c) || isAdmin(c) {
-		return ""
-	}
-	userID, _ := getRequiredJWTUserID(c)
-	return userID
 }
 
 // Create godoc
@@ -101,7 +75,7 @@ func (h *AccountHandler) Create(c *gin.Context) {
 
 	span.SetAttributes(attribute.String("account.name", req.Name), attribute.String("account.type", req.Type))
 
-	res, execErr := h.CreateUC.Execute(ctx, req)
+	res, execErr := h.createUC.Execute(ctx, req)
 	if execErr != nil {
 		HandleError(c, span, execErr)
 		return
@@ -132,7 +106,7 @@ func (h *AccountHandler) GetByID(c *gin.Context) {
 	span.SetAttributes(attribute.String("account.id", id))
 
 	// Ownership enforced in use case — returns 404 for non-owner (no existence oracle)
-	res, execErr := h.GetUC.Execute(ctx, dto.GetInput{
+	res, execErr := h.getUC.Execute(ctx, dto.GetInput{
 		ID:               id,
 		RequestingUserID: ownershipUserID(c),
 	})
@@ -186,7 +160,7 @@ func (h *AccountHandler) List(c *gin.Context) {
 		attribute.Int("filter.limit", req.Limit),
 	)
 
-	res, execErr := h.ListUC.Execute(ctx, req)
+	res, execErr := h.listUC.Execute(ctx, req)
 	if execErr != nil {
 		HandleError(c, span, execErr)
 		return
@@ -228,7 +202,7 @@ func (h *AccountHandler) Update(c *gin.Context) {
 	req.ID = id
 	req.RequestingUserID = ownershipUserID(c)
 
-	res, execErr := h.UpdateUC.Execute(ctx, req)
+	res, execErr := h.updateUC.Execute(ctx, req)
 	if execErr != nil {
 		HandleError(c, span, execErr)
 		return
@@ -257,7 +231,7 @@ func (h *AccountHandler) Delete(c *gin.Context) {
 	id := c.Param("id")
 	span.SetAttributes(attribute.String("account.id", id))
 
-	_, execErr := h.DeleteUC.Execute(ctx, dto.DeleteInput{
+	_, execErr := h.deleteUC.Execute(ctx, dto.DeleteInput{
 		ID:               id,
 		RequestingUserID: ownershipUserID(c),
 	})

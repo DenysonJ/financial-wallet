@@ -39,13 +39,13 @@ func (m *mockRateLimitStore) Allow(_ context.Context, _ string, limit int, _ tim
 	}, nil
 }
 
-func setupRateLimitRouter(store ratelimit.Store, limit int, window time.Duration) *gin.Engine {
+func setupRateLimitRouter(store ratelimit.Store, limit int) *gin.Engine {
 	gin.SetMode(gin.TestMode)
 	r := gin.New()
 	r.Use(RateLimit(RateLimitConfig{
 		Store:  store,
 		Limit:  limit,
-		Window: window,
+		Window: 1 * time.Minute,
 	}))
 	r.GET("/test", func(c *gin.Context) {
 		c.JSON(http.StatusOK, gin.H{"status": "ok"})
@@ -59,7 +59,7 @@ func TestRateLimit_AllowedRequest(t *testing.T) {
 			{Allowed: true, Limit: 100, Remaining: 99, ResetAt: time.Now().Add(1 * time.Minute)},
 		},
 	}
-	r := setupRateLimitRouter(store, 100, 1*time.Minute)
+	r := setupRateLimitRouter(store, 100)
 
 	req := httptest.NewRequest(http.MethodGet, "/test", nil)
 	w := httptest.NewRecorder()
@@ -77,7 +77,7 @@ func TestRateLimit_BlockedRequest(t *testing.T) {
 			{Allowed: false, Limit: 100, Remaining: 0, ResetAt: time.Now().Add(30 * time.Second)},
 		},
 	}
-	r := setupRateLimitRouter(store, 100, 1*time.Minute)
+	r := setupRateLimitRouter(store, 100)
 
 	req := httptest.NewRequest(http.MethodGet, "/test", nil)
 	w := httptest.NewRecorder()
@@ -96,7 +96,7 @@ func TestRateLimit_HeadersPresentOn429(t *testing.T) {
 			{Allowed: false, Limit: 10, Remaining: 0, ResetAt: resetAt},
 		},
 	}
-	r := setupRateLimitRouter(store, 10, 1*time.Minute)
+	r := setupRateLimitRouter(store, 10)
 
 	req := httptest.NewRequest(http.MethodGet, "/test", nil)
 	w := httptest.NewRecorder()
@@ -113,7 +113,7 @@ func TestRateLimit_FailOpen_StoreError(t *testing.T) {
 	store := &mockRateLimitStore{
 		err: errors.New("redis connection refused"),
 	}
-	r := setupRateLimitRouter(store, 100, 1*time.Minute)
+	r := setupRateLimitRouter(store, 100)
 
 	req := httptest.NewRequest(http.MethodGet, "/test", nil)
 	w := httptest.NewRecorder()
@@ -134,7 +134,7 @@ func TestRateLimit_MultipleRequests_CountsDown(t *testing.T) {
 			{Allowed: false, Limit: 3, Remaining: 0, ResetAt: time.Now().Add(1 * time.Minute)},
 		},
 	}
-	r := setupRateLimitRouter(store, 3, 1*time.Minute)
+	r := setupRateLimitRouter(store, 3)
 
 	// First 3 requests should pass
 	for i := 0; i < 3; i++ {

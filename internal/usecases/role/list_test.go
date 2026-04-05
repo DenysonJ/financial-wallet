@@ -8,6 +8,7 @@ import (
 
 	roledomain "github.com/DenysonJ/financial-wallet/internal/domain/role"
 	"github.com/DenysonJ/financial-wallet/internal/domain/user/vo"
+	"github.com/DenysonJ/financial-wallet/internal/mocks/roleuci"
 	"github.com/DenysonJ/financial-wallet/internal/usecases/role/dto"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
@@ -15,7 +16,7 @@ import (
 
 func TestListUseCase_Execute_Success(t *testing.T) {
 	// Arrange
-	mockRepo := new(MockRepository)
+	mockRepo := roleuci.NewMockRepository(t)
 
 	expectedResult := &roledomain.ListResult{
 		Roles: []*roledomain.Role{
@@ -58,7 +59,7 @@ func TestListUseCase_Execute_Success(t *testing.T) {
 
 func TestListUseCase_Execute_EmptyResult(t *testing.T) {
 	// Arrange
-	mockRepo := new(MockRepository)
+	mockRepo := roleuci.NewMockRepository(t)
 
 	expectedResult := &roledomain.ListResult{
 		Roles: []*roledomain.Role{},
@@ -85,7 +86,7 @@ func TestListUseCase_Execute_EmptyResult(t *testing.T) {
 
 func TestListUseCase_Execute_WithFilter(t *testing.T) {
 	// Arrange
-	mockRepo := new(MockRepository)
+	mockRepo := roleuci.NewMockRepository(t)
 
 	expectedResult := &roledomain.ListResult{
 		Roles: []*roledomain.Role{
@@ -123,7 +124,7 @@ func TestListUseCase_Execute_WithFilter(t *testing.T) {
 
 func TestListUseCase_Execute_RepositoryError(t *testing.T) {
 	// Arrange
-	mockRepo := new(MockRepository)
+	mockRepo := roleuci.NewMockRepository(t)
 	mockRepo.On("List", mock.Anything, mock.AnythingOfType("role.ListFilter")).
 		Return(nil, errors.New("database error"))
 

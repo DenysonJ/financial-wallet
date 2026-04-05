@@ -7,6 +7,7 @@ import (
 	"time"
 
 	userdomain "github.com/DenysonJ/financial-wallet/internal/domain/user"
+	"github.com/DenysonJ/financial-wallet/internal/mocks/useruci"
 	"github.com/DenysonJ/financial-wallet/pkg/cache"
 
 	"github.com/DenysonJ/financial-wallet/internal/domain/user/vo"
@@ -17,7 +18,7 @@ import (
 
 func TestGetUseCase_Execute_Success(t *testing.T) {
 	// Arrange
-	mockRepo := new(MockRepository)
+	mockRepo := useruci.NewMockRepository(t)
 	id := vo.NewID()
 	email, _ := vo.NewEmail("joao@example.com")
 
@@ -49,7 +50,7 @@ func TestGetUseCase_Execute_Success(t *testing.T) {
 
 func TestGetUseCase_Execute_NotFound(t *testing.T) {
 	// Arrange
-	mockRepo := new(MockRepository)
+	mockRepo := useruci.NewMockRepository(t)
 	mockRepo.On("FindByID", mock.Anything, mock.AnythingOfType("vo.ID")).
 		Return(nil, userdomain.ErrUserNotFound)
 
@@ -68,7 +69,7 @@ func TestGetUseCase_Execute_NotFound(t *testing.T) {
 
 func TestGetUseCase_Execute_InvalidID(t *testing.T) {
 	// Arrange
-	mockRepo := new(MockRepository)
+	mockRepo := useruci.NewMockRepository(t)
 	uc := NewGetUseCase(mockRepo)
 	input := dto.GetInput{ID: "invalid-id"}
 
@@ -87,8 +88,8 @@ func TestGetUseCase_Execute_InvalidID(t *testing.T) {
 
 func TestGetUseCase_Execute_CacheHit(t *testing.T) {
 	// Arrange
-	mockRepo := new(MockRepository)
-	mockCache := new(MockCache)
+	mockRepo := useruci.NewMockRepository(t)
+	mockCache := useruci.NewMockCache(t)
 
 	id := "018e4a2c-6b4d-7000-9410-abcdef123456"
 	cacheKey := "user:" + id
@@ -123,8 +124,8 @@ func TestGetUseCase_Execute_CacheHit(t *testing.T) {
 
 func TestGetUseCase_Execute_CacheMiss_ThenSet(t *testing.T) {
 	// Arrange
-	mockRepo := new(MockRepository)
-	mockCache := new(MockCache)
+	mockRepo := useruci.NewMockRepository(t)
+	mockCache := useruci.NewMockCache(t)
 
 	id := vo.NewID()
 	cacheKey := "user:" + id.String()
@@ -168,8 +169,8 @@ func TestGetUseCase_Execute_CacheMiss_ThenSet(t *testing.T) {
 
 func TestGetUseCase_Execute_CacheSetError_StillReturnsData(t *testing.T) {
 	// Arrange
-	mockRepo := new(MockRepository)
-	mockCache := new(MockCache)
+	mockRepo := useruci.NewMockRepository(t)
+	mockCache := useruci.NewMockCache(t)
 
 	id := vo.NewID()
 	cacheKey := "user:" + id.String()
@@ -217,7 +218,7 @@ func TestGetUseCase_Execute_CacheSetError_StillReturnsData(t *testing.T) {
 func TestGetUseCase_Execute_WithFlight(t *testing.T) {
 	t.Run("success: WithFlight configured, repo called, returns data", func(t *testing.T) {
 		// Arrange
-		mockRepo := new(MockRepository)
+		mockRepo := useruci.NewMockRepository(t)
 		id := vo.NewID()
 		email, _ := vo.NewEmail("joao@example.com")
 
@@ -249,7 +250,7 @@ func TestGetUseCase_Execute_WithFlight(t *testing.T) {
 
 	t.Run("error: WithFlight configured, repo returns error, error propagated", func(t *testing.T) {
 		// Arrange
-		mockRepo := new(MockRepository)
+		mockRepo := useruci.NewMockRepository(t)
 		mockRepo.On("FindByID", mock.Anything, mock.AnythingOfType("vo.ID")).
 			Return(nil, userdomain.ErrUserNotFound)
 

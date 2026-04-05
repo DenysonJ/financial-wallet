@@ -9,6 +9,7 @@ import (
 	userdomain "github.com/DenysonJ/financial-wallet/internal/domain/user"
 
 	"github.com/DenysonJ/financial-wallet/internal/domain/user/vo"
+	"github.com/DenysonJ/financial-wallet/internal/mocks/useruci"
 	"github.com/DenysonJ/financial-wallet/internal/usecases/user/dto"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
@@ -16,7 +17,7 @@ import (
 
 func TestListUseCase_Execute_Success(t *testing.T) {
 	// Arrange
-	mockRepo := new(MockRepository)
+	mockRepo := useruci.NewMockRepository(t)
 
 	email1, _ := vo.NewEmail("joao@example.com")
 	email2, _ := vo.NewEmail("maria@example.com")
@@ -64,7 +65,7 @@ func TestListUseCase_Execute_Success(t *testing.T) {
 
 func TestListUseCase_Execute_WithFilters(t *testing.T) {
 	// Arrange
-	mockRepo := new(MockRepository)
+	mockRepo := useruci.NewMockRepository(t)
 
 	email, _ := vo.NewEmail("maria@example.com")
 	expectedResult := &userdomain.ListResult{
@@ -105,7 +106,7 @@ func TestListUseCase_Execute_WithFilters(t *testing.T) {
 
 func TestListUseCase_Execute_RepositoryError(t *testing.T) {
 	// Arrange
-	mockRepo := new(MockRepository)
+	mockRepo := useruci.NewMockRepository(t)
 	mockRepo.On("List", mock.Anything, mock.AnythingOfType("user.ListFilter")).
 		Return(nil, errors.New("database error"))
 
@@ -124,7 +125,7 @@ func TestListUseCase_Execute_RepositoryError(t *testing.T) {
 
 func TestListUseCase_Execute_EmptyResult(t *testing.T) {
 	// Arrange
-	mockRepo := new(MockRepository)
+	mockRepo := useruci.NewMockRepository(t)
 
 	expectedResult := &userdomain.ListResult{
 		Users: []*userdomain.User{},
