@@ -197,21 +197,50 @@ test-e2e: ## Roda testes e2e (requer Docker)
 	go test ./tests/e2e/... -v -count=1
 
 FUZZ_TIME ?= 30s
-test-fuzz: ## Roda fuzz tests no domain (FUZZ_TIME=30s por padrao, ex: make test-fuzz FUZZ_TIME=1m)
+test-fuzz: ## Roda todos os fuzz tests (FUZZ_TIME=30s por padrao, ex: make test-fuzz FUZZ_TIME=1m)
 	@echo "Running fuzz tests ($(FUZZ_TIME) each)..."
+	@echo "--- Domain: vo ---"
 	go test ./pkg/vo/ -fuzz=FuzzParseID -fuzztime=$(FUZZ_TIME)
 	go test ./pkg/vo/ -fuzz=FuzzIDScan -fuzztime=$(FUZZ_TIME)
+	@echo "--- Domain: user ---"
 	go test ./internal/domain/user/vo/ -fuzz=FuzzNewEmail -fuzztime=$(FUZZ_TIME)
 	go test ./internal/domain/user/vo/ -fuzz=FuzzEmailScan -fuzztime=$(FUZZ_TIME)
 	go test ./internal/domain/user/vo/ -fuzz=FuzzValidatePasswordStrength -fuzztime=$(FUZZ_TIME)
 	go test ./internal/domain/user/vo/ -fuzz=FuzzNewPassword -fuzztime=$(FUZZ_TIME)
 	go test ./internal/domain/user/vo/ -fuzz=FuzzCheckPassword -fuzztime=$(FUZZ_TIME)
+	go test ./internal/domain/user/ -fuzz=FuzzNewUser -fuzztime=$(FUZZ_TIME)
+	go test ./internal/domain/user/ -fuzz=FuzzUserUpdateName -fuzztime=$(FUZZ_TIME)
+	@echo "--- Domain: account ---"
 	go test ./internal/domain/account/vo/ -fuzz=FuzzNewAccountType -fuzztime=$(FUZZ_TIME)
 	go test ./internal/domain/account/vo/ -fuzz=FuzzAccountTypeScan -fuzztime=$(FUZZ_TIME)
 	go test ./internal/domain/account/ -fuzz=FuzzNewAccount -fuzztime=$(FUZZ_TIME)
-	go test ./internal/domain/user/ -fuzz=FuzzNewUser -fuzztime=$(FUZZ_TIME)
+	go test ./internal/domain/account/ -fuzz=FuzzAccountUpdateName -fuzztime=$(FUZZ_TIME)
+	go test ./internal/domain/account/ -fuzz=FuzzAccountUpdateDescription -fuzztime=$(FUZZ_TIME)
+	@echo "--- Domain: role ---"
 	go test ./internal/domain/role/ -fuzz=FuzzNewRole -fuzztime=$(FUZZ_TIME)
-	@echo "All fuzz tests passed!"
+	go test ./internal/domain/role/ -fuzz=FuzzRoleUpdateName -fuzztime=$(FUZZ_TIME)
+	go test ./internal/domain/role/ -fuzz=FuzzRoleUpdateDescription -fuzztime=$(FUZZ_TIME)
+	@echo "--- Pkg: logutil ---"
+	go test ./pkg/logutil/ -fuzz=FuzzMaskEmail -fuzztime=$(FUZZ_TIME)
+	go test ./pkg/logutil/ -fuzz=FuzzMaskDocument -fuzztime=$(FUZZ_TIME)
+	go test ./pkg/logutil/ -fuzz=FuzzMaskName -fuzztime=$(FUZZ_TIME)
+	go test ./pkg/logutil/ -fuzz=FuzzMaskPhone -fuzztime=$(FUZZ_TIME)
+	go test ./pkg/logutil/ -fuzz=FuzzMaskAttr -fuzztime=$(FUZZ_TIME)
+	@echo "--- Pkg: jwt ---"
+	go test ./pkg/jwt/ -fuzz=FuzzValidateToken -fuzztime=$(FUZZ_TIME)
+	go test ./pkg/jwt/ -fuzz=FuzzGenerateAndValidateToken -fuzztime=$(FUZZ_TIME)
+	@echo "--- Pkg: httputil ---"
+	go test ./pkg/httputil/ -fuzz=FuzzWriteErrorWithDetails -fuzztime=$(FUZZ_TIME)
+	@echo "--- Infrastructure: middleware ---"
+	go test ./internal/infrastructure/web/middleware/ -fuzz=FuzzParseServiceKeys -fuzztime=$(FUZZ_TIME)
+	go test ./internal/infrastructure/web/middleware/ -fuzz=FuzzBodyFingerprint -fuzztime=$(FUZZ_TIME)
+	go test ./internal/infrastructure/web/middleware/ -fuzz=FuzzBuildIdempotencyKey -fuzztime=$(FUZZ_TIME)
+	go test ./internal/infrastructure/web/middleware/ -fuzz=FuzzValidRequestID -fuzztime=$(FUZZ_TIME)
+	@echo "--- Config ---"
+	go test ./config/ -fuzz=FuzzGetEnvBool -fuzztime=$(FUZZ_TIME)
+	go test ./config/ -fuzz=FuzzGetEnvInt -fuzztime=$(FUZZ_TIME)
+	go test ./config/ -fuzz=FuzzGetEnvDuration -fuzztime=$(FUZZ_TIME)
+	@echo "All 32 fuzz tests passed!"
 
 test-coverage: ## Gera relatorio de cobertura (exclui bootstrap/wiring)
 	@mkdir -p tests/coverage
