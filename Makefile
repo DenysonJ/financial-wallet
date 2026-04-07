@@ -36,7 +36,7 @@ ENV_FILE := $(shell test -f .env && echo "--env-file .env" || echo "")
 # Declara todos os targets que não são arquivos
 .PHONY: help setup tools go-tools-check docker-check k6-check kind-check \
         dev run run-stop build clean lint security vulncheck swagger mocks \
-        test test-unit test-e2e test-coverage \
+        test test-unit test-e2e test-fuzz test-coverage \
         load-smoke load-test load-stress load-spike load-kind load-clean \
         docker-up docker-down docker-build \
         observability-up observability-down observability-logs \
@@ -195,6 +195,23 @@ test-unit: ## Roda apenas testes unitarios
 
 test-e2e: ## Roda testes e2e (requer Docker)
 	go test ./tests/e2e/... -v -count=1
+
+FUZZ_TIME ?= 30s
+test-fuzz: ## Roda fuzz tests no domain (FUZZ_TIME=30s por padrao, ex: make test-fuzz FUZZ_TIME=1m)
+	@echo "Running fuzz tests ($(FUZZ_TIME) each)..."
+	go test ./pkg/vo/ -fuzz=FuzzParseID -fuzztime=$(FUZZ_TIME)
+	go test ./pkg/vo/ -fuzz=FuzzIDScan -fuzztime=$(FUZZ_TIME)
+	go test ./internal/domain/user/vo/ -fuzz=FuzzNewEmail -fuzztime=$(FUZZ_TIME)
+	go test ./internal/domain/user/vo/ -fuzz=FuzzEmailScan -fuzztime=$(FUZZ_TIME)
+	go test ./internal/domain/user/vo/ -fuzz=FuzzValidatePasswordStrength -fuzztime=$(FUZZ_TIME)
+	go test ./internal/domain/user/vo/ -fuzz=FuzzNewPassword -fuzztime=$(FUZZ_TIME)
+	go test ./internal/domain/user/vo/ -fuzz=FuzzCheckPassword -fuzztime=$(FUZZ_TIME)
+	go test ./internal/domain/account/vo/ -fuzz=FuzzNewAccountType -fuzztime=$(FUZZ_TIME)
+	go test ./internal/domain/account/vo/ -fuzz=FuzzAccountTypeScan -fuzztime=$(FUZZ_TIME)
+	go test ./internal/domain/account/ -fuzz=FuzzNewAccount -fuzztime=$(FUZZ_TIME)
+	go test ./internal/domain/user/ -fuzz=FuzzNewUser -fuzztime=$(FUZZ_TIME)
+	go test ./internal/domain/role/ -fuzz=FuzzNewRole -fuzztime=$(FUZZ_TIME)
+	@echo "All fuzz tests passed!"
 
 test-coverage: ## Gera relatorio de cobertura (exclui bootstrap/wiring)
 	@mkdir -p tests/coverage

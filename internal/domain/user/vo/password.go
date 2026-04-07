@@ -32,12 +32,34 @@ func NewPassword(plain string, cost int) (Password, error) {
 }
 
 // CheckPassword verifies a plain-text password against a bcrypt hash.
-// Returns ErrInvalidPassword if the password does not match.
+// Returns ErrInvalidPassword if the password does not match or the hash is malformed.
 func CheckPassword(hash, plain string) error {
+	if !isValidBcryptHash(hash) {
+		return ErrInvalidPassword
+	}
 	if compareErr := bcrypt.CompareHashAndPassword([]byte(hash), []byte(plain)); compareErr != nil {
 		return ErrInvalidPassword
 	}
 	return nil
+}
+
+// isValidBcryptHash checks that hash has a valid bcrypt format: $2a$XX$<53 chars>.
+// Rejects malformed or high-cost hashes to prevent slow processing.
+func isValidBcryptHash(hash string) bool {
+	const maxBcryptCost = 16 // costs above this are impractically slow
+
+	if len(hash) != 60 {
+		return false
+	}
+	// Prefix: $2a$, $2b$, or $2y$
+	if hash[0] != '$' || hash[1] != '2' ||
+		(hash[2] != 'a' && hash[2] != 'b' && hash[2] != 'y') ||
+		hash[3] != '$' || hash[6] != '$' {
+		return false
+	}
+	// Cost: two-digit number between bcrypt.MinCost and maxBcryptCost
+	cost := int(hash[4]-'0')*10 + int(hash[5]-'0')
+	return cost >= bcrypt.MinCost && cost <= maxBcryptCost
 }
 
 // String returns the hash string.
