@@ -183,6 +183,43 @@ func TestMaskingHandler_WithGroup_delegatesToWrapped(t *testing.T) {
 	assert.Equal(t, "value", requestGroup["key"], "attrs should appear under the group")
 }
 
+// --- maskAttr edge cases from fuzz corpus ---
+
+func TestMaskingHandler_maskAttr_fuzzCorpus(t *testing.T) {
+	masker := NewMasker(DefaultBRConfig())
+	handler := NewMaskingHandler(masker, slog.Default().Handler())
+
+	tests := []struct {
+		name      string
+		key       string
+		value     string
+		wantValue string
+	}{
+		{
+			name:      "phone with already-masked value",
+			key:       "phone",
+			value:     "***",
+			wantValue: "***",
+		},
+		{
+			name:      "mixed-case name with single-char value",
+			key:       "nAme",
+			value:     "0",
+			wantValue: "***",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			attr := slog.String(tt.key, tt.value)
+			result := handler.maskAttr(attr)
+
+			assert.Equal(t, tt.key, result.Key, "key must be preserved")
+			assert.Equal(t, tt.wantValue, result.Value.String(), "value must match expected mask")
+		})
+	}
+}
+
 // --- Custom Masker ---
 
 func TestMaskingHandler_customMasker(t *testing.T) {

@@ -84,7 +84,11 @@ func (h *MaskingHandler) maskAttr(attr slog.Attr) slog.Attr {
 	if found && val.Kind() == slog.KindString {
 		strVal := val.String()
 		if strVal != "" {
-			return slog.String(key, maskFn(strVal))
+			masked := maskFn(strVal)
+			if masked == strVal {
+				return slog.String(key, "***")
+			}
+			return slog.String(key, masked)
 		}
 	}
 
