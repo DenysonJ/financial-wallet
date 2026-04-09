@@ -202,7 +202,7 @@ func TestMaskingHandler_maskAttr_fuzzCorpus(t *testing.T) {
 			wantValue: "***",
 		},
 		{
-			name:      "mixed-case name with single-char value",
+			name:      "mixed-case sensitive key with identity-mask triggers fallback",
 			key:       "nAme",
 			value:     "0",
 			wantValue: "***",

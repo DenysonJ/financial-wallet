@@ -86,6 +86,9 @@ func (h *MaskingHandler) maskAttr(attr slog.Attr) slog.Attr {
 		if strVal != "" {
 			masked := maskFn(strVal)
 			if masked == strVal {
+				// Fallback: mask function produced no change (e.g., single-char name "0",
+				// or input already looks masked like "***"). Replace with generic mask
+				// to guarantee PII is never logged as-is.
 				return slog.String(key, "***")
 			}
 			return slog.String(key, masked)
