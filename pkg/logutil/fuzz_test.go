@@ -198,8 +198,10 @@ func FuzzMaskAttr(f *testing.F) {
 		_, isSensitive := masker.config.Fields[normalizedKey]
 
 		if isSensitive && value != "" {
-			// Sensitive non-empty values must be masked (different from original)
-			assert.NotEqual(t, value, result.Value.String(),
+			resultStr := result.Value.String()
+			// Sensitive non-empty values must be masked: either the value
+			// changes or the fallback "***" is applied (which may equal input).
+			assert.True(t, resultStr != value || resultStr == "***",
 				"sensitive field %q must be masked", key)
 		} else if !isSensitive {
 			// Non-sensitive values must pass through unchanged
