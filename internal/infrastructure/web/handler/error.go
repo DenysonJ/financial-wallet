@@ -74,8 +74,7 @@ var domainErrors = []struct {
 // It supports AppError (structured) and falls back to domain error translation.
 func HandleError(c *gin.Context, span trace.Span, err error) {
 	// 1. Try AppError first (structured errors from use cases)
-	var appErr *apperror.AppError
-	if errors.As(err, &appErr) {
+	if appErr, ok2 := errors.AsType[*apperror.AppError](err); ok2 {
 		status, ok := codeToStatus[appErr.Code]
 		if !ok {
 			status = http.StatusInternalServerError

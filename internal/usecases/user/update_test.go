@@ -34,10 +34,9 @@ func TestUpdateUseCase_Execute_Success(t *testing.T) {
 	mockRepo.On("Update", mock.Anything, mock.AnythingOfType("*user.User")).Return(nil)
 
 	uc := NewUpdateUseCase(mockRepo)
-	newName := "João Silva Updated"
 	input := dto.UpdateInput{
 		ID:   id.String(),
-		Name: &newName,
+		Name: new("João Silva Updated"),
 	}
 
 	// Act
@@ -57,10 +56,9 @@ func TestUpdateUseCase_Execute_NotFound(t *testing.T) {
 		Return(nil, userdomain.ErrUserNotFound)
 
 	uc := NewUpdateUseCase(mockRepo)
-	newName := "Updated Name"
 	input := dto.UpdateInput{
 		ID:   "018e4a2c-6b4d-7000-9410-abcdef123456",
-		Name: &newName,
+		Name: new("Updated Name"),
 	}
 
 	// Act
@@ -91,10 +89,9 @@ func TestUpdateUseCase_Execute_InvalidEmail(t *testing.T) {
 	mockRepo.On("FindByID", mock.Anything, id).Return(existingEntity, nil)
 
 	uc := NewUpdateUseCase(mockRepo)
-	invalidEmail := "invalid-email"
 	input := dto.UpdateInput{
 		ID:    id.String(),
-		Email: &invalidEmail,
+		Email: new("invalid-email"),
 	}
 
 	// Act
@@ -111,10 +108,9 @@ func TestUpdateUseCase_Execute_InvalidID(t *testing.T) {
 	// Arrange
 	mockRepo := useruci.NewMockRepository(t)
 	uc := NewUpdateUseCase(mockRepo)
-	newName := "Updated Name"
 	input := dto.UpdateInput{
 		ID:   "invalid-id",
-		Name: &newName,
+		Name: new("Updated Name"),
 	}
 
 	// Act
@@ -148,10 +144,9 @@ func TestUpdateUseCase_Execute_CacheDeleteError_StillSucceeds(t *testing.T) {
 	mockCache.On("Delete", mock.Anything, cacheKey).Return(errors.New("redis connection refused"))
 
 	uc := NewUpdateUseCase(mockRepo).WithCache(mockCache)
-	newName := "João Silva Updated"
 	input := dto.UpdateInput{
 		ID:   id.String(),
-		Name: &newName,
+		Name: new("João Silva Updated"),
 	}
 
 	// Act
@@ -186,10 +181,9 @@ func TestUpdateUseCase_Execute_CacheInvalidation(t *testing.T) {
 	mockCache.On("Delete", mock.Anything, cacheKey).Return(nil)
 
 	uc := NewUpdateUseCase(mockRepo).WithCache(mockCache)
-	newName := "João Silva Updated"
 	input := dto.UpdateInput{
 		ID:   id.String(),
-		Name: &newName,
+		Name: new("João Silva Updated"),
 	}
 
 	// Act
