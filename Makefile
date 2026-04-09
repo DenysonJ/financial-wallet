@@ -1,3 +1,11 @@
+# Force bash on all platforms (Windows cmd.exe breaks Unix syntax used throughout)
+ifeq ($(OS),Windows_NT)
+  SHELL := C:/Program Files/Git/usr/bin/bash.exe
+else
+  SHELL := /bin/bash
+endif
+.SHELLFLAGS := -eu -o pipefail -c
+
 # ============================================
 # CONFIGURAÇÃO DO PROJETO
 # ============================================
@@ -15,6 +23,8 @@ GOBIN := $(shell go env GOBIN)
 ifeq ($(GOBIN),)
 	GOBIN := $(shell go env GOPATH)/bin
 endif
+# Normalize backslashes to forward slashes (Windows paths break bash)
+GOBIN := $(subst \,/,$(GOBIN))
 
 # Carrega variáveis do .env (se existir)
 -include .env
@@ -31,7 +41,7 @@ MIGRATIONS_DIR := internal/infrastructure/db/postgres/migration
 
 # Docker Compose
 COMPOSE := docker compose -f docker/docker-compose.yml
-ENV_FILE := $(shell test -f .env && echo "--env-file .env" || echo "")
+ENV_FILE := $(if $(wildcard .env),--env-file .env,)
 
 # Declara todos os targets que não são arquivos
 .PHONY: help setup tools go-tools-check docker-check k6-check kind-check \
@@ -154,7 +164,7 @@ clean: ## Remove arquivos gerados
 changelog: ## Gera sugestão de changelog a partir dos commits
 	@command -v git-cliff >/dev/null 2>&1 || { echo "git-cliff not found. Install: brew install git-cliff"; exit 1; }
 	@echo "Gerando changelog sugerido (não sobrescreve CHANGELOG.md)..."
-	@git-cliff --output /dev/stdout
+	@git-cliff
 	@echo ""
 	@echo "Para atualizar o CHANGELOG.md, revise a saída acima e edite manualmente."
 	@echo "Ou use: git-cliff --output CHANGELOG.md"
@@ -432,11 +442,13 @@ load-clean: ## Limpa dados de testes de carga
 
 SANDBOX_IMAGE     := $(APP_NAME)-sandbox
 SANDBOX_CONTAINER := $(APP_NAME)-sandbox
-SANDBOX_ROOT      := $(shell pwd)
+SANDBOX_ROOT      := $(CURDIR)
 SANDBOX_PORT      ?= 8081
 
 # SSH agent detection
-ifeq ($(shell uname),Darwin)
+ifeq ($(OS),Windows_NT)
+  SANDBOX_SSH :=
+else ifeq ($(shell uname),Darwin)
   SANDBOX_SSH := -v /run/host-services/ssh-auth.sock:/ssh-agent -e SSH_AUTH_SOCK=/ssh-agent
 else ifdef SSH_AUTH_SOCK
   SANDBOX_SSH := -v $(SSH_AUTH_SOCK):/ssh-agent -e SSH_AUTH_SOCK=/ssh-agent
