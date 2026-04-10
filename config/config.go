@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/joho/godotenv"
+	"golang.org/x/crypto/bcrypt"
 )
 
 type Config struct {
@@ -283,8 +284,8 @@ func (c *Config) Validate() error {
 	if _, parseErr := time.ParseDuration(c.JWT.RefreshTTL); parseErr != nil {
 		return fmt.Errorf("JWT_REFRESH_TTL=%q is not a valid duration: %w", c.JWT.RefreshTTL, parseErr)
 	}
-	// BcryptCost: must be greater than 8 and less than 64
-	if c.JWT.BcryptCost < 8 || c.JWT.BcryptCost > 64 {
+	// BcryptCost: must be greater than 8 and less than 31
+	if c.JWT.BcryptCost < 8 || c.JWT.BcryptCost > bcrypt.MaxCost {
 		return fmt.Errorf("JWT_BCRYPT_COST should be between 8 and 64, got %d", c.JWT.BcryptCost)
 	}
 

@@ -18,7 +18,7 @@ jobs:
 
       - uses: actions/setup-go@v6
         with:
-          go-version: "1.25"
+          go-version: "1.26"
 
       - name: Run golangci-lint
         uses: golangci/golangci-lint-action@v9
@@ -52,7 +52,7 @@ jobs:
 
       - uses: actions/setup-go@v6
         with:
-          go-version: "1.25"
+          go-version: "1.26"
 
       - name: Run unit tests with coverage
         run: go test ./internal/... ./pkg/... -v -coverprofile=coverage.txt -covermode=atomic
@@ -72,7 +72,7 @@ jobs:
 
       - uses: actions/setup-go@v6
         with:
-          go-version: "1.25"
+          go-version: "1.26"
 
       - name: Run govulncheck
         run: |

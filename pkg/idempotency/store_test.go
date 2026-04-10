@@ -45,8 +45,7 @@ func (m *memoryStore) Get(_ context.Context, key string) (*Entry, error) {
 	}
 
 	// Return a copy to avoid mutation of the internal state.
-	cp := *entry
-	return &cp, nil
+	return new(*entry), nil
 }
 
 func (m *memoryStore) Complete(_ context.Context, key string, entry *Entry) error {
@@ -54,8 +53,7 @@ func (m *memoryStore) Complete(_ context.Context, key string, entry *Entry) erro
 	defer m.mu.Unlock()
 
 	entry.Status = StatusCompleted
-	cp := *entry
-	m.entries[key] = &cp
+	m.entries[key] = new(*entry)
 	return nil
 }
 
