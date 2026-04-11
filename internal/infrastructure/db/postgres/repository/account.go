@@ -21,6 +21,7 @@ type accountDB struct {
 	Name        string    `db:"name"`
 	Type        string    `db:"type"`
 	Description string    `db:"description"`
+	Balance     int64     `db:"balance"`
 	Active      bool      `db:"active"`
 	CreatedAt   time.Time `db:"created_at"`
 	UpdatedAt   time.Time `db:"updated_at"`
@@ -43,6 +44,7 @@ func (a *accountDB) toAccount() (*accountdomain.Account, error) {
 		Name:        a.Name,
 		Type:        accountvo.ParseAccountType(a.Type),
 		Description: a.Description,
+		Balance:     a.Balance,
 		Active:      a.Active,
 		CreatedAt:   a.CreatedAt,
 		UpdatedAt:   a.UpdatedAt,
@@ -56,6 +58,7 @@ func fromDomainAccount(a *accountdomain.Account) accountDB {
 		Name:        a.Name,
 		Type:        a.Type.String(),
 		Description: a.Description,
+		Balance:     a.Balance,
 		Active:      a.Active,
 		CreatedAt:   a.CreatedAt,
 		UpdatedAt:   a.UpdatedAt,
@@ -76,9 +79,9 @@ func NewAccountRepository(writer, reader *sqlx.DB) *AccountRepository {
 func (r *AccountRepository) Create(ctx context.Context, a *accountdomain.Account) error {
 	query := `
 		INSERT INTO accounts (
-			id, user_id, name, type, description, active, created_at, updated_at
+			id, user_id, name, type, description, balance, active, created_at, updated_at
 		) VALUES (
-			:id, :user_id, :name, :type, :description, :active, :created_at, :updated_at
+			:id, :user_id, :name, :type, :description, :balance, :active, :created_at, :updated_at
 		)
 	`
 
@@ -89,7 +92,7 @@ func (r *AccountRepository) Create(ctx context.Context, a *accountdomain.Account
 
 func (r *AccountRepository) FindByID(ctx context.Context, id uservo.ID) (*accountdomain.Account, error) {
 	query := `
-		SELECT id, user_id, name, type, description, active, created_at, updated_at
+		SELECT id, user_id, name, type, description, balance, active, created_at, updated_at
 		FROM accounts
 		WHERE id = $1 AND active = true
 	`
@@ -162,7 +165,7 @@ func (r *AccountRepository) List(ctx context.Context, filter accountdomain.ListF
 	args["offset"] = filter.Offset()
 
 	dataQuery := fmt.Sprintf(`
-		SELECT id, user_id, name, type, description, active, created_at, updated_at
+		SELECT id, user_id, name, type, description, balance, active, created_at, updated_at
 		FROM accounts
 		%s
 		ORDER BY created_at DESC

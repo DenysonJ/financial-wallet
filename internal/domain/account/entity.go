@@ -15,6 +15,7 @@ type Account struct {
 	Name        string
 	Type        vo.AccountType
 	Description string
+	Balance     int64
 	Active      bool
 	CreatedAt   time.Time
 	UpdatedAt   time.Time
@@ -49,5 +50,18 @@ func (a *Account) UpdateName(name string) {
 // UpdateDescription atualiza a descrição da account.
 func (a *Account) UpdateDescription(description string) {
 	a.Description = description
+	a.UpdatedAt = time.Now()
+}
+
+// CreditBalance increases the account balance by the given amount.
+func (a *Account) CreditBalance(amount int64) {
+	a.Balance += amount
+	a.UpdatedAt = time.Now()
+}
+
+// DebitBalance decreases the account balance by the given amount.
+// Balance can go negative (equivalent to owing money).
+func (a *Account) DebitBalance(amount int64) {
+	a.Balance -= amount
 	a.UpdatedAt = time.Now()
 }

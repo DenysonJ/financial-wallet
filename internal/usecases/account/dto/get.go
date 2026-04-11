@@ -17,6 +17,7 @@ type GetOutput struct {
 	Name        string `json:"name"`
 	Type        string `json:"type"`
 	Description string `json:"description"`
+	Balance     int64  `json:"balance"`
 	Active      bool   `json:"active"`
 	CreatedAt   string `json:"created_at"`
 	UpdatedAt   string `json:"updated_at"`

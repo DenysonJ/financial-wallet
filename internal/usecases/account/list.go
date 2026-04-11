@@ -73,6 +73,7 @@ func (uc *ListUseCase) Execute(ctx context.Context, input dto.ListInput) (*dto.L
 			Name:        a.Name,
 			Type:        a.Type.String(),
 			Description: a.Description,
+			Balance:     a.Balance,
 			Active:      a.Active,
 			CreatedAt:   a.CreatedAt.Format(time.RFC3339),
 			UpdatedAt:   a.UpdatedAt.Format(time.RFC3339),

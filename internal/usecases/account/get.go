@@ -65,6 +65,7 @@ func (uc *GetUseCase) Execute(ctx context.Context, input dto.GetInput) (*dto.Get
 		Name:        a.Name,
 		Type:        a.Type.String(),
 		Description: a.Description,
+		Balance:     a.Balance,
 		Active:      a.Active,
 		CreatedAt:   a.CreatedAt.Format(time.RFC3339),
 		UpdatedAt:   a.UpdatedAt.Format(time.RFC3339),

@@ -34,7 +34,7 @@ func buildTestAccount() *accountdomain.Account {
 	}
 }
 
-var accountDBColumns = []string{"id", "user_id", "name", "type", "description", "active", "created_at", "updated_at"}
+var accountDBColumns = []string{"id", "user_id", "name", "type", "description", "balance", "active", "created_at", "updated_at"}
 
 // =============================================================================
 // Unit Tests for internal conversions
@@ -159,7 +159,7 @@ func TestAccountRepository_Create(t *testing.T) {
 			repo := NewAccountRepository(sqlxDB, sqlxDB)
 
 			exec := mock.ExpectExec("INSERT INTO accounts").
-				WithArgs(sqlmock.AnyArg(), sqlmock.AnyArg(), sqlmock.AnyArg(), sqlmock.AnyArg(), sqlmock.AnyArg(), sqlmock.AnyArg(), sqlmock.AnyArg(), sqlmock.AnyArg())
+				WithArgs(sqlmock.AnyArg(), sqlmock.AnyArg(), sqlmock.AnyArg(), sqlmock.AnyArg(), sqlmock.AnyArg(), sqlmock.AnyArg(), sqlmock.AnyArg(), sqlmock.AnyArg(), sqlmock.AnyArg())
 
 			if tt.dbErr != nil {
 				exec.WillReturnError(tt.dbErr)
@@ -197,7 +197,7 @@ func TestAccountRepository_FindByID(t *testing.T) {
 			name: "sucesso",
 			setupMock: func(mock sqlmock.Sqlmock) {
 				rows := sqlmock.NewRows(accountDBColumns).
-					AddRow(testID.String(), testUserID.String(), "Nubank", "bank_account", "Conta corrente", true, now, now)
+					AddRow(testID.String(), testUserID.String(), "Nubank", "bank_account", "Conta corrente", int64(0), true, now, now)
 				mock.ExpectQuery("SELECT .+ FROM accounts WHERE id").
 					WithArgs(testID.String()).WillReturnRows(rows)
 			},
@@ -277,7 +277,7 @@ func TestAccountRepository_List(t *testing.T) {
 					WillReturnRows(sqlmock.NewRows([]string{"count"}).AddRow(1))
 				mock.ExpectQuery("SELECT .+ FROM accounts").
 					WillReturnRows(sqlmock.NewRows(accountDBColumns).
-						AddRow(testID.String(), testUserID.String(), "Nubank", "bank_account", "", true, now, now))
+						AddRow(testID.String(), testUserID.String(), "Nubank", "bank_account", "", int64(0), true, now, now))
 				mock.ExpectCommit()
 			},
 			wantTotal: 1,
@@ -313,7 +313,7 @@ func TestAccountRepository_List(t *testing.T) {
 					WillReturnRows(sqlmock.NewRows([]string{"count"}).AddRow(1))
 				mock.ExpectQuery("SELECT .+ FROM accounts.+WHERE user_id.+AND type").
 					WillReturnRows(sqlmock.NewRows(accountDBColumns).
-						AddRow(testID.String(), testUserID.String(), "Nubank", "bank_account", "", true, now, now))
+						AddRow(testID.String(), testUserID.String(), "Nubank", "bank_account", "", int64(0), true, now, now))
 				mock.ExpectCommit()
 			},
 			wantTotal: 1,
