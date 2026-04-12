@@ -84,11 +84,13 @@ func (uc *CreateUseCase) Execute(ctx context.Context, input dto.CreateInput) (*d
 	stmt := stmtdomain.NewStatement(accountID, stmtType, amount, input.Description)
 
 	// Persist (transactional: INSERT statement + UPDATE account balance)
-	if createErr := uc.repo.Create(ctx, stmt, accountID); createErr != nil {
+	balanceAfter, createErr := uc.repo.Create(ctx, stmt, accountID)
+	if createErr != nil {
 		span.SetStatus(otelcodes.Error, createErr.Error())
 		logutil.LogError(ctx, "statement creation failed: repository error", "error", createErr.Error())
 		return nil, createErr
 	}
+	stmt.SetBalanceAfter(balanceAfter)
 
 	span.SetAttributes(attribute.String("statement.id", stmt.ID.String()))
 	logutil.LogInfo(ctx, "statement created", "statement.id", stmt.ID.String(), "type", stmtType.String())

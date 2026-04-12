@@ -115,11 +115,13 @@ func (uc *ReverseUseCase) Execute(ctx context.Context, input dto.ReverseInput) (
 	)
 
 	// Persist (transactional)
-	if createErr := uc.repo.Create(ctx, reversal, accountID); createErr != nil {
+	balanceAfter, createErr := uc.repo.Create(ctx, reversal, accountID)
+	if createErr != nil {
 		span.SetStatus(otelcodes.Error, createErr.Error())
 		logutil.LogError(ctx, "statement reversal failed: repository error", "error", createErr.Error())
 		return nil, createErr
 	}
+	reversal.SetBalanceAfter(balanceAfter)
 
 	span.SetAttributes(attribute.String("reversal.id", reversal.ID.String()))
 	logutil.LogInfo(ctx, "statement reversed", "reversal.id", reversal.ID.String(), "original.id", statementID.String())

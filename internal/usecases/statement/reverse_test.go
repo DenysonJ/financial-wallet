@@ -53,6 +53,7 @@ func TestReverseUseCase_Execute(t *testing.T) {
 		findErr           error
 		hasReversal       bool
 		hasReversalErr    error
+		repoCreateBalance int64
 		repoCreateErr     error
 		wantErr           error
 		wantErrMsg        string
@@ -68,10 +69,11 @@ func TestReverseUseCase_Execute(t *testing.T) {
 				StatementID: statementID.String(), AccountID: accountID.String(),
 				RequestingUserID: ownerID.String(), Description: "Reversal",
 			},
-			accountResult: activeAccount,
-			findResult:    originalCredit,
-			hasReversal:   false,
-			wantOutput:    true,
+			accountResult:     activeAccount,
+			findResult:        originalCredit,
+			hasReversal:       false,
+			repoCreateBalance: 5000,
+			wantOutput:        true,
 		},
 		{
 			name: "given invalid statement ID when reversing then returns invalid ID",
@@ -202,7 +204,7 @@ func TestReverseUseCase_Execute(t *testing.T) {
 			}
 			if !tt.skipCreateCall {
 				mockRepo.On("Create", mock.Anything, mock.AnythingOfType("*statement.Statement"), mock.AnythingOfType("vo.ID")).
-					Return(tt.repoCreateErr)
+					Return(tt.repoCreateBalance, tt.repoCreateErr)
 			}
 
 			uc := NewReverseUseCase(mockRepo, mockAccRepo)

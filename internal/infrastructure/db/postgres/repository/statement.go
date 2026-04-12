@@ -88,10 +88,10 @@ func NewStatementRepository(writer, reader *sqlx.DB) *StatementRepository {
 }
 
 // Create inserts a new statement and atomically updates the account balance.
-func (r *StatementRepository) Create(ctx context.Context, stmt *stmtdomain.Statement, accountID pkgvo.ID) error {
+func (r *StatementRepository) Create(ctx context.Context, stmt *stmtdomain.Statement, accountID pkgvo.ID) (int64, error) {
 	tx, txErr := r.writer.BeginTxx(ctx, nil)
 	if txErr != nil {
-		return fmt.Errorf("beginning transaction: %w", txErr)
+		return 0, fmt.Errorf("beginning transaction: %w", txErr)
 	}
 	defer func() { _ = tx.Rollback() }()
 
@@ -103,9 +103,9 @@ func (r *StatementRepository) Create(ctx context.Context, stmt *stmtdomain.State
 	)
 	if lockErr != nil {
 		if errors.Is(lockErr, sql.ErrNoRows) {
-			return accountdomain.ErrAccountNotFound
+			return 0, accountdomain.ErrAccountNotFound
 		}
-		return fmt.Errorf("locking account: %w", lockErr)
+		return 0, fmt.Errorf("locking account: %w", lockErr)
 	}
 
 	// Calculate new balance (can go negative — equivalent to owing money)
@@ -117,11 +117,9 @@ func (r *StatementRepository) Create(ctx context.Context, stmt *stmtdomain.State
 		newBalance = currentBalance - amount
 	}
 
-	// Set balance after on the statement entity
-	stmt.SetBalanceAfter(newBalance)
-
-	// Insert statement
+	// Insert statement with calculated balance
 	dbModel := fromDomainStatement(stmt)
+	dbModel.BalanceAfter = newBalance
 	insertQuery := `
 		INSERT INTO statements (
 			id, account_id, type, amount, description, reference_id, balance_after, created_at
@@ -131,7 +129,7 @@ func (r *StatementRepository) Create(ctx context.Context, stmt *stmtdomain.State
 	`
 	_, insertErr := tx.NamedExecContext(ctx, insertQuery, dbModel)
 	if insertErr != nil {
-		return fmt.Errorf("inserting statement: %w", insertErr)
+		return 0, fmt.Errorf("inserting statement: %w", insertErr)
 	}
 
 	// Update account balance
@@ -140,10 +138,13 @@ func (r *StatementRepository) Create(ctx context.Context, stmt *stmtdomain.State
 		newBalance, accountID.String(),
 	)
 	if updateErr != nil {
-		return fmt.Errorf("updating account balance: %w", updateErr)
+		return 0, fmt.Errorf("updating account balance: %w", updateErr)
 	}
 
-	return tx.Commit()
+	if commitErr := tx.Commit(); commitErr != nil {
+		return 0, commitErr
+	}
+	return newBalance, nil
 }
 
 // FindByID returns a Statement by its ID.

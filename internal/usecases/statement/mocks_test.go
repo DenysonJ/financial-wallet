@@ -14,9 +14,9 @@ type mockRepository struct {
 	mock.Mock
 }
 
-func (m *mockRepository) Create(ctx context.Context, stmt *stmtdomain.Statement, accountID vo.ID) error {
+func (m *mockRepository) Create(ctx context.Context, stmt *stmtdomain.Statement, accountID vo.ID) (int64, error) {
 	args := m.Called(ctx, stmt, accountID)
-	return args.Error(0)
+	return args.Get(0).(int64), args.Error(1)
 }
 
 func (m *mockRepository) FindByID(ctx context.Context, id vo.ID) (*stmtdomain.Statement, error) {

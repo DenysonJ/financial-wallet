@@ -36,6 +36,7 @@ func TestCreateUseCase_Execute(t *testing.T) {
 		input           dto.CreateInput
 		accountResult   *accountdomain.Account
 		accountErr      error
+		repoBalance     int64
 		repoErr         error
 		wantErr         error
 		wantErrMsg      string
@@ -50,6 +51,7 @@ func TestCreateUseCase_Execute(t *testing.T) {
 				Type: "credit", Amount: 5000, Description: "Salary",
 			},
 			accountResult: activeAccount,
+			repoBalance:   15000,
 			wantOutput:    true,
 		},
 		{
@@ -59,6 +61,7 @@ func TestCreateUseCase_Execute(t *testing.T) {
 				Type: "debit", Amount: 2000, Description: "Purchase",
 			},
 			accountResult: activeAccount,
+			repoBalance:   8000,
 			wantOutput:    true,
 		},
 		{
@@ -154,7 +157,7 @@ func TestCreateUseCase_Execute(t *testing.T) {
 			}
 			if !tt.skipRepoCall {
 				mockRepo.On("Create", mock.Anything, mock.AnythingOfType("*statement.Statement"), mock.AnythingOfType("vo.ID")).
-					Return(tt.repoErr)
+					Return(tt.repoBalance, tt.repoErr)
 			}
 
 			uc := NewCreateUseCase(mockRepo, mockAccRepo)

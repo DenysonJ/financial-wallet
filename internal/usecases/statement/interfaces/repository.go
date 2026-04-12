@@ -11,7 +11,8 @@ import (
 // Create is transactional: it inserts the statement and updates the account balance atomically.
 type Repository interface {
 	// Create persists a new Statement and updates the account balance in a single transaction.
-	Create(ctx context.Context, stmt *stmtdomain.Statement, accountID vo.ID) error
+	// Returns the balance after the statement was applied.
+	Create(ctx context.Context, stmt *stmtdomain.Statement, accountID vo.ID) (int64, error)
 
 	// FindByID returns a Statement by its ID.
 	// Returns ErrStatementNotFound if not found.

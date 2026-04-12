@@ -272,14 +272,15 @@ func TestStatementRepository_Create(t *testing.T) {
 				}
 			}
 
-			createErr := repo.Create(context.Background(), stmt, accountID)
+			balanceAfter, createErr := repo.Create(context.Background(), stmt, accountID)
 
 			if tt.wantErr {
 				assert.Error(t, createErr)
 				assert.Contains(t, createErr.Error(), tt.errSubstr)
+				assert.Equal(t, int64(0), balanceAfter)
 			} else {
 				assert.NoError(t, createErr)
-				assert.Equal(t, tt.wantBalance, stmt.BalanceAfter)
+				assert.Equal(t, tt.wantBalance, balanceAfter)
 			}
 			assert.NoError(t, mock.ExpectationsWereMet())
 		})
