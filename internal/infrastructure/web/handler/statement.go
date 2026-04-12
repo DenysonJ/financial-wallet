@@ -58,7 +58,7 @@ func (h *StatementHandler) Create(c *gin.Context) {
 	ctx, span := otel.Tracer("http-handler").Start(c.Request.Context(), "StatementHandler.Create")
 	defer span.End()
 
-	accountID := c.Param("account_id")
+	accountID := c.Param("id")
 	span.SetAttributes(attribute.String("account.id", accountID))
 
 	var req dto.CreateInput
@@ -104,8 +104,8 @@ func (h *StatementHandler) Reverse(c *gin.Context) {
 	ctx, span := otel.Tracer("http-handler").Start(c.Request.Context(), "StatementHandler.Reverse")
 	defer span.End()
 
-	accountID := c.Param("account_id")
-	statementID := c.Param("id")
+	accountID := c.Param("id")
+	statementID := c.Param("statement_id")
 	span.SetAttributes(
 		attribute.String("account.id", accountID),
 		attribute.String("statement.id", statementID),
@@ -153,7 +153,7 @@ func (h *StatementHandler) List(c *gin.Context) {
 	ctx, span := otel.Tracer("http-handler").Start(c.Request.Context(), "StatementHandler.List")
 	defer span.End()
 
-	accountID := c.Param("account_id")
+	accountID := c.Param("id")
 	span.SetAttributes(attribute.String("account.id", accountID))
 
 	var req dto.ListInput
@@ -194,8 +194,8 @@ func (h *StatementHandler) GetByID(c *gin.Context) {
 	ctx, span := otel.Tracer("http-handler").Start(c.Request.Context(), "StatementHandler.GetByID")
 	defer span.End()
 
-	accountID := c.Param("account_id")
-	statementID := c.Param("id")
+	accountID := c.Param("id")
+	statementID := c.Param("statement_id")
 	span.SetAttributes(
 		attribute.String("account.id", accountID),
 		attribute.String("statement.id", statementID),

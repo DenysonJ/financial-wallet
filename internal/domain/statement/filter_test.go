@@ -72,13 +72,12 @@ func TestListFilter_Offset(t *testing.T) {
 }
 
 func TestListFilter_WithOptionalFields(t *testing.T) {
-	creditType := vo.TypeCredit
 	now := time.Now()
 	accountID := pkgvo.NewID()
 
 	f := ListFilter{
 		AccountID: accountID,
-		Type:      &creditType,
+		Type:      new(vo.TypeCredit),
 		DateFrom:  &now,
 		DateTo:    &now,
 	}
