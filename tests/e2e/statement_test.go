@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"net/http"
 	"net/http/httptest"
+	"slices"
 	"testing"
 
 	"github.com/gin-gonic/gin"
@@ -106,14 +107,14 @@ func createStatement(t *testing.T, router *gin.Engine, accountID, stmtType strin
 }
 
 // setupE2E is a convenience that cleans up, seeds a user, builds a router, and creates an account.
-func setupE2E(t *testing.T) (*gin.Engine, string, string) {
+func setupE2E(t *testing.T) (*gin.Engine, string) {
 	t.Helper()
 	require.NoError(t, cleanupStatements())
 	userID := vo.NewID().String()
 	seedTestUser(t, userID)
 	router := setupStatementTestRouter(userID)
 	accountID := createTestAccount(t, router)
-	return router, userID, accountID
+	return router, accountID
 }
 
 // =============================================================================
@@ -167,7 +168,7 @@ func TestE2E_CreateStatement(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			router, _, accountID := setupE2E(t)
+			router, accountID := setupE2E(t)
 
 			for _, seedAmount := range tt.seedCredits {
 				createStatement(t, router, accountID, "credit", seedAmount, "seed")
@@ -231,7 +232,7 @@ func TestE2E_CreateStatement_Errors(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			router, _, accountID := setupE2E(t)
+			router, accountID := setupE2E(t)
 
 			req := httptest.NewRequest(http.MethodPost, "/accounts/"+accountID+"/statements", bytes.NewBufferString(tt.body))
 			req.Header.Set("Content-Type", "application/json")
@@ -248,7 +249,7 @@ func TestE2E_CreateStatement_Errors(t *testing.T) {
 // =============================================================================
 
 func TestE2E_ReverseStatement(t *testing.T) {
-	router, _, accountID := setupE2E(t)
+	router, accountID := setupE2E(t)
 
 	original := createStatement(t, router, accountID, "credit", 5000, "Payment received")
 	originalID := original["id"].(string)
@@ -276,7 +277,7 @@ func TestE2E_ReverseStatement(t *testing.T) {
 }
 
 func TestE2E_DoubleReversalReturns409(t *testing.T) {
-	router, _, accountID := setupE2E(t)
+	router, accountID := setupE2E(t)
 
 	original := createStatement(t, router, accountID, "credit", 5000, "Payment")
 	originalID := original["id"].(string)
@@ -299,7 +300,7 @@ func TestE2E_DoubleReversalReturns409(t *testing.T) {
 // =============================================================================
 
 func TestE2E_GetStatement(t *testing.T) {
-	router, _, accountID := setupE2E(t)
+	router, accountID := setupE2E(t)
 
 	created := createStatement(t, router, accountID, "credit", 7500, "Transfer in")
 	stmtID := created["id"].(string)
@@ -354,7 +355,7 @@ func TestE2E_GetStatement(t *testing.T) {
 // =============================================================================
 
 func TestE2E_ListStatements(t *testing.T) {
-	router, _, accountID := setupE2E(t)
+	router, accountID := setupE2E(t)
 
 	createStatement(t, router, accountID, "credit", 10000, "Deposit 1")
 	createStatement(t, router, accountID, "credit", 5000, "Deposit 2")
@@ -431,7 +432,7 @@ func TestE2E_ListStatements(t *testing.T) {
 // =============================================================================
 
 func TestE2E_AccountBalanceInGetResponse(t *testing.T) {
-	router, _, accountID := setupE2E(t)
+	router, accountID := setupE2E(t)
 
 	createStatement(t, router, accountID, "credit", 15000, "Big deposit")
 
@@ -449,7 +450,7 @@ func TestE2E_AccountBalanceInGetResponse(t *testing.T) {
 // =============================================================================
 
 func TestE2E_AtomicBalanceUpdate(t *testing.T) {
-	router, _, accountID := setupE2E(t)
+	router, accountID := setupE2E(t)
 
 	ops := []struct {
 		stmtType string
@@ -476,7 +477,7 @@ func TestE2E_AtomicBalanceUpdate(t *testing.T) {
 }
 
 func TestE2E_BalanceAfterIsConsistent(t *testing.T) {
-	router, _, accountID := setupE2E(t)
+	router, accountID := setupE2E(t)
 
 	steps := []struct {
 		stmtType         string
@@ -524,7 +525,7 @@ func TestE2E_OwnershipEnforcement(t *testing.T) {
 // =============================================================================
 
 func TestE2E_StatementsAreImmutable(t *testing.T) {
-	router, _, accountID := setupE2E(t)
+	router, accountID := setupE2E(t)
 
 	created := createStatement(t, router, accountID, "credit", 10000, "Deposit")
 	stmtID := created["id"].(string)
@@ -544,8 +545,8 @@ func TestE2E_StatementsAreImmutable(t *testing.T) {
 			req.Header.Set("Content-Type", "application/json")
 			w := httptest.NewRecorder()
 			router.ServeHTTP(w, req)
-			assert.NotEqual(t, http.StatusOK, w.Code)
-			assert.NotEqual(t, http.StatusNoContent, w.Code)
+			allowedCodes := []int{http.StatusNotFound, http.StatusMethodNotAllowed}
+			assert.True(t, slices.Contains(allowedCodes, w.Code), "expected to fail, but got %d", w.Code)
 		})
 	}
 }
@@ -555,7 +556,7 @@ func TestE2E_StatementsAreImmutable(t *testing.T) {
 // =============================================================================
 
 func TestE2E_ListStatements_PaginationMetadata(t *testing.T) {
-	router, _, accountID := setupE2E(t)
+	router, accountID := setupE2E(t)
 
 	for i := 1; i <= 5; i++ {
 		createStatement(t, router, accountID, "credit", int64(i*1000), fmt.Sprintf("Deposit %d", i))
