@@ -136,8 +136,8 @@ func (r *StatementRepository) Create(ctx context.Context, stmt *stmtdomain.State
 
 	// Update account balance
 	_, updateErr := tx.ExecContext(ctx,
-		"UPDATE accounts SET balance = $1, updated_at = $2 WHERE id = $3",
-		newBalance, time.Now(), accountID.String(),
+		"UPDATE accounts SET balance = $1, updated_at = NOW() WHERE id = $2",
+		newBalance, accountID.String(),
 	)
 	if updateErr != nil {
 		return fmt.Errorf("updating account balance: %w", updateErr)
