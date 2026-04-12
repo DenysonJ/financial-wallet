@@ -212,6 +212,12 @@ func TestStatementRepository_Create(t *testing.T) {
 			updateErr: sql.ErrConnDone,
 			wantErr:   true, errSubstr: "updating account balance",
 		},
+		{
+			name:     "given commit failure when creating then returns error",
+			stmtType: stmtvo.TypeCredit, balance: 10000, amount: 1000,
+			commitErr: sql.ErrConnDone,
+			wantErr:   true,
+		},
 	}
 
 	for _, tt := range tests {
@@ -257,7 +263,11 @@ func TestStatementRepository_Create(t *testing.T) {
 						mock.ExpectRollback()
 					} else {
 						updateExec.WillReturnResult(sqlmock.NewResult(0, 1))
-						mock.ExpectCommit()
+						if tt.commitErr != nil {
+							mock.ExpectCommit().WillReturnError(tt.commitErr)
+						} else {
+							mock.ExpectCommit()
+						}
 					}
 				}
 			}
