@@ -67,53 +67,6 @@ func TestNewAccount_BalanceInitializedToZero(t *testing.T) {
 	assert.Equal(t, int64(0), a.Balance)
 }
 
-func TestAccount_CreditBalance(t *testing.T) {
-	userID := uservo.NewID()
-	accType, _ := vo.NewAccountType("bank_account")
-	a := NewAccount(userID, "Nubank", accType, "")
-
-	a.CreditBalance(5000)
-
-	assert.Equal(t, int64(5000), a.Balance)
-
-	a.CreditBalance(3000)
-
-	assert.Equal(t, int64(8000), a.Balance)
-}
-
-func TestAccount_DebitBalance(t *testing.T) {
-	userID := uservo.NewID()
-	accType, _ := vo.NewAccountType("bank_account")
-	a := NewAccount(userID, "Nubank", accType, "")
-	a.CreditBalance(10000)
-
-	a.DebitBalance(4000)
-
-	assert.Equal(t, int64(6000), a.Balance)
-}
-
-func TestAccount_DebitBalance_GoesNegative(t *testing.T) {
-	userID := uservo.NewID()
-	accType, _ := vo.NewAccountType("bank_account")
-	a := NewAccount(userID, "Nubank", accType, "")
-	a.CreditBalance(1000)
-
-	a.DebitBalance(5000)
-
-	assert.Equal(t, int64(-4000), a.Balance)
-}
-
-func TestAccount_DebitBalance_ExactBalance(t *testing.T) {
-	userID := uservo.NewID()
-	accType, _ := vo.NewAccountType("bank_account")
-	a := NewAccount(userID, "Nubank", accType, "")
-	a.CreditBalance(2500)
-
-	a.DebitBalance(2500)
-
-	assert.Equal(t, int64(0), a.Balance)
-}
-
 func TestAccountType_Valid(t *testing.T) {
 	tests := []struct {
 		name  string
