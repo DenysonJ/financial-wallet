@@ -1,6 +1,8 @@
 package handler
 
 import (
+	"errors"
+	"io"
 	"net/http"
 
 	stmtuc "github.com/DenysonJ/financial-wallet/internal/usecases/statement"
@@ -41,7 +43,7 @@ func NewStatementHandler(
 // @Tags         statements
 // @Accept       json
 // @Produce      json
-// @Param        account_id  path      string           true  "Account ID"
+// @Param        id          path      string           true  "Account ID"
 // @Param        request     body      dto.CreateInput  true  "Statement info (type: credit/debit, amount in cents)"
 // @Success      201         {object}  dto.StatementOutput
 // @Failure      400         {object}  ErrorResponse
@@ -53,7 +55,7 @@ func NewStatementHandler(
 // @Failure      500         {object}  ErrorResponse
 // @Security     ServiceName
 // @Security     ServiceKey
-// @Router       /accounts/{account_id}/statements [post]
+// @Router       /accounts/{id}/statements [post]
 func (h *StatementHandler) Create(c *gin.Context) {
 	ctx, span := otel.Tracer("http-handler").Start(c.Request.Context(), "StatementHandler.Create")
 	defer span.End()
@@ -87,8 +89,8 @@ func (h *StatementHandler) Create(c *gin.Context) {
 // @Tags         statements
 // @Accept       json
 // @Produce      json
-// @Param        account_id  path      string  true  "Account ID"
-// @Param        id          path      string  true  "Statement ID to reverse"
+// @Param        id          path      string  true  "Account ID"
+// @Param        statement_id  path    string  true  "Statement ID to reverse"
 // @Param        request     body      dto.ReverseInput  false  "Optional reversal description"
 // @Success      201         {object}  dto.StatementOutput
 // @Failure      400         {object}  ErrorResponse
@@ -99,7 +101,7 @@ func (h *StatementHandler) Create(c *gin.Context) {
 // @Failure      500         {object}  ErrorResponse
 // @Security     ServiceName
 // @Security     ServiceKey
-// @Router       /accounts/{account_id}/statements/{id}/reverse [post]
+// @Router       /accounts/{id}/statements/{statement_id}/reverse [post]
 func (h *StatementHandler) Reverse(c *gin.Context) {
 	ctx, span := otel.Tracer("http-handler").Start(c.Request.Context(), "StatementHandler.Reverse")
 	defer span.End()
@@ -113,7 +115,10 @@ func (h *StatementHandler) Reverse(c *gin.Context) {
 
 	var req dto.ReverseInput
 	// Body is optional (only description), so ignore bind errors for empty body
-	_ = c.ShouldBindJSON(&req)
+	if bindErr := c.ShouldBindJSON(&req); bindErr != nil && !errors.Is(bindErr, io.EOF) {
+		httpgin.SendError(c, http.StatusBadRequest, "invalid request body")
+		return
+	}
 
 	req.AccountID = accountID
 	req.StatementID = statementID
@@ -134,7 +139,7 @@ func (h *StatementHandler) Reverse(c *gin.Context) {
 // @Description  Get a paginated list of statements for an account, with optional filters
 // @Tags         statements
 // @Produce      json
-// @Param        account_id  path      string  true   "Account ID"
+// @Param        id          path      string  true   "Account ID"
 // @Param        type        query     string  false  "Filter by type (credit/debit)"
 // @Param        date_from   query     string  false  "Filter from date (RFC3339)"
 // @Param        date_to     query     string  false  "Filter to date (RFC3339)"
@@ -148,7 +153,7 @@ func (h *StatementHandler) Reverse(c *gin.Context) {
 // @Failure      500         {object}  ErrorResponse
 // @Security     ServiceName
 // @Security     ServiceKey
-// @Router       /accounts/{account_id}/statements [get]
+// @Router       /accounts/{id}/statements [get]
 func (h *StatementHandler) List(c *gin.Context) {
 	ctx, span := otel.Tracer("http-handler").Start(c.Request.Context(), "StatementHandler.List")
 	defer span.End()
@@ -181,15 +186,15 @@ func (h *StatementHandler) List(c *gin.Context) {
 // @Description  Get statement details by its unique ID within an account
 // @Tags         statements
 // @Produce      json
-// @Param        account_id  path      string  true  "Account ID"
-// @Param        id          path      string  true  "Statement ID"
+// @Param        id          path      string  true  "Account ID"
+// @Param        statement_id  path    string  true  "Statement ID"
 // @Success      200         {object}  dto.StatementOutput
 // @Failure      404         {object}  ErrorResponse
 // @Failure      429         {object}  ErrorResponse
 // @Failure      500         {object}  ErrorResponse
 // @Security     ServiceName
 // @Security     ServiceKey
-// @Router       /accounts/{account_id}/statements/{id} [get]
+// @Router       /accounts/{id}/statements/{statement_id} [get]
 func (h *StatementHandler) GetByID(c *gin.Context) {
 	ctx, span := otel.Tracer("http-handler").Start(c.Request.Context(), "StatementHandler.GetByID")
 	defer span.End()
