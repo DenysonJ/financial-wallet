@@ -81,8 +81,6 @@ func TestListFilter_WithOptionalFields(t *testing.T) {
 		Type:      &creditType,
 		DateFrom:  &now,
 		DateTo:    &now,
-		Page:      1,
-		Limit:     10,
 	}
 
 	assert.Equal(t, accountID, f.AccountID)

@@ -7,6 +7,7 @@ run:
   modules-download-mode: readonly
 
 output:
+  sort-results: true
   sort-order:
     - severity
 
