@@ -160,7 +160,7 @@ func (r *StatementRepository) FindByID(ctx context.Context, id pkgvo.ID) (*stmtd
 		if errors.Is(selectErr, sql.ErrNoRows) {
 			return nil, stmtdomain.ErrStatementNotFound
 		}
-		return nil, selectErr
+		return nil, fmt.Errorf("finding statement by ID: %w", selectErr)
 	}
 
 	return dbModel.toStatement()
@@ -263,5 +263,5 @@ func (r *StatementRepository) HasReversal(ctx context.Context, statementID pkgvo
 		"SELECT EXISTS(SELECT 1 FROM statements WHERE reference_id = $1)",
 		statementID.String(),
 	)
-	return exists, queryErr
+	return exists, fmt.Errorf("checking reversal: %w", queryErr)
 }
