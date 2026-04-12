@@ -263,5 +263,8 @@ func (r *StatementRepository) HasReversal(ctx context.Context, statementID pkgvo
 		"SELECT EXISTS(SELECT 1 FROM statements WHERE reference_id = $1)",
 		statementID.String(),
 	)
-	return exists, fmt.Errorf("checking reversal: %w", queryErr)
+	if queryErr != nil {
+		return false, fmt.Errorf("checking reversal: %w", queryErr)
+	}
+	return exists, nil
 }

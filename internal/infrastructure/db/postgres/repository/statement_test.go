@@ -66,7 +66,7 @@ func TestStatementDB_ToStatement(t *testing.T) {
 		errSubstr string
 	}{
 		{
-			name: "sucesso sem reference_id",
+			name: "given valid data without reference_id when converting then succeeds",
 			input: statementDB{
 				ID: "018e4a2c-6b4d-7000-9410-abcdef123456", AccountID: "018e4a2c-6b4d-7000-9410-abcdef654321",
 				Type: "credit", Amount: 5000, Description: "Salary",
@@ -74,7 +74,7 @@ func TestStatementDB_ToStatement(t *testing.T) {
 			},
 		},
 		{
-			name: "sucesso com reference_id",
+			name: "given valid data with reference_id when converting then succeeds",
 			input: statementDB{
 				ID: "018e4a2c-6b4d-7000-9410-abcdef123456", AccountID: "018e4a2c-6b4d-7000-9410-abcdef654321",
 				Type: "debit", Amount: 5000, Description: "Reversal",
@@ -82,7 +82,7 @@ func TestStatementDB_ToStatement(t *testing.T) {
 			},
 		},
 		{
-			name: "ID inválido",
+			name: "given invalid ID when converting then returns error",
 			input: statementDB{
 				ID: "invalid-id", AccountID: "018e4a2c-6b4d-7000-9410-abcdef654321",
 				Type: "credit", Amount: 1000,
@@ -91,7 +91,7 @@ func TestStatementDB_ToStatement(t *testing.T) {
 			errSubstr: "parsing statement ID",
 		},
 		{
-			name: "AccountID inválido",
+			name: "given invalid AccountID when converting then returns error",
 			input: statementDB{
 				ID: "018e4a2c-6b4d-7000-9410-abcdef123456", AccountID: "invalid",
 				Type: "credit", Amount: 1000,
@@ -174,40 +174,40 @@ func TestStatementRepository_Create(t *testing.T) {
 		wantBalance int64
 	}{
 		{
-			name:     "sucesso credit",
+			name:     "given credit when creating then increases balance",
 			stmtType: stmtvo.TypeCredit, balance: 10000, amount: 5000,
 			wantBalance: 15000,
 		},
 		{
-			name:     "sucesso debit",
+			name:     "given debit when creating then decreases balance",
 			stmtType: stmtvo.TypeDebit, balance: 10000, amount: 3000,
 			wantBalance: 7000,
 		},
 		{
-			name:     "sucesso debit saldo negativo",
+			name:     "given debit exceeding balance when creating then allows negative",
 			stmtType: stmtvo.TypeDebit, balance: 1000, amount: 5000,
 			wantBalance: -4000,
 		},
 		{
-			name:     "erro ao bloquear account",
+			name:     "given lock failure when creating then returns error",
 			stmtType: stmtvo.TypeCredit, balance: 0, amount: 1000,
 			lockErr: sql.ErrConnDone,
 			wantErr: true, errSubstr: "locking account",
 		},
 		{
-			name:     "account não encontrada (lock)",
+			name:     "given nonexistent account when locking then returns not found",
 			stmtType: stmtvo.TypeCredit, balance: 0, amount: 1000,
 			lockErr: sql.ErrNoRows,
 			wantErr: true, errSubstr: "account not found",
 		},
 		{
-			name:     "erro ao inserir statement",
+			name:     "given insert failure when creating then returns error",
 			stmtType: stmtvo.TypeCredit, balance: 10000, amount: 1000,
 			insertErr: sql.ErrConnDone,
 			wantErr:   true, errSubstr: "inserting statement",
 		},
 		{
-			name:     "erro ao atualizar balance",
+			name:     "given update failure when creating then returns error",
 			stmtType: stmtvo.TypeCredit, balance: 10000, amount: 1000,
 			updateErr: sql.ErrConnDone,
 			wantErr:   true, errSubstr: "updating account balance",
@@ -251,7 +251,7 @@ func TestStatementRepository_Create(t *testing.T) {
 
 					// Update balance
 					updateExec := mock.ExpectExec("UPDATE accounts SET balance").
-						WithArgs(sqlmock.AnyArg(), sqlmock.AnyArg(), accountID.String())
+						WithArgs(sqlmock.AnyArg(), accountID.String())
 					if tt.updateErr != nil {
 						updateExec.WillReturnError(tt.updateErr)
 						mock.ExpectRollback()
@@ -290,7 +290,7 @@ func TestStatementRepository_FindByID(t *testing.T) {
 		wantNil   bool
 	}{
 		{
-			name: "sucesso",
+			name: "given existing statement when finding by ID then returns it",
 			setupMock: func(mock sqlmock.Sqlmock) {
 				rows := sqlmock.NewRows(statementDBColumns).
 					AddRow(testID.String(), testAccountID.String(), "credit", int64(5000), "Salary", nil, int64(15000), now)
@@ -299,7 +299,7 @@ func TestStatementRepository_FindByID(t *testing.T) {
 			},
 		},
 		{
-			name: "não encontrado",
+			name: "given nonexistent ID when finding then returns not found",
 			setupMock: func(mock sqlmock.Sqlmock) {
 				mock.ExpectQuery("SELECT .+ FROM statements WHERE id").
 					WithArgs(testID.String()).WillReturnError(sql.ErrNoRows)
@@ -308,7 +308,7 @@ func TestStatementRepository_FindByID(t *testing.T) {
 			wantNil: true,
 		},
 		{
-			name: "erro de banco",
+			name: "given db failure when querying then returns error",
 			setupMock: func(mock sqlmock.Sqlmock) {
 				mock.ExpectQuery("SELECT .+ FROM statements WHERE id").
 					WithArgs(testID.String()).WillReturnError(sql.ErrConnDone)
@@ -363,7 +363,7 @@ func TestStatementRepository_List(t *testing.T) {
 		wantCount int
 	}{
 		{
-			name:   "sucesso com resultados",
+			name:   "given statements when listing then returns paginated results",
 			filter: stmtdomain.ListFilter{AccountID: testAccountID, Page: 1, Limit: 20},
 			setupMock: func(mock sqlmock.Sqlmock) {
 				mock.ExpectBegin()
@@ -378,7 +378,7 @@ func TestStatementRepository_List(t *testing.T) {
 			wantCount: 1,
 		},
 		{
-			name:   "resultado vazio",
+			name:   "given no statements when listing then returns empty",
 			filter: stmtdomain.ListFilter{AccountID: testAccountID, Page: 1, Limit: 20},
 			setupMock: func(mock sqlmock.Sqlmock) {
 				mock.ExpectBegin()
@@ -392,7 +392,7 @@ func TestStatementRepository_List(t *testing.T) {
 			wantCount: 0,
 		},
 		{
-			name:   "erro ao iniciar transação",
+			name:   "given tx failure when listing then returns error",
 			filter: stmtdomain.ListFilter{AccountID: testAccountID, Page: 1, Limit: 20},
 			setupMock: func(mock sqlmock.Sqlmock) {
 				mock.ExpectBegin().WillReturnError(sql.ErrConnDone)
@@ -401,7 +401,7 @@ func TestStatementRepository_List(t *testing.T) {
 			errSubstr: "beginning read transaction",
 		},
 		{
-			name:   "erro na query de contagem",
+			name:   "given count query failure when listing then returns error",
 			filter: stmtdomain.ListFilter{AccountID: testAccountID, Page: 1, Limit: 20},
 			setupMock: func(mock sqlmock.Sqlmock) {
 				mock.ExpectBegin()
@@ -454,7 +454,7 @@ func TestStatementRepository_HasReversal(t *testing.T) {
 		wantErr   bool
 	}{
 		{
-			name: "sem reversal",
+			name: "given unreversed statement when checking then returns false",
 			setupMock: func(mock sqlmock.Sqlmock) {
 				mock.ExpectQuery("SELECT EXISTS").
 					WithArgs(testID.String()).
@@ -463,7 +463,7 @@ func TestStatementRepository_HasReversal(t *testing.T) {
 			want: false,
 		},
 		{
-			name: "com reversal",
+			name: "given reversed statement when checking then returns true",
 			setupMock: func(mock sqlmock.Sqlmock) {
 				mock.ExpectQuery("SELECT EXISTS").
 					WithArgs(testID.String()).
@@ -472,7 +472,7 @@ func TestStatementRepository_HasReversal(t *testing.T) {
 			want: true,
 		},
 		{
-			name: "erro de banco",
+			name: "given db failure when querying then returns error",
 			setupMock: func(mock sqlmock.Sqlmock) {
 				mock.ExpectQuery("SELECT EXISTS").
 					WithArgs(testID.String()).

@@ -44,7 +44,7 @@ func TestCreateUseCase_Execute(t *testing.T) {
 		skipRepoCall    bool
 	}{
 		{
-			name: "sucesso credit",
+			name: "given active account when credit then creates statement",
 			input: dto.CreateInput{
 				AccountID: accountID.String(), RequestingUserID: ownerID.String(),
 				Type: "credit", Amount: 5000, Description: "Salary",
@@ -53,7 +53,7 @@ func TestCreateUseCase_Execute(t *testing.T) {
 			wantOutput:    true,
 		},
 		{
-			name: "sucesso debit",
+			name: "given active account when debit then creates statement",
 			input: dto.CreateInput{
 				AccountID: accountID.String(), RequestingUserID: ownerID.String(),
 				Type: "debit", Amount: 2000, Description: "Purchase",
@@ -62,7 +62,7 @@ func TestCreateUseCase_Execute(t *testing.T) {
 			wantOutput:    true,
 		},
 		{
-			name: "account ID inválido",
+			name: "given invalid account ID when creating then returns invalid ID",
 			input: dto.CreateInput{
 				AccountID: "invalid", RequestingUserID: ownerID.String(),
 				Type: "credit", Amount: 1000,
@@ -72,7 +72,7 @@ func TestCreateUseCase_Execute(t *testing.T) {
 			skipRepoCall:    true,
 		},
 		{
-			name: "account não encontrada",
+			name: "given nonexistent account when creating then returns not found",
 			input: dto.CreateInput{
 				AccountID: accountID.String(), RequestingUserID: ownerID.String(),
 				Type: "credit", Amount: 1000,
@@ -82,7 +82,7 @@ func TestCreateUseCase_Execute(t *testing.T) {
 			skipRepoCall: true,
 		},
 		{
-			name: "não é dono da account",
+			name: "given other users account when creating then returns not found",
 			input: dto.CreateInput{
 				AccountID: accountID.String(), RequestingUserID: otherUserID.String(),
 				Type: "credit", Amount: 1000,
@@ -92,7 +92,7 @@ func TestCreateUseCase_Execute(t *testing.T) {
 			skipRepoCall:  true,
 		},
 		{
-			name: "account inativa",
+			name: "given inactive account when creating then returns not active",
 			input: dto.CreateInput{
 				AccountID: accountID.String(), RequestingUserID: ownerID.String(),
 				Type: "credit", Amount: 1000,
@@ -102,7 +102,7 @@ func TestCreateUseCase_Execute(t *testing.T) {
 			skipRepoCall:  true,
 		},
 		{
-			name: "tipo inválido",
+			name: "given invalid type when creating then returns invalid type",
 			input: dto.CreateInput{
 				AccountID: accountID.String(), RequestingUserID: ownerID.String(),
 				Type: "transfer", Amount: 1000,
@@ -112,7 +112,7 @@ func TestCreateUseCase_Execute(t *testing.T) {
 			skipRepoCall:  true,
 		},
 		{
-			name: "amount zero",
+			name: "given zero amount when creating then returns invalid amount",
 			input: dto.CreateInput{
 				AccountID: accountID.String(), RequestingUserID: ownerID.String(),
 				Type: "credit", Amount: 0,
@@ -122,7 +122,7 @@ func TestCreateUseCase_Execute(t *testing.T) {
 			skipRepoCall:  true,
 		},
 		{
-			name: "amount negativo",
+			name: "given negative amount when creating then returns invalid amount",
 			input: dto.CreateInput{
 				AccountID: accountID.String(), RequestingUserID: ownerID.String(),
 				Type: "credit", Amount: -100,
@@ -132,7 +132,7 @@ func TestCreateUseCase_Execute(t *testing.T) {
 			skipRepoCall:  true,
 		},
 		{
-			name: "erro do repositório",
+			name: "given repo failure when creating then returns error",
 			input: dto.CreateInput{
 				AccountID: accountID.String(), RequestingUserID: ownerID.String(),
 				Type: "debit", Amount: 5000, Description: "Payment",

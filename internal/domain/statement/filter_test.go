@@ -17,25 +17,25 @@ func TestListFilter_Normalize(t *testing.T) {
 		wantLimit int
 	}{
 		{
-			name:      "valores padrão para page e limit zero",
+			name:      "given zero page and limit when normalizing then applies defaults",
 			filter:    ListFilter{Page: 0, Limit: 0},
 			wantPage:  1,
 			wantLimit: 20,
 		},
 		{
-			name:      "valores negativos",
+			name:      "given negative values when normalizing then applies defaults",
 			filter:    ListFilter{Page: -1, Limit: -5},
 			wantPage:  1,
 			wantLimit: 20,
 		},
 		{
-			name:      "limit acima do máximo",
+			name:      "given limit above maximum when normalizing then caps at 100",
 			filter:    ListFilter{Page: 2, Limit: 200},
 			wantPage:  2,
 			wantLimit: 100,
 		},
 		{
-			name:      "valores válidos mantidos",
+			name:      "given valid values when normalizing then keeps them",
 			filter:    ListFilter{Page: 3, Limit: 50},
 			wantPage:  3,
 			wantLimit: 50,
@@ -58,9 +58,9 @@ func TestListFilter_Offset(t *testing.T) {
 		limit int
 		want  int
 	}{
-		{name: "primeira página", page: 1, limit: 20, want: 0},
-		{name: "segunda página", page: 2, limit: 20, want: 20},
-		{name: "terceira página com limit 10", page: 3, limit: 10, want: 20},
+		{name: "given page 1 when calculating offset then returns 0", page: 1, limit: 20, want: 0},
+		{name: "given page 2 when calculating offset then returns 20", page: 2, limit: 20, want: 20},
+		{name: "given page 3 limit 10 when calculating offset then returns 20", page: 3, limit: 10, want: 20},
 	}
 
 	for _, tt := range tests {

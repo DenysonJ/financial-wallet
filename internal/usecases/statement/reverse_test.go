@@ -63,7 +63,7 @@ func TestReverseUseCase_Execute(t *testing.T) {
 		skipCreateCall    bool
 	}{
 		{
-			name: "sucesso - reversal de credit gera debit",
+			name: "given unreversed credit when reversing then creates debit",
 			input: dto.ReverseInput{
 				StatementID: statementID.String(), AccountID: accountID.String(),
 				RequestingUserID: ownerID.String(), Description: "Reversal",
@@ -74,7 +74,7 @@ func TestReverseUseCase_Execute(t *testing.T) {
 			wantOutput:    true,
 		},
 		{
-			name: "statement ID inválido",
+			name: "given invalid statement ID when reversing then returns invalid ID",
 			input: dto.ReverseInput{
 				StatementID: "invalid", AccountID: accountID.String(),
 				RequestingUserID: ownerID.String(),
@@ -86,7 +86,7 @@ func TestReverseUseCase_Execute(t *testing.T) {
 			skipCreateCall:    true,
 		},
 		{
-			name: "account ID inválido",
+			name: "given invalid account ID when reversing then returns invalid ID",
 			input: dto.ReverseInput{
 				StatementID: statementID.String(), AccountID: "invalid",
 				RequestingUserID: ownerID.String(),
@@ -98,7 +98,7 @@ func TestReverseUseCase_Execute(t *testing.T) {
 			skipCreateCall:    true,
 		},
 		{
-			name: "account não encontrada",
+			name: "given nonexistent account when reversing then returns not found",
 			input: dto.ReverseInput{
 				StatementID: statementID.String(), AccountID: accountID.String(),
 				RequestingUserID: ownerID.String(),
@@ -110,7 +110,7 @@ func TestReverseUseCase_Execute(t *testing.T) {
 			skipCreateCall:    true,
 		},
 		{
-			name: "não é dono da account",
+			name: "given other users account when reversing then returns not found",
 			input: dto.ReverseInput{
 				StatementID: statementID.String(), AccountID: accountID.String(),
 				RequestingUserID: otherUserID.String(),
@@ -122,7 +122,7 @@ func TestReverseUseCase_Execute(t *testing.T) {
 			skipCreateCall:    true,
 		},
 		{
-			name: "account inativa",
+			name: "given inactive account when reversing then returns not active",
 			input: dto.ReverseInput{
 				StatementID: statementID.String(), AccountID: accountID.String(),
 				RequestingUserID: ownerID.String(),
@@ -134,7 +134,7 @@ func TestReverseUseCase_Execute(t *testing.T) {
 			skipCreateCall:    true,
 		},
 		{
-			name: "statement não encontrado",
+			name: "given nonexistent statement when reversing then returns not found",
 			input: dto.ReverseInput{
 				StatementID: statementID.String(), AccountID: accountID.String(),
 				RequestingUserID: ownerID.String(),
@@ -146,7 +146,7 @@ func TestReverseUseCase_Execute(t *testing.T) {
 			skipCreateCall:    true,
 		},
 		{
-			name: "statement pertence a outra account",
+			name: "given statement from another account when reversing then returns not found",
 			input: dto.ReverseInput{
 				StatementID: statementID.String(), AccountID: accountID.String(),
 				RequestingUserID: ownerID.String(),
@@ -158,7 +158,7 @@ func TestReverseUseCase_Execute(t *testing.T) {
 			skipCreateCall:    true,
 		},
 		{
-			name: "já foi revertido",
+			name: "given already reversed statement when reversing then returns already reversed",
 			input: dto.ReverseInput{
 				StatementID: statementID.String(), AccountID: accountID.String(),
 				RequestingUserID: ownerID.String(),
@@ -170,7 +170,7 @@ func TestReverseUseCase_Execute(t *testing.T) {
 			skipCreateCall: true,
 		},
 		{
-			name: "erro no repositório ao criar",
+			name: "given repo failure when reversing then returns error",
 			input: dto.ReverseInput{
 				StatementID: statementID.String(), AccountID: accountID.String(),
 				RequestingUserID: ownerID.String(),

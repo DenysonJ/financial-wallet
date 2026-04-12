@@ -53,7 +53,7 @@ func TestGetUseCase_Execute(t *testing.T) {
 		skipAccountCall bool
 	}{
 		{
-			name: "sucesso com ownership check",
+			name: "given owned account when getting then returns statement",
 			input: dto.GetInput{
 				ID: statementID.String(), AccountID: accountID.String(),
 				RequestingUserID: ownerID.String(),
@@ -63,7 +63,7 @@ func TestGetUseCase_Execute(t *testing.T) {
 			wantOutput:    true,
 		},
 		{
-			name: "sucesso sem ownership check (admin)",
+			name: "given admin request when getting then skips ownership check",
 			input: dto.GetInput{
 				ID: statementID.String(), AccountID: accountID.String(),
 			},
@@ -72,7 +72,7 @@ func TestGetUseCase_Execute(t *testing.T) {
 			wantOutput:    true,
 		},
 		{
-			name: "statement ID inválido",
+			name: "given invalid statement ID when getting then returns invalid ID",
 			input: dto.GetInput{
 				ID: "invalid", AccountID: accountID.String(),
 				RequestingUserID: ownerID.String(),
@@ -82,7 +82,7 @@ func TestGetUseCase_Execute(t *testing.T) {
 			skipAccountCall: true,
 		},
 		{
-			name: "account ID inválido",
+			name: "given invalid account ID when getting then returns invalid ID",
 			input: dto.GetInput{
 				ID: statementID.String(), AccountID: "invalid",
 				RequestingUserID: ownerID.String(),
@@ -92,54 +92,54 @@ func TestGetUseCase_Execute(t *testing.T) {
 			skipAccountCall: true,
 		},
 		{
-			name: "statement não encontrado",
+			name: "given nonexistent account when getting then returns not found",
 			input: dto.GetInput{
 				ID: statementID.String(), AccountID: accountID.String(),
 				RequestingUserID: ownerID.String(),
 			},
-			findErr:         stmtdomain.ErrStatementNotFound,
-			wantErr:         stmtdomain.ErrStatementNotFound,
-			skipAccountCall: true,
+			accountErr:   accountdomain.ErrAccountNotFound,
+			wantErr:      accountdomain.ErrAccountNotFound,
+			skipFindCall: true,
 		},
 		{
-			name: "statement pertence a outra account",
-			input: dto.GetInput{
-				ID: statementID.String(), AccountID: accountID.String(),
-				RequestingUserID: ownerID.String(),
-			},
-			findResult:      statementOtherAccount,
-			wantErr:         stmtdomain.ErrStatementNotFound,
-			skipAccountCall: true,
-		},
-		{
-			name: "não é dono da account",
+			name: "given other users account when getting then returns not found",
 			input: dto.GetInput{
 				ID: statementID.String(), AccountID: accountID.String(),
 				RequestingUserID: otherUserID.String(),
 			},
-			findResult:    validStatement,
 			accountResult: activeAccount,
+			wantErr:       stmtdomain.ErrStatementNotFound,
+			skipFindCall:  true,
+		},
+		{
+			name: "given nonexistent statement when getting then returns not found",
+			input: dto.GetInput{
+				ID: statementID.String(), AccountID: accountID.String(),
+				RequestingUserID: ownerID.String(),
+			},
+			accountResult: activeAccount,
+			findErr:       stmtdomain.ErrStatementNotFound,
 			wantErr:       stmtdomain.ErrStatementNotFound,
 		},
 		{
-			name: "account não encontrada",
+			name: "given statement from another account when getting then returns not found",
 			input: dto.GetInput{
 				ID: statementID.String(), AccountID: accountID.String(),
 				RequestingUserID: ownerID.String(),
 			},
-			findResult: validStatement,
-			accountErr: accountdomain.ErrAccountNotFound,
-			wantErr:    accountdomain.ErrAccountNotFound,
+			accountResult: activeAccount,
+			findResult:    statementOtherAccount,
+			wantErr:       stmtdomain.ErrStatementNotFound,
 		},
 		{
-			name: "erro do repositório",
+			name: "given repo failure when getting then returns error",
 			input: dto.GetInput{
 				ID: statementID.String(), AccountID: accountID.String(),
 				RequestingUserID: ownerID.String(),
 			},
-			findErr:         errors.New("db error"),
-			wantErrMsg:      "db error",
-			skipAccountCall: true,
+			accountResult: activeAccount,
+			findErr:       errors.New("db error"),
+			wantErrMsg:    "db error",
 		},
 	}
 

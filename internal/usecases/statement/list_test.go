@@ -59,7 +59,7 @@ func TestListUseCase_Execute(t *testing.T) {
 		skipListCall    bool
 	}{
 		{
-			name: "sucesso com resultados",
+			name: "given valid account when listing then returns statements",
 			input: dto.ListInput{
 				AccountID: accountID.String(), RequestingUserID: ownerID.String(),
 				Page: 1, Limit: 20,
@@ -70,7 +70,7 @@ func TestListUseCase_Execute(t *testing.T) {
 			wantCount:     1,
 		},
 		{
-			name: "sucesso sem resultados",
+			name: "given account with no statements when listing then returns empty",
 			input: dto.ListInput{
 				AccountID: accountID.String(), RequestingUserID: ownerID.String(),
 			},
@@ -80,7 +80,7 @@ func TestListUseCase_Execute(t *testing.T) {
 			wantCount:     0,
 		},
 		{
-			name: "sucesso com filtro de tipo",
+			name: "given type filter when listing then returns filtered results",
 			input: dto.ListInput{
 				AccountID: accountID.String(), RequestingUserID: ownerID.String(),
 				Type: "credit",
@@ -91,7 +91,7 @@ func TestListUseCase_Execute(t *testing.T) {
 			wantCount:     1,
 		},
 		{
-			name: "sucesso com filtro de datas",
+			name: "given date range filter when listing then returns filtered results",
 			input: dto.ListInput{
 				AccountID: accountID.String(), RequestingUserID: ownerID.String(),
 				DateFrom: "2026-01-01T00:00:00Z", DateTo: "2026-12-31T23:59:59Z",
@@ -102,7 +102,7 @@ func TestListUseCase_Execute(t *testing.T) {
 			wantCount:     1,
 		},
 		{
-			name: "account ID inválido",
+			name: "given invalid account ID when listing then returns invalid ID",
 			input: dto.ListInput{
 				AccountID: "invalid", RequestingUserID: ownerID.String(),
 			},
@@ -111,7 +111,7 @@ func TestListUseCase_Execute(t *testing.T) {
 			skipListCall:    true,
 		},
 		{
-			name: "account não encontrada",
+			name: "given nonexistent account when listing then returns not found",
 			input: dto.ListInput{
 				AccountID: accountID.String(), RequestingUserID: ownerID.String(),
 			},
@@ -120,7 +120,7 @@ func TestListUseCase_Execute(t *testing.T) {
 			skipListCall: true,
 		},
 		{
-			name: "não é dono da account",
+			name: "given other users account when listing then returns not found",
 			input: dto.ListInput{
 				AccountID: accountID.String(), RequestingUserID: otherUserID.String(),
 			},
@@ -129,7 +129,7 @@ func TestListUseCase_Execute(t *testing.T) {
 			skipListCall:  true,
 		},
 		{
-			name: "tipo de filtro inválido",
+			name: "given invalid type filter when listing then returns invalid type",
 			input: dto.ListInput{
 				AccountID: accountID.String(), RequestingUserID: ownerID.String(),
 				Type: "transfer",
@@ -139,7 +139,7 @@ func TestListUseCase_Execute(t *testing.T) {
 			skipListCall:  true,
 		},
 		{
-			name: "date_from inválido",
+			name: "given invalid date_from when listing then returns parse error",
 			input: dto.ListInput{
 				AccountID: accountID.String(), RequestingUserID: ownerID.String(),
 				DateFrom: "not-a-date",
@@ -149,7 +149,7 @@ func TestListUseCase_Execute(t *testing.T) {
 			skipListCall:  true,
 		},
 		{
-			name: "date_to inválido",
+			name: "given invalid date_to when listing then returns parse error",
 			input: dto.ListInput{
 				AccountID: accountID.String(), RequestingUserID: ownerID.String(),
 				DateTo: "not-a-date",
@@ -159,7 +159,7 @@ func TestListUseCase_Execute(t *testing.T) {
 			skipListCall:  true,
 		},
 		{
-			name: "erro do repositório",
+			name: "given repo failure when listing then returns error",
 			input: dto.ListInput{
 				AccountID: accountID.String(), RequestingUserID: ownerID.String(),
 			},

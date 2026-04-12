@@ -14,12 +14,12 @@ func TestNewStatementType(t *testing.T) {
 		want    StatementType
 		wantErr error
 	}{
-		{name: "credit válido", input: "credit", want: TypeCredit},
-		{name: "debit válido", input: "debit", want: TypeDebit},
-		{name: "string vazia", input: "", wantErr: ErrInvalidStatementType},
-		{name: "tipo desconhecido", input: "transfer", wantErr: ErrInvalidStatementType},
-		{name: "uppercase", input: "CREDIT", wantErr: ErrInvalidStatementType},
-		{name: "com espaço", input: " debit", wantErr: ErrInvalidStatementType},
+		{name: "given credit when creating then succeeds", input: "credit", want: TypeCredit},
+		{name: "given debit when creating then succeeds", input: "debit", want: TypeDebit},
+		{name: "given empty string when creating then returns error", input: "", wantErr: ErrInvalidStatementType},
+		{name: "given unknown type when creating then returns error", input: "transfer", wantErr: ErrInvalidStatementType},
+		{name: "given uppercase when creating then returns error", input: "CREDIT", wantErr: ErrInvalidStatementType},
+		{name: "given leading space when creating then returns error", input: " debit", wantErr: ErrInvalidStatementType},
 	}
 
 	for _, tt := range tests {
@@ -43,9 +43,9 @@ func TestParseStatementType(t *testing.T) {
 		input string
 		want  StatementType
 	}{
-		{name: "tipo válido", input: "credit", want: TypeCredit},
-		{name: "tipo inválido aceito sem validação", input: "unknown", want: StatementType("unknown")},
-		{name: "string vazia", input: "", want: StatementType("")},
+		{name: "given valid type when parsing then returns type", input: "credit", want: TypeCredit},
+		{name: "given invalid type when parsing then accepts without validation", input: "unknown", want: StatementType("unknown")},
+		{name: "given empty string when parsing then accepts without validation", input: "", want: StatementType("")},
 	}
 
 	for _, tt := range tests {
@@ -117,11 +117,11 @@ func TestStatementType_Scan(t *testing.T) {
 		wantErr bool
 		errMsg  string
 	}{
-		{name: "string válida", input: "credit", want: TypeCredit},
-		{name: "[]byte válido", input: []byte("debit"), want: TypeDebit},
-		{name: "nil retorna erro", input: nil, wantErr: true, errMsg: "statement type cannot be nil"},
-		{name: "tipo inválido (int)", input: 123, wantErr: true, errMsg: "invalid type for StatementType"},
-		{name: "tipo inválido (bool)", input: true, wantErr: true, errMsg: "invalid type for StatementType"},
+		{name: "given string when scanning then succeeds", input: "credit", want: TypeCredit},
+		{name: "given []byte when scanning then succeeds", input: []byte("debit"), want: TypeDebit},
+		{name: "given nil when scanning then returns error", input: nil, wantErr: true, errMsg: "statement type cannot be nil"},
+		{name: "given int when scanning then returns error", input: 123, wantErr: true, errMsg: "invalid type for StatementType"},
+		{name: "given bool when scanning then returns error", input: true, wantErr: true, errMsg: "invalid type for StatementType"},
 	}
 
 	for _, tt := range tests {
