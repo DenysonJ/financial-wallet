@@ -47,6 +47,20 @@ func (uc *GetUseCase) Execute(ctx context.Context, input dto.GetInput) (*dto.Sta
 		return nil, accountParseErr
 	}
 
+	// Find account and verify ownership
+	account, findAccountErr := uc.accountRepo.FindByID(ctx, accountID)
+	if findAccountErr != nil {
+		span.SetStatus(otelcodes.Error, findAccountErr.Error())
+		logutil.LogWarn(ctx, "statement get failed: account not found", "error", findAccountErr.Error())
+		return nil, findAccountErr
+	}
+
+	if input.RequestingUserID != "" && account.UserID.String() != input.RequestingUserID {
+		span.SetStatus(otelcodes.Error, "forbidden")
+		logutil.LogWarn(ctx, "statement get forbidden: not owner", "account.id", accountID.String())
+		return nil, stmtdomain.ErrStatementNotFound
+	}
+
 	span.SetAttributes(
 		attribute.String("statement.id", input.ID),
 		attribute.String("account.id", input.AccountID),
@@ -64,20 +78,6 @@ func (uc *GetUseCase) Execute(ctx context.Context, input dto.GetInput) (*dto.Sta
 	if stmt.AccountID != accountID {
 		span.SetStatus(otelcodes.Error, "statement not in account")
 		logutil.LogWarn(ctx, "statement get failed: statement not in account")
-		return nil, stmtdomain.ErrStatementNotFound
-	}
-
-	// Find account and verify ownership
-	account, findAccountErr := uc.accountRepo.FindByID(ctx, accountID)
-	if findAccountErr != nil {
-		span.SetStatus(otelcodes.Error, findAccountErr.Error())
-		logutil.LogWarn(ctx, "statement get failed: account not found", "error", findAccountErr.Error())
-		return nil, findAccountErr
-	}
-
-	if input.RequestingUserID != "" && account.UserID.String() != input.RequestingUserID {
-		span.SetStatus(otelcodes.Error, "forbidden")
-		logutil.LogWarn(ctx, "statement get forbidden: not owner", "account.id", accountID.String())
 		return nil, stmtdomain.ErrStatementNotFound
 	}
 
