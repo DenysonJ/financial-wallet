@@ -30,7 +30,7 @@ func (uc *ReverseUseCase) Execute(ctx context.Context, input dto.ReverseInput) (
 	ctx, span := otel.Tracer(TracerKey).Start(ctx, "UseCase.Statement.Reverse")
 	defer span.End()
 
-	ctx = injectLogContext(ctx, "reverse")
+	ctx = injectLogContext(ctx, ActionReverse)
 
 	// Validate IDs
 	statementID, parseErr := pkgvo.ParseID(input.StatementID)
