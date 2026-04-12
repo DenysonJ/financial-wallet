@@ -500,225 +500,6 @@ paths:
       summary: Create a new account
       tags:
       - accounts
-  /accounts/{account_id}/statements:
-    get:
-      description: Get a paginated list of statements for an account, with optional
-        filters
-      parameters:
-      - description: Account ID
-        in: path
-        name: account_id
-        required: true
-        type: string
-      - description: Filter by type (credit/debit)
-        in: query
-        name: type
-        type: string
-      - description: Filter from date (RFC3339)
-        in: query
-        name: date_from
-        type: string
-      - description: Filter to date (RFC3339)
-        in: query
-        name: date_to
-        type: string
-      - description: Page number
-        in: query
-        name: page
-        type: integer
-      - description: Items per page
-        in: query
-        name: limit
-        type: integer
-      produces:
-      - application/json
-      responses:
-        "200":
-          description: OK
-          schema:
-            $ref: '#/definitions/github_com_DenysonJ_financial-wallet_internal_usecases_statement_dto.ListOutput'
-        "400":
-          description: Bad Request
-          schema:
-            $ref: '#/definitions/internal_infrastructure_web_handler.ErrorResponse'
-        "401":
-          description: Unauthorized
-          schema:
-            $ref: '#/definitions/internal_infrastructure_web_handler.ErrorResponse'
-        "404":
-          description: Not Found
-          schema:
-            $ref: '#/definitions/internal_infrastructure_web_handler.ErrorResponse'
-        "429":
-          description: Too Many Requests
-          schema:
-            $ref: '#/definitions/internal_infrastructure_web_handler.ErrorResponse'
-        "500":
-          description: Internal Server Error
-          schema:
-            $ref: '#/definitions/internal_infrastructure_web_handler.ErrorResponse'
-      security:
-      - ServiceName: []
-      - ServiceKey: []
-      summary: List statements by account
-      tags:
-      - statements
-    post:
-      consumes:
-      - application/json
-      description: Create a credit or debit statement for an account. Atomically updates
-        the account balance.
-      parameters:
-      - description: Account ID
-        in: path
-        name: account_id
-        required: true
-        type: string
-      - description: 'Statement info (type: credit/debit, amount in cents)'
-        in: body
-        name: request
-        required: true
-        schema:
-          $ref: '#/definitions/github_com_DenysonJ_financial-wallet_internal_usecases_statement_dto.CreateInput'
-      produces:
-      - application/json
-      responses:
-        "201":
-          description: Created
-          schema:
-            $ref: '#/definitions/github_com_DenysonJ_financial-wallet_internal_usecases_statement_dto.StatementOutput'
-        "400":
-          description: Bad Request
-          schema:
-            $ref: '#/definitions/internal_infrastructure_web_handler.ErrorResponse'
-        "401":
-          description: Unauthorized
-          schema:
-            $ref: '#/definitions/internal_infrastructure_web_handler.ErrorResponse'
-        "404":
-          description: Not Found
-          schema:
-            $ref: '#/definitions/internal_infrastructure_web_handler.ErrorResponse'
-        "409":
-          description: Conflict
-          schema:
-            $ref: '#/definitions/internal_infrastructure_web_handler.ErrorResponse'
-        "422":
-          description: Unprocessable Entity
-          schema:
-            $ref: '#/definitions/internal_infrastructure_web_handler.ErrorResponse'
-        "429":
-          description: Too Many Requests
-          schema:
-            $ref: '#/definitions/internal_infrastructure_web_handler.ErrorResponse'
-        "500":
-          description: Internal Server Error
-          schema:
-            $ref: '#/definitions/internal_infrastructure_web_handler.ErrorResponse'
-      security:
-      - ServiceName: []
-      - ServiceKey: []
-      summary: Create a new statement
-      tags:
-      - statements
-  /accounts/{account_id}/statements/{id}:
-    get:
-      description: Get statement details by its unique ID within an account
-      parameters:
-      - description: Account ID
-        in: path
-        name: account_id
-        required: true
-        type: string
-      - description: Statement ID
-        in: path
-        name: id
-        required: true
-        type: string
-      produces:
-      - application/json
-      responses:
-        "200":
-          description: OK
-          schema:
-            $ref: '#/definitions/github_com_DenysonJ_financial-wallet_internal_usecases_statement_dto.StatementOutput'
-        "404":
-          description: Not Found
-          schema:
-            $ref: '#/definitions/internal_infrastructure_web_handler.ErrorResponse'
-        "429":
-          description: Too Many Requests
-          schema:
-            $ref: '#/definitions/internal_infrastructure_web_handler.ErrorResponse'
-        "500":
-          description: Internal Server Error
-          schema:
-            $ref: '#/definitions/internal_infrastructure_web_handler.ErrorResponse'
-      security:
-      - ServiceName: []
-      - ServiceKey: []
-      summary: Get a statement by ID
-      tags:
-      - statements
-  /accounts/{account_id}/statements/{id}/reverse:
-    post:
-      consumes:
-      - application/json
-      description: Create a reversal statement with opposite type. A statement can
-        only be reversed once.
-      parameters:
-      - description: Account ID
-        in: path
-        name: account_id
-        required: true
-        type: string
-      - description: Statement ID to reverse
-        in: path
-        name: id
-        required: true
-        type: string
-      - description: Optional reversal description
-        in: body
-        name: request
-        schema:
-          $ref: '#/definitions/github_com_DenysonJ_financial-wallet_internal_usecases_statement_dto.ReverseInput'
-      produces:
-      - application/json
-      responses:
-        "201":
-          description: Created
-          schema:
-            $ref: '#/definitions/github_com_DenysonJ_financial-wallet_internal_usecases_statement_dto.StatementOutput'
-        "400":
-          description: Bad Request
-          schema:
-            $ref: '#/definitions/internal_infrastructure_web_handler.ErrorResponse'
-        "401":
-          description: Unauthorized
-          schema:
-            $ref: '#/definitions/internal_infrastructure_web_handler.ErrorResponse'
-        "404":
-          description: Not Found
-          schema:
-            $ref: '#/definitions/internal_infrastructure_web_handler.ErrorResponse'
-        "409":
-          description: Conflict
-          schema:
-            $ref: '#/definitions/internal_infrastructure_web_handler.ErrorResponse'
-        "429":
-          description: Too Many Requests
-          schema:
-            $ref: '#/definitions/internal_infrastructure_web_handler.ErrorResponse'
-        "500":
-          description: Internal Server Error
-          schema:
-            $ref: '#/definitions/internal_infrastructure_web_handler.ErrorResponse'
-      security:
-      - ServiceName: []
-      - ServiceKey: []
-      summary: Reverse a statement
-      tags:
-      - statements
   /accounts/{id}:
     delete:
       description: Soft delete an account by ID
@@ -829,6 +610,225 @@ paths:
       summary: Update an account
       tags:
       - accounts
+  /accounts/{id}/statements:
+    get:
+      description: Get a paginated list of statements for an account, with optional
+        filters
+      parameters:
+      - description: Account ID
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: Filter by type (credit/debit)
+        in: query
+        name: type
+        type: string
+      - description: Filter from date (RFC3339)
+        in: query
+        name: date_from
+        type: string
+      - description: Filter to date (RFC3339)
+        in: query
+        name: date_to
+        type: string
+      - description: Page number
+        in: query
+        name: page
+        type: integer
+      - description: Items per page
+        in: query
+        name: limit
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/github_com_DenysonJ_financial-wallet_internal_usecases_statement_dto.ListOutput'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/internal_infrastructure_web_handler.ErrorResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/internal_infrastructure_web_handler.ErrorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/internal_infrastructure_web_handler.ErrorResponse'
+        "429":
+          description: Too Many Requests
+          schema:
+            $ref: '#/definitions/internal_infrastructure_web_handler.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/internal_infrastructure_web_handler.ErrorResponse'
+      security:
+      - ServiceName: []
+      - ServiceKey: []
+      summary: List statements by account
+      tags:
+      - statements
+    post:
+      consumes:
+      - application/json
+      description: Create a credit or debit statement for an account. Atomically updates
+        the account balance.
+      parameters:
+      - description: Account ID
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: 'Statement info (type: credit/debit, amount in cents)'
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/github_com_DenysonJ_financial-wallet_internal_usecases_statement_dto.CreateInput'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            $ref: '#/definitions/github_com_DenysonJ_financial-wallet_internal_usecases_statement_dto.StatementOutput'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/internal_infrastructure_web_handler.ErrorResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/internal_infrastructure_web_handler.ErrorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/internal_infrastructure_web_handler.ErrorResponse'
+        "409":
+          description: Conflict
+          schema:
+            $ref: '#/definitions/internal_infrastructure_web_handler.ErrorResponse'
+        "422":
+          description: Unprocessable Entity
+          schema:
+            $ref: '#/definitions/internal_infrastructure_web_handler.ErrorResponse'
+        "429":
+          description: Too Many Requests
+          schema:
+            $ref: '#/definitions/internal_infrastructure_web_handler.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/internal_infrastructure_web_handler.ErrorResponse'
+      security:
+      - ServiceName: []
+      - ServiceKey: []
+      summary: Create a new statement
+      tags:
+      - statements
+  /accounts/{id}/statements/{statement_id}:
+    get:
+      description: Get statement details by its unique ID within an account
+      parameters:
+      - description: Account ID
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: Statement ID
+        in: path
+        name: statement_id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/github_com_DenysonJ_financial-wallet_internal_usecases_statement_dto.StatementOutput'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/internal_infrastructure_web_handler.ErrorResponse'
+        "429":
+          description: Too Many Requests
+          schema:
+            $ref: '#/definitions/internal_infrastructure_web_handler.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/internal_infrastructure_web_handler.ErrorResponse'
+      security:
+      - ServiceName: []
+      - ServiceKey: []
+      summary: Get a statement by ID
+      tags:
+      - statements
+  /accounts/{id}/statements/{statement_id}/reverse:
+    post:
+      consumes:
+      - application/json
+      description: Create a reversal statement with opposite type. A statement can
+        only be reversed once.
+      parameters:
+      - description: Account ID
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: Statement ID to reverse
+        in: path
+        name: statement_id
+        required: true
+        type: string
+      - description: Optional reversal description
+        in: body
+        name: request
+        schema:
+          $ref: '#/definitions/github_com_DenysonJ_financial-wallet_internal_usecases_statement_dto.ReverseInput'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            $ref: '#/definitions/github_com_DenysonJ_financial-wallet_internal_usecases_statement_dto.StatementOutput'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/internal_infrastructure_web_handler.ErrorResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/internal_infrastructure_web_handler.ErrorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/internal_infrastructure_web_handler.ErrorResponse'
+        "409":
+          description: Conflict
+          schema:
+            $ref: '#/definitions/internal_infrastructure_web_handler.ErrorResponse'
+        "429":
+          description: Too Many Requests
+          schema:
+            $ref: '#/definitions/internal_infrastructure_web_handler.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/internal_infrastructure_web_handler.ErrorResponse'
+      security:
+      - ServiceName: []
+      - ServiceKey: []
+      summary: Reverse a statement
+      tags:
+      - statements
   /auth/login:
     post:
       consumes:
