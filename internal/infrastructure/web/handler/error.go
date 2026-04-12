@@ -76,7 +76,6 @@ var domainErrors = []struct {
 	{stmtdomain.ErrStatementNotFound, domainErrorMapping{http.StatusNotFound, apperror.CodeNotFound, "statement not found"}},
 	{stmtdomain.ErrAlreadyReversed, domainErrorMapping{http.StatusConflict, apperror.CodeConflict, "statement already reversed"}},
 	{stmtdomain.ErrAccountNotActive, domainErrorMapping{http.StatusUnprocessableEntity, apperror.CodeValidationError, "account is not active"}},
-	{stmtdomain.ErrInvalidReversal, domainErrorMapping{http.StatusBadRequest, apperror.CodeInvalidRequest, "invalid reversal"}},
 }
 
 // HandleError handles errors in a centralized and consistent way.
