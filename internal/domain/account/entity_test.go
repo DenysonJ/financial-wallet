@@ -58,6 +58,15 @@ func TestAccount_UpdateDescription(t *testing.T) {
 	assert.GreaterOrEqual(t, a.UpdatedAt.UnixNano(), oldUpdatedAt.UnixNano())
 }
 
+func TestNewAccount_BalanceInitializedToZero(t *testing.T) {
+	userID := uservo.NewID()
+	accType, _ := vo.NewAccountType("bank_account")
+
+	a := NewAccount(userID, "Nubank", accType, "")
+
+	assert.Equal(t, int64(0), a.Balance)
+}
+
 func TestAccountType_Valid(t *testing.T) {
 	tests := []struct {
 		name  string

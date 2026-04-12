@@ -333,6 +333,345 @@ const docTemplate = `{
                 }
             }
         },
+        "/accounts/{id}/statements": {
+            "get": {
+                "security": [
+                    {
+                        "ServiceName": []
+                    },
+                    {
+                        "ServiceKey": []
+                    }
+                ],
+                "description": "Get a paginated list of statements for an account, with optional filters",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "statements"
+                ],
+                "summary": "List statements by account",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Account ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "Filter by type (credit/debit)",
+                        "name": "type",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Filter from date (RFC3339)",
+                        "name": "date_from",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Filter to date (RFC3339)",
+                        "name": "date_to",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "description": "Page number",
+                        "name": "page",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "description": "Items per page",
+                        "name": "limit",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_DenysonJ_financial-wallet_internal_usecases_statement_dto.ListOutput"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/internal_infrastructure_web_handler.ErrorResponse"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/internal_infrastructure_web_handler.ErrorResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/internal_infrastructure_web_handler.ErrorResponse"
+                        }
+                    },
+                    "429": {
+                        "description": "Too Many Requests",
+                        "schema": {
+                            "$ref": "#/definitions/internal_infrastructure_web_handler.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/internal_infrastructure_web_handler.ErrorResponse"
+                        }
+                    }
+                }
+            },
+            "post": {
+                "security": [
+                    {
+                        "ServiceName": []
+                    },
+                    {
+                        "ServiceKey": []
+                    }
+                ],
+                "description": "Create a credit or debit statement for an account. Atomically updates the account balance.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "statements"
+                ],
+                "summary": "Create a new statement",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Account ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "Statement info (type: credit/debit, amount in cents)",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/github_com_DenysonJ_financial-wallet_internal_usecases_statement_dto.CreateInput"
+                        }
+                    }
+                ],
+                "responses": {
+                    "201": {
+                        "description": "Created",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_DenysonJ_financial-wallet_internal_usecases_statement_dto.StatementOutput"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/internal_infrastructure_web_handler.ErrorResponse"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/internal_infrastructure_web_handler.ErrorResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/internal_infrastructure_web_handler.ErrorResponse"
+                        }
+                    },
+                    "409": {
+                        "description": "Conflict",
+                        "schema": {
+                            "$ref": "#/definitions/internal_infrastructure_web_handler.ErrorResponse"
+                        }
+                    },
+                    "422": {
+                        "description": "Unprocessable Entity",
+                        "schema": {
+                            "$ref": "#/definitions/internal_infrastructure_web_handler.ErrorResponse"
+                        }
+                    },
+                    "429": {
+                        "description": "Too Many Requests",
+                        "schema": {
+                            "$ref": "#/definitions/internal_infrastructure_web_handler.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/internal_infrastructure_web_handler.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/accounts/{id}/statements/{statement_id}": {
+            "get": {
+                "security": [
+                    {
+                        "ServiceName": []
+                    },
+                    {
+                        "ServiceKey": []
+                    }
+                ],
+                "description": "Get statement details by its unique ID within an account",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "statements"
+                ],
+                "summary": "Get a statement by ID",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Account ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "Statement ID",
+                        "name": "statement_id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_DenysonJ_financial-wallet_internal_usecases_statement_dto.StatementOutput"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/internal_infrastructure_web_handler.ErrorResponse"
+                        }
+                    },
+                    "429": {
+                        "description": "Too Many Requests",
+                        "schema": {
+                            "$ref": "#/definitions/internal_infrastructure_web_handler.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/internal_infrastructure_web_handler.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/accounts/{id}/statements/{statement_id}/reverse": {
+            "post": {
+                "security": [
+                    {
+                        "ServiceName": []
+                    },
+                    {
+                        "ServiceKey": []
+                    }
+                ],
+                "description": "Create a reversal statement with opposite type. A statement can only be reversed once.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "statements"
+                ],
+                "summary": "Reverse a statement",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Account ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "Statement ID to reverse",
+                        "name": "statement_id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "Optional reversal description",
+                        "name": "request",
+                        "in": "body",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_DenysonJ_financial-wallet_internal_usecases_statement_dto.ReverseInput"
+                        }
+                    }
+                ],
+                "responses": {
+                    "201": {
+                        "description": "Created",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_DenysonJ_financial-wallet_internal_usecases_statement_dto.StatementOutput"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/internal_infrastructure_web_handler.ErrorResponse"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/internal_infrastructure_web_handler.ErrorResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/internal_infrastructure_web_handler.ErrorResponse"
+                        }
+                    },
+                    "409": {
+                        "description": "Conflict",
+                        "schema": {
+                            "$ref": "#/definitions/internal_infrastructure_web_handler.ErrorResponse"
+                        }
+                    },
+                    "429": {
+                        "description": "Too Many Requests",
+                        "schema": {
+                            "$ref": "#/definitions/internal_infrastructure_web_handler.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/internal_infrastructure_web_handler.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
         "/auth/login": {
             "post": {
                 "description": "Authenticate with email and password, returns JWT tokens",
@@ -1303,6 +1642,9 @@ const docTemplate = `{
                 "active": {
                     "type": "boolean"
                 },
+                "balance": {
+                    "type": "integer"
+                },
                 "created_at": {
                     "type": "string"
                 },
@@ -1567,6 +1909,102 @@ const docTemplate = `{
                     "type": "string"
                 },
                 "updated_at": {
+                    "type": "string"
+                }
+            }
+        },
+        "github_com_DenysonJ_financial-wallet_internal_usecases_statement_dto.CreateInput": {
+            "type": "object",
+            "required": [
+                "amount",
+                "type"
+            ],
+            "properties": {
+                "amount": {
+                    "description": "Amount in cents (positive)",
+                    "type": "integer"
+                },
+                "description": {
+                    "description": "Optional description",
+                    "type": "string",
+                    "maxLength": 1000
+                },
+                "type": {
+                    "description": "credit or debit",
+                    "type": "string",
+                    "enum": [
+                        "credit",
+                        "debit"
+                    ]
+                }
+            }
+        },
+        "github_com_DenysonJ_financial-wallet_internal_usecases_statement_dto.ListOutput": {
+            "type": "object",
+            "properties": {
+                "data": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/github_com_DenysonJ_financial-wallet_internal_usecases_statement_dto.StatementOutput"
+                    }
+                },
+                "pagination": {
+                    "$ref": "#/definitions/github_com_DenysonJ_financial-wallet_internal_usecases_statement_dto.PaginationOutput"
+                }
+            }
+        },
+        "github_com_DenysonJ_financial-wallet_internal_usecases_statement_dto.PaginationOutput": {
+            "type": "object",
+            "properties": {
+                "limit": {
+                    "type": "integer"
+                },
+                "page": {
+                    "type": "integer"
+                },
+                "total": {
+                    "type": "integer"
+                },
+                "total_pages": {
+                    "type": "integer"
+                }
+            }
+        },
+        "github_com_DenysonJ_financial-wallet_internal_usecases_statement_dto.ReverseInput": {
+            "type": "object",
+            "properties": {
+                "description": {
+                    "description": "Optional reversal description",
+                    "type": "string",
+                    "maxLength": 1000
+                }
+            }
+        },
+        "github_com_DenysonJ_financial-wallet_internal_usecases_statement_dto.StatementOutput": {
+            "type": "object",
+            "properties": {
+                "account_id": {
+                    "type": "string"
+                },
+                "amount": {
+                    "type": "integer"
+                },
+                "balance_after": {
+                    "type": "integer"
+                },
+                "created_at": {
+                    "type": "string"
+                },
+                "description": {
+                    "type": "string"
+                },
+                "id": {
+                    "type": "string"
+                },
+                "reference_id": {
+                    "type": "string"
+                },
+                "type": {
                     "type": "string"
                 }
             }

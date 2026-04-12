@@ -72,7 +72,7 @@ Coverage atual: ~89%. Use `make test-coverage` para verificar localmente.
 
 Novas funcionalidades devem incluir:
 
-- **Testes unitarios** para domain e usecases (hand-written mocks em `mock_test.go`)
+- **Testes unitarios** para domain e usecases (mocks gerados por mockery)
 - **Testes de repositorio** com go-sqlmock
 - **Testes de pkg/** com miniredis (cache, idempotency) ou sqlmock (database)
 - **Testes E2E** com TestContainers para mudancas criticas

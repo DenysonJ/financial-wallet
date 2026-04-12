@@ -15,6 +15,7 @@ type Account struct {
 	Name        string
 	Type        vo.AccountType
 	Description string
+	Balance     int64
 	Active      bool
 	CreatedAt   time.Time
 	UpdatedAt   time.Time

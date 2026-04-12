@@ -38,6 +38,7 @@ type Dependencies struct {
 	UserHandler      *handler.UserHandler
 	RoleHandler      *handler.RoleHandler
 	AccountHandler   *handler.AccountHandler
+	StatementHandler *handler.StatementHandler
 	AuthHandler      *handler.AuthHandler
 	PasswordHandler  *handler.PasswordHandler
 	JWTService       interfaces.TokenService
@@ -123,6 +124,13 @@ func Setup(deps Dependencies) *gin.Engine {
 		accountGroup := protected.Group("")
 		accountGroup.Use(middleware.JWTAuth(deps.JWTService))
 		RegisterAccountRoutes(accountGroup, deps.AccountHandler, deps.PermissionLoader)
+	}
+
+	// Statement routes: JWT authentication (nested under accounts)
+	if deps.StatementHandler != nil {
+		statementGroup := protected.Group("")
+		statementGroup.Use(middleware.JWTAuth(deps.JWTService))
+		RegisterStatementRoutes(statementGroup, deps.StatementHandler, deps.PermissionLoader)
 	}
 
 	// Role routes: Service Key + Admin JWT

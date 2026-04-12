@@ -22,6 +22,7 @@ import (
 	accountuc "github.com/DenysonJ/financial-wallet/internal/usecases/account"
 	authuc "github.com/DenysonJ/financial-wallet/internal/usecases/auth"
 	roleuc "github.com/DenysonJ/financial-wallet/internal/usecases/role"
+	stmtuc "github.com/DenysonJ/financial-wallet/internal/usecases/statement"
 	useruc "github.com/DenysonJ/financial-wallet/internal/usecases/user"
 	"github.com/DenysonJ/financial-wallet/pkg/cache"
 	"github.com/DenysonJ/financial-wallet/pkg/cache/redisclient"
@@ -260,6 +261,14 @@ func buildDependencies(cluster *database.DBCluster, sqlxWriter, sqlxReader *sqlx
 	accountDeleteUC := accountuc.NewDeleteUseCase(accountRepo)
 	accountHandler := handler.NewAccountHandler(accountCreateUC, accountGetUC, accountListUC, accountUpdateUC, accountDeleteUC)
 
+	// --- Statement Domain ---
+	stmtRepo := repository.NewStatementRepository(sqlxWriter, sqlxReader)
+	stmtCreateUC := stmtuc.NewCreateUseCase(stmtRepo, accountRepo)
+	stmtReverseUC := stmtuc.NewReverseUseCase(stmtRepo, accountRepo)
+	stmtGetUC := stmtuc.NewGetUseCase(stmtRepo, accountRepo)
+	stmtListUC := stmtuc.NewListUseCase(stmtRepo, accountRepo)
+	stmtHandler := handler.NewStatementHandler(stmtCreateUC, stmtReverseUC, stmtGetUC, stmtListUC)
+
 	// --- JWT Service ---
 	var jwtService *pkgjwt.Service
 	accessTTL, _ := time.ParseDuration(cfg.JWT.AccessTTL)
@@ -304,6 +313,7 @@ func buildDependencies(cluster *database.DBCluster, sqlxWriter, sqlxReader *sqlx
 		UserHandler:      userHandler,
 		RoleHandler:      roleHandler,
 		AccountHandler:   accountHandler,
+		StatementHandler: stmtHandler,
 		AuthHandler:      authHandler,
 		PasswordHandler:  passwordHandler,
 		JWTService:       tokenAdapter,

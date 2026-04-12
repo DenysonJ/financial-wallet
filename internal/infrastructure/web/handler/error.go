@@ -7,6 +7,8 @@ import (
 	accountdomain "github.com/DenysonJ/financial-wallet/internal/domain/account"
 	accountvo "github.com/DenysonJ/financial-wallet/internal/domain/account/vo"
 	roledomain "github.com/DenysonJ/financial-wallet/internal/domain/role"
+	stmtdomain "github.com/DenysonJ/financial-wallet/internal/domain/statement"
+	stmtvo "github.com/DenysonJ/financial-wallet/internal/domain/statement/vo"
 	userdomain "github.com/DenysonJ/financial-wallet/internal/domain/user"
 	uservo "github.com/DenysonJ/financial-wallet/internal/domain/user/vo"
 	"github.com/DenysonJ/financial-wallet/pkg/apperror"
@@ -68,6 +70,12 @@ var domainErrors = []struct {
 	// Account domain errors
 	{accountvo.ErrInvalidAccountType, domainErrorMapping{http.StatusBadRequest, apperror.CodeInvalidRequest, "invalid account type"}},
 	{accountdomain.ErrAccountNotFound, domainErrorMapping{http.StatusNotFound, apperror.CodeNotFound, "account not found"}},
+	// Statement domain errors
+	{stmtvo.ErrInvalidStatementType, domainErrorMapping{http.StatusBadRequest, apperror.CodeInvalidRequest, "invalid statement type"}},
+	{stmtvo.ErrInvalidAmount, domainErrorMapping{http.StatusBadRequest, apperror.CodeInvalidRequest, "amount must be greater than zero"}},
+	{stmtdomain.ErrStatementNotFound, domainErrorMapping{http.StatusNotFound, apperror.CodeNotFound, "statement not found"}},
+	{stmtdomain.ErrAlreadyReversed, domainErrorMapping{http.StatusConflict, apperror.CodeConflict, "statement already reversed"}},
+	{stmtdomain.ErrAccountNotActive, domainErrorMapping{http.StatusUnprocessableEntity, apperror.CodeValidationError, "account is not active"}},
 }
 
 // HandleError handles errors in a centralized and consistent way.

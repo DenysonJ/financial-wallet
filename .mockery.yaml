@@ -31,6 +31,13 @@ packages:
     interfaces:
       UserRepository:
       TokenService:
+  github.com/DenysonJ/financial-wallet/internal/usecases/statement/interfaces:
+    config:
+      dir: "internal/mocks/stmtuci"
+      outpkg: "stmtuci"
+    interfaces:
+      Repository:
+      AccountRepository:
   github.com/DenysonJ/financial-wallet/internal/infrastructure/web/middleware:
     config:
       dir: "internal/mocks/middlewaremock"
