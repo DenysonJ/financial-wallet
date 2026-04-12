@@ -78,20 +78,20 @@ func (uc *ListUseCase) Execute(ctx context.Context, input dto.ListInput) (*dto.L
 
 	// Parse optional date filters
 	if input.DateFrom != "" {
-		dateFrom, dateErr := time.Parse(time.RFC3339, input.DateFrom)
-		if dateErr != nil {
-			span.SetStatus(otelcodes.Error, dateErr.Error())
-			logutil.LogWarn(ctx, "statement list failed: invalid date_from", "error", dateErr.Error())
-			return nil, dateErr
+		dateFrom, dateFromErr := time.Parse(time.RFC3339, input.DateFrom)
+		if dateFromErr != nil {
+			span.SetStatus(otelcodes.Error, dateFromErr.Error())
+			logutil.LogWarn(ctx, "statement list failed: invalid date_from", "error", dateFromErr.Error())
+			return nil, dateFromErr
 		}
 		filter.DateFrom = &dateFrom
 	}
 	if input.DateTo != "" {
-		dateTo, dateErr := time.Parse(time.RFC3339, input.DateTo)
-		if dateErr != nil {
-			span.SetStatus(otelcodes.Error, dateErr.Error())
-			logutil.LogWarn(ctx, "statement list failed: invalid date_to", "error", dateErr.Error())
-			return nil, dateErr
+		dateTo, dateToErr := time.Parse(time.RFC3339, input.DateTo)
+		if dateToErr != nil {
+			span.SetStatus(otelcodes.Error, dateToErr.Error())
+			logutil.LogWarn(ctx, "statement list failed: invalid date_to", "error", dateToErr.Error())
+			return nil, dateToErr
 		}
 		filter.DateTo = &dateTo
 	}
