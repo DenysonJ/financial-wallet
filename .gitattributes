@@ -1,0 +1,4 @@
+# Force LF line endings for all text files in the repository.
+# This prevents CRLF issues on Windows where tools like goimports
+# preserve the working copy's line endings.
+* text=auto eol=lf
