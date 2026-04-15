@@ -342,13 +342,13 @@ A spec é agnóstica de arquitetura — funciona tanto com camadas separadas qua
 
 #### Hooks (qualidade automática)
 
-| Hook | Quando roda | O que faz |
-| ---- | ----------- | --------- |
-| `guard-bash.sh` | Antes de comandos bash | Bloqueia `.env` staging, `git add -A`, DROP, `--no-verify` |
-| `lint-go-file.sh` | Após editar arquivo Go | goimports + gopls diagnostics |
-| `validate-migration.sh` | Após editar migration | Garante seções Up + Down |
-| `ralph-loop.sh` | Ao finalizar tarefa | Controla iteração do Ralph Loop |
-| `stop-validate.sh` | Ao finalizar tarefa | Gate de qualidade: build + lint + testes |
+| Hook                    | Quando roda            | O que faz                                                  |
+|-------------------------|------------------------|------------------------------------------------------------|
+| `guard-bash.sh`         | Antes de comandos bash | Bloqueia `.env` staging, `git add -A`, DROP, `--no-verify` |
+| `lint-go-file.sh`       | Após editar arquivo Go | goimports + gopls diagnostics                              |
+| `validate-migration.sh` | Após editar migration  | Garante seções Up + Down                                   |
+| `ralph-loop.sh`         | Ao finalizar tarefa    | Controla iteração do Ralph Loop                            |
+| `stop-validate.sh`      | Ao finalizar tarefa    | Gate de qualidade: build + lint + testes                   |
 
 #### Agentes Especializados
 
@@ -415,7 +415,7 @@ Para agentes de IA, ver [AGENTS.md](AGENTS.md) e [CLAUDE.md](CLAUDE.md).
 
 O app está em constante evolução. Próximas features planejadas:
 
-- [ ] **Statements (Registros financeiros)** — CRUD de lançamentos (receitas/despesas) vinculados a accounts, com categorização e data de competência
+- [x] **Statements (Registros financeiros)** — CRUD de lançamentos (receitas/despesas) vinculados a accounts, com categorização e data de competência
 - [ ] **Parser de arquivos OFX** — Import automático de extratos bancários no formato OFX (Open Financial Exchange) para popular statements
 - [ ] **Dashboard de resumo** — Endpoints para consolidação: saldo por account, totais por categoria, fluxo mensal
 - [ ] **Orçamentos (Orçamentos)** — Definição de limites mensais por categoria com alerta de ultrapassagem
