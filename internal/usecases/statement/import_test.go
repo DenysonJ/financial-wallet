@@ -265,6 +265,18 @@ func TestImportUseCase_Execute(t *testing.T) {
 			skipBatchCall: true,
 		},
 		{
+			name: "given FindExternalIDs repo failure when importing then returns error",
+			input: dto.ImportOFXInput{
+				AccountID:        accountID.String(),
+				RequestingUserID: ownerID.String(),
+				FileContent:      strings.NewReader(validOFXContent(twoTransactions)),
+			},
+			accountResult: activeAccount,
+			findIDsErr:    errors.New("db connection lost"),
+			wantErrMsg:    "db connection lost",
+			skipBatchCall: true,
+		},
+		{
 			name: "given repo failure on batch create when importing then returns error",
 			input: dto.ImportOFXInput{
 				AccountID:        accountID.String(),

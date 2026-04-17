@@ -47,6 +47,11 @@ func (uc *GetUseCase) Execute(ctx context.Context, input dto.GetInput) (*dto.Sta
 		return nil, accountParseErr
 	}
 
+	span.SetAttributes(
+		attribute.String("statement.id", input.ID),
+		attribute.String("account.id", input.AccountID),
+	)
+
 	// Find account and verify ownership
 	account, findAccountErr := uc.accountRepo.FindByID(ctx, accountID)
 	if findAccountErr != nil {
@@ -60,11 +65,6 @@ func (uc *GetUseCase) Execute(ctx context.Context, input dto.GetInput) (*dto.Sta
 		logutil.LogWarn(ctx, "statement get forbidden: not owner", "account.id", accountID.String())
 		return nil, stmtdomain.ErrStatementNotFound
 	}
-
-	span.SetAttributes(
-		attribute.String("statement.id", input.ID),
-		attribute.String("account.id", input.AccountID),
-	)
 
 	// Find statement
 	stmt, findErr := uc.repo.FindByID(ctx, statementID)

@@ -32,10 +32,11 @@ type ListOutput struct {
 
 // PaginationOutput represents pagination metadata.
 type PaginationOutput struct {
-	Page       int `json:"page"`
-	Limit      int `json:"limit"`
-	Total      int `json:"total"`
-	TotalPages int `json:"total_pages"`
+	Page       int     `json:"page"`
+	Limit      int     `json:"limit"`
+	Total      int     `json:"total"`
+	TotalPages int     `json:"total_pages"`
+	NextCursor *string `json:"next_cursor,omitempty"`
 }
 
 // ImportOutput represents the result of an OFX file import.

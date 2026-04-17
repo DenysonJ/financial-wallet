@@ -13,8 +13,17 @@ type ListFilter struct {
 	Type      *vo.StatementType
 	DateFrom  *time.Time
 	DateTo    *time.Time
-	Page      int
-	Limit     int
+	// Page-based pagination (fallback when no cursor)
+	Page  int
+	Limit int
+	// Cursor-based pagination (keyset on posted_at DESC, id DESC)
+	CursorPostedAt *time.Time
+	CursorID       *pkgvo.ID
+}
+
+// UseCursor returns true if cursor-based pagination should be used.
+func (f *ListFilter) UseCursor() bool {
+	return f.CursorPostedAt != nil && f.CursorID != nil
 }
 
 // Normalize applies default values to pagination parameters.
@@ -41,4 +50,5 @@ type ListResult struct {
 	Total      int
 	Page       int
 	Limit      int
+	NextCursor string
 }

@@ -38,8 +38,9 @@ type ListInput struct {
 	Type             string `form:"type"`      // Optional filter: credit or debit
 	DateFrom         string `form:"date_from"` // Optional filter: RFC3339 date
 	DateTo           string `form:"date_to"`   // Optional filter: RFC3339 date
-	Page             int    `form:"page"`      // Page number (1-indexed)
+	Page             int    `form:"page"`      // Page number (1-indexed, used when cursor is empty)
 	Limit            int    `form:"limit"`     // Items per page
+	Cursor           string `form:"cursor"`    // Opaque cursor for keyset pagination (overrides page)
 }
 
 // ImportOFXInput represents the input data for importing an OFX file.

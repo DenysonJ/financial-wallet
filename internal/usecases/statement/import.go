@@ -97,7 +97,14 @@ func (uc *ImportUseCase) Execute(ctx context.Context, input dto.ImportOFXInput) 
 	skipped := 0
 
 	for _, txn := range parseResult.Transactions {
+		// Skip duplicates (FITID already exists for this account)
 		if txn.FITID != "" && existingIDs[txn.FITID] {
+			skipped++
+			continue
+		}
+
+		// Skip zero-amount transactions (e.g., fee waivers, informational entries)
+		if txn.Amount == 0 {
 			skipped++
 			continue
 		}

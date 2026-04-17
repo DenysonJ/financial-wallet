@@ -3,6 +3,7 @@ package repository
 import (
 	"context"
 	"database/sql"
+	"encoding/base64"
 	"errors"
 	"fmt"
 	"strings"
@@ -217,17 +218,32 @@ func (r *StatementRepository) List(ctx context.Context, filter stmtdomain.ListFi
 		return nil, countErr
 	}
 
-	// Paginated data query
+	// Paginated data query — use keyset (cursor) when available, fall back to OFFSET
 	args["limit"] = filter.Limit
-	args["offset"] = filter.Offset()
 
-	dataQuery := fmt.Sprintf(`
-		SELECT id, account_id, type, amount, description, reference_id, external_id, balance_after, posted_at, created_at
-		FROM statements
-		%s
-		ORDER BY created_at DESC
-		LIMIT :limit OFFSET :offset
-	`, whereClause)
+	var dataQuery string
+	if filter.UseCursor() {
+		conditions = append(conditions, "(posted_at, id) < (:cursor_posted_at, :cursor_id)")
+		args["cursor_posted_at"] = *filter.CursorPostedAt
+		args["cursor_id"] = filter.CursorID.String()
+		cursorWhere := "WHERE " + strings.Join(conditions, " AND ")
+		dataQuery = fmt.Sprintf(`
+			SELECT id, account_id, type, amount, description, reference_id, external_id, balance_after, posted_at, created_at
+			FROM statements
+			%s
+			ORDER BY posted_at DESC, id DESC
+			LIMIT :limit
+		`, cursorWhere)
+	} else {
+		args["offset"] = filter.Offset()
+		dataQuery = fmt.Sprintf(`
+			SELECT id, account_id, type, amount, description, reference_id, external_id, balance_after, posted_at, created_at
+			FROM statements
+			%s
+			ORDER BY posted_at DESC, id DESC
+			LIMIT :limit OFFSET :offset
+		`, whereClause)
+	}
 
 	dataQuery, dataArgs, dataNamedErr := sqlx.Named(dataQuery, args)
 	if dataNamedErr != nil {
@@ -256,11 +272,20 @@ func (r *StatementRepository) List(ctx context.Context, filter stmtdomain.ListFi
 		statements = append(statements, stmt)
 	}
 
+	// Build next cursor from last row (if we got a full page, there may be more)
+	var nextCursor string
+	if len(statements) == filter.Limit && len(statements) > 0 {
+		last := statements[len(statements)-1]
+		raw := last.PostedAt.Format(time.RFC3339Nano) + "|" + last.ID.String()
+		nextCursor = base64.URLEncoding.EncodeToString([]byte(raw))
+	}
+
 	return &stmtdomain.ListResult{
 		Statements: statements,
 		Total:      total,
 		Page:       filter.Page,
 		Limit:      filter.Limit,
+		NextCursor: nextCursor,
 	}, nil
 }
 

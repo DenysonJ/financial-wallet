@@ -132,8 +132,8 @@ func extractAttr(pi, name string) string {
 
 // isSGML returns true if the header indicates SGML-based OFX (v1.x).
 func isSGML(h Header) bool {
-	// Version 200+ is XML-based
-	if h.Version != "" && len(h.Version) >= 3 && h.Version[0] >= '2' {
+	// Version starting with '2' or higher is XML-based (OFX 2.x+)
+	if h.Version != "" && h.Version[0] >= '2' {
 		return false
 	}
 	// If version starts with "1" or is legacy format, it's SGML
