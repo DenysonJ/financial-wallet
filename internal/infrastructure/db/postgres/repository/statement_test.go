@@ -30,6 +30,7 @@ func buildTestStatement() *stmtdomain.Statement {
 		Amount:       amount,
 		Description:  "Test deposit",
 		BalanceAfter: 0,
+		PostedAt:     now,
 		CreatedAt:    now,
 	}
 }
@@ -45,6 +46,7 @@ func buildTestReversalStatement(referenceID pkgvo.ID) *stmtdomain.Statement {
 		Description:  "Reversal",
 		ReferenceID:  &referenceID,
 		BalanceAfter: 0,
+		PostedAt:     now,
 		CreatedAt:    now,
 	}
 }
@@ -509,6 +511,177 @@ func TestStatementRepository_HasReversal(t *testing.T) {
 				assert.Error(t, hasErr)
 			} else {
 				assert.NoError(t, hasErr)
+				assert.Equal(t, tt.want, result)
+			}
+			assert.NoError(t, mock.ExpectationsWereMet())
+		})
+	}
+}
+
+// --- CreateBatch -------------------------------------------------------------
+
+func TestStatementRepository_CreateBatch(t *testing.T) {
+	accountID := pkgvo.NewID()
+	now := time.Now().Truncate(time.Microsecond)
+
+	creditAmount, _ := stmtvo.NewAmount(5000)
+	debitAmount, _ := stmtvo.NewAmount(2000)
+
+	creditStmt := &stmtdomain.Statement{
+		ID: pkgvo.NewID(), AccountID: accountID, Type: stmtvo.TypeCredit,
+		Amount: creditAmount, Description: "Salary", PostedAt: now, CreatedAt: now,
+	}
+	debitStmt := &stmtdomain.Statement{
+		ID: pkgvo.NewID(), AccountID: accountID, Type: stmtvo.TypeDebit,
+		Amount: debitAmount, Description: "Uber", PostedAt: now, CreatedAt: now,
+	}
+
+	tests := []struct {
+		name        string
+		stmts       []*stmtdomain.Statement
+		setupMock   func(mock sqlmock.Sqlmock)
+		wantBalance int64
+		wantErr     bool
+		errSubstr   string
+	}{
+		{
+			name:  "given two statements when batch creating then updates balance sequentially",
+			stmts: []*stmtdomain.Statement{creditStmt, debitStmt},
+			setupMock: func(mock sqlmock.Sqlmock) {
+				mock.ExpectBegin()
+				mock.ExpectQuery("SELECT balance FROM accounts WHERE id").
+					WithArgs(accountID.String()).
+					WillReturnRows(sqlmock.NewRows([]string{"balance"}).AddRow(int64(10000)))
+				mock.ExpectExec("INSERT INTO statements").
+					WillReturnResult(sqlmock.NewResult(0, 2))
+				mock.ExpectExec("UPDATE accounts SET balance").
+					WithArgs(int64(13000), accountID.String()).
+					WillReturnResult(sqlmock.NewResult(0, 1))
+				mock.ExpectCommit()
+			},
+			wantBalance: 13000, // 10000 + 5000 - 2000
+		},
+		{
+			name:  "given account not found when batch creating then returns error",
+			stmts: []*stmtdomain.Statement{creditStmt},
+			setupMock: func(mock sqlmock.Sqlmock) {
+				mock.ExpectBegin()
+				mock.ExpectQuery("SELECT balance FROM accounts WHERE id").
+					WithArgs(accountID.String()).
+					WillReturnError(sql.ErrNoRows)
+				mock.ExpectRollback()
+			},
+			wantErr:   true,
+			errSubstr: "account not found",
+		},
+		{
+			name:  "given insert failure when batch creating then rolls back",
+			stmts: []*stmtdomain.Statement{creditStmt},
+			setupMock: func(mock sqlmock.Sqlmock) {
+				mock.ExpectBegin()
+				mock.ExpectQuery("SELECT balance FROM accounts WHERE id").
+					WithArgs(accountID.String()).
+					WillReturnRows(sqlmock.NewRows([]string{"balance"}).AddRow(int64(10000)))
+				mock.ExpectExec("INSERT INTO statements").
+					WillReturnError(sql.ErrConnDone)
+				mock.ExpectRollback()
+			},
+			wantErr:   true,
+			errSubstr: "inserting statement batch",
+		},
+		{
+			name:  "given empty batch when creating then returns zero without transaction",
+			stmts: []*stmtdomain.Statement{},
+			setupMock: func(mock sqlmock.Sqlmock) {
+				// No DB calls expected for empty batch
+			},
+			wantBalance: 0,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			db, mock, mockErr := sqlmock.New()
+			require.NoError(t, mockErr)
+			defer db.Close()
+
+			sqlxDB := sqlx.NewDb(db, "postgres")
+			repo := NewStatementRepository(sqlxDB, sqlxDB)
+			tt.setupMock(mock)
+
+			balance, batchErr := repo.CreateBatch(context.Background(), tt.stmts, accountID)
+
+			if tt.wantErr {
+				assert.Error(t, batchErr)
+				if tt.errSubstr != "" {
+					assert.Contains(t, batchErr.Error(), tt.errSubstr)
+				}
+			} else {
+				assert.NoError(t, batchErr)
+				assert.Equal(t, tt.wantBalance, balance)
+			}
+			assert.NoError(t, mock.ExpectationsWereMet())
+		})
+	}
+}
+
+// --- FindExternalIDs ---------------------------------------------------------
+
+func TestStatementRepository_FindExternalIDs(t *testing.T) {
+	accountID := pkgvo.NewID()
+
+	tests := []struct {
+		name        string
+		externalIDs []string
+		setupMock   func(mock sqlmock.Sqlmock)
+		want        map[string]bool
+		wantErr     bool
+	}{
+		{
+			name:        "given matching IDs when finding then returns found set",
+			externalIDs: []string{"FIT001", "FIT002", "FIT003"},
+			setupMock: func(mock sqlmock.Sqlmock) {
+				mock.ExpectQuery("SELECT external_id FROM statements WHERE account_id").
+					WillReturnRows(sqlmock.NewRows([]string{"external_id"}).
+						AddRow("FIT001").
+						AddRow("FIT003"))
+			},
+			want: map[string]bool{"FIT001": true, "FIT003": true},
+		},
+		{
+			name:        "given empty input when finding then returns empty map without query",
+			externalIDs: []string{},
+			setupMock:   func(mock sqlmock.Sqlmock) {},
+			want:        map[string]bool{},
+		},
+		{
+			name:        "given db failure when finding then returns error",
+			externalIDs: []string{"FIT001"},
+			setupMock: func(mock sqlmock.Sqlmock) {
+				mock.ExpectQuery("SELECT external_id FROM statements WHERE account_id").
+					WillReturnError(sql.ErrConnDone)
+			},
+			wantErr: true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			db, mock, mockErr := sqlmock.New()
+			require.NoError(t, mockErr)
+			defer db.Close()
+
+			sqlxDB := sqlx.NewDb(db, "postgres")
+			repo := NewStatementRepository(sqlxDB, sqlxDB)
+			tt.setupMock(mock)
+
+			result, findErr := repo.FindExternalIDs(context.Background(), accountID, tt.externalIDs)
+
+			if tt.wantErr {
+				assert.Error(t, findErr)
+				assert.Nil(t, result)
+			} else {
+				assert.NoError(t, findErr)
 				assert.Equal(t, tt.want, result)
 			}
 			assert.NoError(t, mock.ExpectationsWereMet())

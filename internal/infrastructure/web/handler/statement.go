@@ -255,7 +255,8 @@ func (h *StatementHandler) Import(c *gin.Context) {
 	fileHeader, formErr := c.FormFile("file")
 	if formErr != nil {
 		span.SetStatus(codes.Error, "file upload failed")
-		if formErr.Error() == "http: request body too large" {
+		var maxBytesErr *http.MaxBytesError
+		if errors.As(formErr, &maxBytesErr) {
 			httpgin.SendError(c, http.StatusBadRequest, "file too large (max 5MB)")
 			return
 		}

@@ -17,8 +17,6 @@ import (
 	pkgvo "github.com/DenysonJ/financial-wallet/pkg/vo"
 )
 
-const ActionImport = "import"
-
 // ImportUseCase implements the use case for importing statements from an OFX file.
 type ImportUseCase struct {
 	repo        interfaces.Repository
