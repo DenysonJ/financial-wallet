@@ -9,12 +9,19 @@ import (
 	"strings"
 )
 
+// maxOFXSize is the maximum OFX file size the parser will accept (5MB).
+const maxOFXSize = 5 << 20
+
 // Parse reads an OFX file and extracts all bank statement transactions.
 // Supports both SGML (v1.x) and XML (v2.x) formats.
 func Parse(r io.Reader) (*ParseResult, error) {
-	data, readErr := io.ReadAll(r)
+	data, readErr := io.ReadAll(io.LimitReader(r, maxOFXSize+1))
 	if readErr != nil {
 		return nil, fmt.Errorf("%w: reading input: %s", ErrInvalidFormat, readErr.Error())
+	}
+
+	if len(data) > maxOFXSize {
+		return nil, fmt.Errorf("%w: file exceeds maximum size of 5MB", ErrInvalidFormat)
 	}
 
 	if len(bytes.TrimSpace(data)) == 0 {
@@ -214,9 +221,14 @@ type xmlStmtTrn struct {
 }
 
 // parseXMLBody decodes the XML body and extracts transactions.
+// Uses xml.NewDecoder with an empty entity map to prevent XML entity expansion attacks.
 func parseXMLBody(data []byte) ([]Transaction, error) {
+	decoder := xml.NewDecoder(bytes.NewReader(data))
+	decoder.Strict = false
+	decoder.Entity = map[string]string{} // block custom entity expansion (Billion Laughs)
+
 	var ofxDoc xmlOFX
-	decodeErr := xml.Unmarshal(data, &ofxDoc)
+	decodeErr := decoder.Decode(&ofxDoc)
 	if decodeErr != nil {
 		return nil, fmt.Errorf("%w: %s", ErrInvalidFormat, decodeErr.Error())
 	}

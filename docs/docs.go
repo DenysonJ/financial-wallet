@@ -2012,6 +2012,9 @@ const docTemplate = `{
                     "type": "string",
                     "maxLength": 1000
                 },
+                "posted_at": {
+                    "type": "string"
+                },
                 "type": {
                     "description": "credit or debit",
                     "type": "string",
@@ -2099,6 +2102,9 @@ const docTemplate = `{
                     "type": "string"
                 },
                 "id": {
+                    "type": "string"
+                },
+                "posted_at": {
                     "type": "string"
                 },
                 "reference_id": {

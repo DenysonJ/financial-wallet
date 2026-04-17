@@ -7,6 +7,9 @@ import (
 	"strings"
 )
 
+// maxWholePart is the largest whole number that can be multiplied by 100 without int64 overflow.
+const maxWholePart = math.MaxInt64 / 100
+
 // ParseAmount converts a signed OFX decimal string to cents (int64).
 // Examples: "150.75" → 15075, "-30.50" → -3050, "100" → 10000, "-7.5" → -750.
 func ParseAmount(s string) (int64, error) {
@@ -38,11 +41,17 @@ func ParseAmount(s string) (int64, error) {
 		if wholeErr != nil {
 			return 0, fmt.Errorf("%w: %s", ErrInvalidAmount, wholeErr.Error())
 		}
+		if whole > maxWholePart {
+			return 0, fmt.Errorf("%w: amount too large", ErrInvalidAmount)
+		}
 		cents = whole * 100
 	case 2:
 		whole, wholeErr := strconv.ParseInt(parts[0], 10, 64)
 		if wholeErr != nil {
 			return 0, fmt.Errorf("%w: %s", ErrInvalidAmount, wholeErr.Error())
+		}
+		if whole > maxWholePart {
+			return 0, fmt.Errorf("%w: amount too large", ErrInvalidAmount)
 		}
 
 		fracStr := parts[1]
@@ -65,7 +74,11 @@ func ParseAmount(s string) (int64, error) {
 			if fErr != nil {
 				return 0, fmt.Errorf("%w: %s", ErrInvalidAmount, fErr.Error())
 			}
-			cents = int64(math.Round(f * 100))
+			rounded := math.Round(f * 100)
+			if rounded > float64(math.MaxInt64) || rounded < float64(math.MinInt64) {
+				return 0, fmt.Errorf("%w: amount too large", ErrInvalidAmount)
+			}
+			cents = int64(rounded)
 		}
 	}
 

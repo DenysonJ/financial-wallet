@@ -2,7 +2,6 @@ package statement
 
 import (
 	"context"
-	"math"
 	"strings"
 
 	"go.opentelemetry.io/otel"
@@ -145,8 +144,11 @@ func mapOFXTransaction(txn ofx.Transaction, accountID pkgvo.ID) (*stmtdomain.Sta
 		stmtType = stmtvo.TypeDebit
 	}
 
-	// Convert to absolute cents for the Amount VO
-	absCents := int64(math.Abs(float64(txn.Amount)))
+	// Convert to absolute cents for the Amount VO (direct negation avoids float64 precision loss)
+	absCents := txn.Amount
+	if absCents < 0 {
+		absCents = -absCents
+	}
 	amount, amountErr := stmtvo.NewAmount(absCents)
 	if amountErr != nil {
 		return nil, amountErr
@@ -155,7 +157,15 @@ func mapOFXTransaction(txn ofx.Transaction, accountID pkgvo.ID) (*stmtdomain.Sta
 	// Build description from NAME + MEMO
 	description := buildDescription(txn.Name, txn.Memo)
 
-	return stmtdomain.NewImportedStatement(accountID, stmtType, amount, description, txn.FITID, txn.DatePosted), nil
+	// Use NewImportedStatement (with external_id) only when FITID is present;
+	// otherwise use NewStatement to avoid creating empty-string external_id rows
+	if txn.FITID != "" {
+		return stmtdomain.NewImportedStatement(accountID, stmtType, amount, description, txn.FITID, txn.DatePosted), nil
+	}
+
+	stmt := stmtdomain.NewStatement(accountID, stmtType, amount, description)
+	stmt.PostedAt = txn.DatePosted
+	return stmt, nil
 }
 
 // buildDescription combines OFX NAME and MEMO fields into a single description.

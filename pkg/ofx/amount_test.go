@@ -69,6 +69,16 @@ func TestParseAmount(t *testing.T) {
 			want:  10050,
 		},
 		{
+			name:    "given overflow amount when parsing then returns error",
+			input:   "92233720368547759",
+			wantErr: true,
+		},
+		{
+			name:    "given overflow decimal amount when parsing then returns error",
+			input:   "92233720368547759.00",
+			wantErr: true,
+		},
+		{
 			name:    "given empty string when parsing then returns error",
 			input:   "",
 			wantErr: true,

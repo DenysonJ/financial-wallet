@@ -221,6 +221,8 @@ definitions:
         description: Optional description
         maxLength: 1000
         type: string
+      posted_at:
+        type: string
       type:
         description: credit or debit
         enum:
@@ -282,6 +284,8 @@ definitions:
       external_id:
         type: string
       id:
+        type: string
+      posted_at:
         type: string
       reference_id:
         type: string
