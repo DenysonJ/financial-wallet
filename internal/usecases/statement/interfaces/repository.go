@@ -23,4 +23,11 @@ type Repository interface {
 
 	// HasReversal checks if the given statement has already been reversed.
 	HasReversal(ctx context.Context, statementID vo.ID) (bool, error)
+
+	// CreateBatch persists multiple Statements and updates the account balance atomically.
+	// Returns the final balance after all statements were applied.
+	CreateBatch(ctx context.Context, stmts []*stmtdomain.Statement, accountID vo.ID) (int64, error)
+
+	// FindExternalIDs returns which of the given external IDs already exist for the account.
+	FindExternalIDs(ctx context.Context, accountID vo.ID, externalIDs []string) (map[string]bool, error)
 }

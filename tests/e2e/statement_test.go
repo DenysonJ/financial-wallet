@@ -43,7 +43,8 @@ func setupStatementTestRouter(userID string) *gin.Engine {
 	stmtReverseUC := stmtuc.NewReverseUseCase(stmtRepo, accountRepo)
 	stmtGetUC := stmtuc.NewGetUseCase(stmtRepo, accountRepo)
 	stmtListUC := stmtuc.NewListUseCase(stmtRepo, accountRepo)
-	stmtHandler := handler.NewStatementHandler(stmtCreateUC, stmtReverseUC, stmtGetUC, stmtListUC)
+	stmtImportUC := stmtuc.NewImportUseCase(stmtRepo, accountRepo)
+	stmtHandler := handler.NewStatementHandler(stmtCreateUC, stmtReverseUC, stmtGetUC, stmtListUC, stmtImportUC)
 
 	r := gin.New()
 	r.Use(gin.Recovery())

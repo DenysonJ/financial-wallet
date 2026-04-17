@@ -12,6 +12,7 @@ func RegisterStatementRoutes(rg *gin.RouterGroup, h *handler.StatementHandler, l
 	statements := rg.Group("/accounts/:id/statements")
 
 	statements.POST("", middleware.RequirePermission(loader, "statement:write"), h.Create)
+	statements.POST("/import", middleware.RequirePermission(loader, "statement:write"), h.Import)
 	statements.GET("", middleware.RequirePermission(loader, "statement:read"), h.List)
 	statements.GET("/:statement_id", middleware.RequirePermission(loader, "statement:read"), h.GetByID)
 	statements.POST("/:statement_id/reverse", middleware.RequirePermission(loader, "statement:write"), h.Reverse)

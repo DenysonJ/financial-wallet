@@ -12,7 +12,9 @@ type StatementOutput struct {
 	Amount       int64   `json:"amount"`
 	Description  string  `json:"description"`
 	ReferenceID  *string `json:"reference_id,omitempty"`
+	ExternalID   *string `json:"external_id,omitempty"`
 	BalanceAfter int64   `json:"balance_after"`
+	PostedAt     string  `json:"posted_at"`
 	CreatedAt    string  `json:"created_at"`
 }
 
@@ -34,4 +36,11 @@ type PaginationOutput struct {
 	Limit      int `json:"limit"`
 	Total      int `json:"total"`
 	TotalPages int `json:"total_pages"`
+}
+
+// ImportOutput represents the result of an OFX file import.
+type ImportOutput struct {
+	TotalTransactions int `json:"total_transactions"`
+	Created           int `json:"created"`
+	Skipped           int `json:"skipped"`
 }

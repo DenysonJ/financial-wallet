@@ -13,6 +13,7 @@ import (
 	uservo "github.com/DenysonJ/financial-wallet/internal/domain/user/vo"
 	"github.com/DenysonJ/financial-wallet/pkg/apperror"
 	"github.com/DenysonJ/financial-wallet/pkg/httputil/httpgin"
+	"github.com/DenysonJ/financial-wallet/pkg/ofx"
 	"github.com/DenysonJ/financial-wallet/pkg/vo"
 	"github.com/gin-gonic/gin"
 	"go.opentelemetry.io/otel/codes"
@@ -76,6 +77,9 @@ var domainErrors = []struct {
 	{stmtdomain.ErrStatementNotFound, domainErrorMapping{http.StatusNotFound, apperror.CodeNotFound, "statement not found"}},
 	{stmtdomain.ErrAlreadyReversed, domainErrorMapping{http.StatusConflict, apperror.CodeConflict, "statement already reversed"}},
 	{stmtdomain.ErrAccountNotActive, domainErrorMapping{http.StatusUnprocessableEntity, apperror.CodeValidationError, "account is not active"}},
+	// OFX parser errors
+	{ofx.ErrInvalidFormat, domainErrorMapping{http.StatusBadRequest, apperror.CodeInvalidRequest, "invalid OFX file format"}},
+	{ofx.ErrNoTransactions, domainErrorMapping{http.StatusBadRequest, apperror.CodeInvalidRequest, "no transactions found in OFX file"}},
 }
 
 // HandleError handles errors in a centralized and consistent way.

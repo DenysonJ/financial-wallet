@@ -15,24 +15,29 @@ type Statement struct {
 	Amount       vo.Amount
 	Description  string
 	ReferenceID  *pkgvo.ID
+	ExternalID   *string
 	BalanceAfter int64
+	PostedAt     time.Time
 	CreatedAt    time.Time
 }
 
 // NewStatement creates a new Statement with default values.
 func NewStatement(accountID pkgvo.ID, stmtType vo.StatementType, amount vo.Amount, description string) *Statement {
+	now := time.Now()
 	return &Statement{
 		ID:          pkgvo.NewID(),
 		AccountID:   accountID,
 		Type:        stmtType,
 		Amount:      amount,
 		Description: description,
-		CreatedAt:   time.Now(),
+		PostedAt:    now,
+		CreatedAt:   now,
 	}
 }
 
 // NewReversalStatement creates a reversal Statement linked to the original via ReferenceID.
 func NewReversalStatement(accountID pkgvo.ID, stmtType vo.StatementType, amount vo.Amount, description string, referenceID pkgvo.ID) *Statement {
+	now := time.Now()
 	return &Statement{
 		ID:          pkgvo.NewID(),
 		AccountID:   accountID,
@@ -40,6 +45,22 @@ func NewReversalStatement(accountID pkgvo.ID, stmtType vo.StatementType, amount 
 		Amount:      amount,
 		Description: description,
 		ReferenceID: &referenceID,
+		PostedAt:    now,
+		CreatedAt:   now,
+	}
+}
+
+// NewImportedStatement creates a Statement from an external source (e.g., OFX import).
+// PostedAt preserves the original transaction date; CreatedAt records when it was imported.
+func NewImportedStatement(accountID pkgvo.ID, stmtType vo.StatementType, amount vo.Amount, description string, externalID string, postedAt time.Time) *Statement {
+	return &Statement{
+		ID:          pkgvo.NewID(),
+		AccountID:   accountID,
+		Type:        stmtType,
+		Amount:      amount,
+		Description: description,
+		ExternalID:  &externalID,
+		PostedAt:    postedAt,
 		CreatedAt:   time.Now(),
 	}
 }

@@ -34,7 +34,8 @@ func newStatementHandler(t *testing.T) (*StatementHandler, *stmtuci.MockReposito
 	reverseUC := stmtuc.NewReverseUseCase(mockRepo, mockAccRepo)
 	getUC := stmtuc.NewGetUseCase(mockRepo, mockAccRepo)
 	listUC := stmtuc.NewListUseCase(mockRepo, mockAccRepo)
-	h := NewStatementHandler(createUC, reverseUC, getUC, listUC)
+	importUC := stmtuc.NewImportUseCase(mockRepo, mockAccRepo)
+	h := NewStatementHandler(createUC, reverseUC, getUC, listUC, importUC)
 	return h, mockRepo, mockAccRepo
 }
 

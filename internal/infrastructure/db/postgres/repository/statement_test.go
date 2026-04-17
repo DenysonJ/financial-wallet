@@ -49,7 +49,7 @@ func buildTestReversalStatement(referenceID pkgvo.ID) *stmtdomain.Statement {
 	}
 }
 
-var statementDBColumns = []string{"id", "account_id", "type", "amount", "description", "reference_id", "balance_after", "created_at"}
+var statementDBColumns = []string{"id", "account_id", "type", "amount", "description", "reference_id", "external_id", "balance_after", "posted_at", "created_at"}
 
 // =============================================================================
 // Unit Tests for internal conversions
@@ -248,7 +248,7 @@ func TestStatementRepository_Create(t *testing.T) {
 
 				// Insert
 				insertExec := mock.ExpectExec("INSERT INTO statements").
-					WithArgs(sqlmock.AnyArg(), sqlmock.AnyArg(), sqlmock.AnyArg(), sqlmock.AnyArg(), sqlmock.AnyArg(), sqlmock.AnyArg(), sqlmock.AnyArg(), sqlmock.AnyArg())
+					WithArgs(sqlmock.AnyArg(), sqlmock.AnyArg(), sqlmock.AnyArg(), sqlmock.AnyArg(), sqlmock.AnyArg(), sqlmock.AnyArg(), sqlmock.AnyArg(), sqlmock.AnyArg(), sqlmock.AnyArg(), sqlmock.AnyArg())
 				if tt.insertErr != nil {
 					insertExec.WillReturnError(tt.insertErr)
 					mock.ExpectRollback()
@@ -304,7 +304,7 @@ func TestStatementRepository_FindByID(t *testing.T) {
 			name: "given existing statement when finding by ID then returns it",
 			setupMock: func(mock sqlmock.Sqlmock) {
 				rows := sqlmock.NewRows(statementDBColumns).
-					AddRow(testID.String(), testAccountID.String(), "credit", int64(5000), "Salary", nil, int64(15000), now)
+					AddRow(testID.String(), testAccountID.String(), "credit", int64(5000), "Salary", nil, nil, int64(15000), now, now)
 				mock.ExpectQuery("SELECT .+ FROM statements WHERE id").
 					WithArgs(testID.String()).WillReturnRows(rows)
 			},
@@ -382,7 +382,7 @@ func TestStatementRepository_List(t *testing.T) {
 					WillReturnRows(sqlmock.NewRows([]string{"count"}).AddRow(1))
 				mock.ExpectQuery("SELECT .+ FROM statements").
 					WillReturnRows(sqlmock.NewRows(statementDBColumns).
-						AddRow(testID.String(), testAccountID.String(), "credit", int64(5000), "Salary", nil, int64(15000), now))
+						AddRow(testID.String(), testAccountID.String(), "credit", int64(5000), "Salary", nil, nil, int64(15000), now, now))
 				mock.ExpectCommit()
 			},
 			wantTotal: 1,

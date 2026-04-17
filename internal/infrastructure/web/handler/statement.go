@@ -3,6 +3,7 @@ package handler
 import (
 	"errors"
 	"io"
+	"mime/multipart"
 	"net/http"
 
 	stmtuc "github.com/DenysonJ/financial-wallet/internal/usecases/statement"
@@ -20,6 +21,7 @@ type StatementHandler struct {
 	reverseUC *stmtuc.ReverseUseCase
 	getUC     *stmtuc.GetUseCase
 	listUC    *stmtuc.ListUseCase
+	importUC  *stmtuc.ImportUseCase
 }
 
 // NewStatementHandler creates a new StatementHandler with all use cases.
@@ -28,12 +30,14 @@ func NewStatementHandler(
 	reverseUC *stmtuc.ReverseUseCase,
 	getUC *stmtuc.GetUseCase,
 	listUC *stmtuc.ListUseCase,
+	importUC *stmtuc.ImportUseCase,
 ) *StatementHandler {
 	return &StatementHandler{
 		createUC:  createUC,
 		reverseUC: reverseUC,
 		getUC:     getUC,
 		listUC:    listUC,
+		importUC:  importUC,
 	}
 }
 
@@ -216,5 +220,75 @@ func (h *StatementHandler) GetByID(c *gin.Context) {
 		return
 	}
 
+	httpgin.SendSuccess(c, http.StatusOK, res)
+}
+
+// Import godoc
+// @Summary      Import statements from OFX file
+// @Description  Parse an OFX bank statement file and batch-create statements. Duplicates are skipped via FITID.
+// @Tags         statements
+// @Accept       multipart/form-data
+// @Produce      json
+// @Param        id    path      string  true  "Account ID"
+// @Param        file  formData  file    true  "OFX file"
+// @Success      200   {object}  dto.ImportOutput
+// @Failure      400   {object}  ErrorResponse
+// @Failure      401   {object}  ErrorResponse
+// @Failure      404   {object}  ErrorResponse
+// @Failure      422   {object}  ErrorResponse
+// @Failure      429   {object}  ErrorResponse
+// @Failure      500   {object}  ErrorResponse
+// @Security     ServiceName
+// @Security     ServiceKey
+// @Router       /accounts/{id}/statements/import [post]
+func (h *StatementHandler) Import(c *gin.Context) {
+	ctx, span := otel.Tracer("http-handler").Start(c.Request.Context(), "StatementHandler.Import")
+	defer span.End()
+
+	accountID := c.Param("id")
+	span.SetAttributes(attribute.String("account.id", accountID))
+
+	// Enforce 5MB file size limit
+	const maxFileSize = 5 << 20 // 5MB
+	c.Request.Body = http.MaxBytesReader(c.Writer, c.Request.Body, maxFileSize)
+
+	fileHeader, formErr := c.FormFile("file")
+	if formErr != nil {
+		span.SetStatus(codes.Error, "file upload failed")
+		if formErr.Error() == "http: request body too large" {
+			httpgin.SendError(c, http.StatusBadRequest, "file too large (max 5MB)")
+			return
+		}
+		httpgin.SendError(c, http.StatusBadRequest, "file is required")
+		return
+	}
+
+	file, openErr := fileHeader.Open()
+	if openErr != nil {
+		span.SetStatus(codes.Error, "failed to open file")
+		httpgin.SendError(c, http.StatusBadRequest, "failed to read uploaded file")
+		return
+	}
+	defer func(file multipart.File) {
+		err := file.Close()
+		if err != nil {
+			span.SetStatus(codes.Error, "failed to close file")
+		}
+	}(file)
+
+	res, execErr := h.importUC.Execute(ctx, dto.ImportOFXInput{
+		AccountID:        accountID,
+		RequestingUserID: ownershipUserID(c),
+		FileContent:      file,
+	})
+	if execErr != nil {
+		HandleError(c, span, execErr)
+		return
+	}
+
+	span.SetAttributes(
+		attribute.Int("import.created", res.Created),
+		attribute.Int("import.skipped", res.Skipped),
+	)
 	httpgin.SendSuccess(c, http.StatusOK, res)
 }
