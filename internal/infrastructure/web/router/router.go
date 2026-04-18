@@ -130,7 +130,7 @@ func Setup(deps Dependencies) *gin.Engine {
 	if deps.StatementHandler != nil {
 		statementGroup := protected.Group("")
 		statementGroup.Use(middleware.JWTAuth(deps.JWTService))
-		RegisterStatementRoutes(statementGroup, deps.StatementHandler, deps.PermissionLoader)
+		RegisterStatementRoutes(statementGroup, deps.StatementHandler, deps.PermissionLoader, deps.IdempotencyStore)
 	}
 
 	// Role routes: Service Key + Admin JWT
