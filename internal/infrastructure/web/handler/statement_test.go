@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
+	"mime/multipart"
 	"net/http"
 	"net/http/httptest"
 	"testing"
@@ -48,10 +49,102 @@ func setupStatementRouterWithAuth(h *StatementHandler, userID string) *gin.Engin
 	}
 	r.POST("/accounts/:id/statements", auth, h.Create)
 	r.POST("/accounts/:id/statements/:statement_id/reverse", auth, h.Reverse)
+	r.POST("/accounts/:id/statements/import", auth, h.Import)
 	r.GET("/accounts/:id/statements", auth, h.List)
 	r.GET("/accounts/:id/statements/:statement_id", auth, h.GetByID)
 	return r
 }
+
+// buildMultipartBody creates a multipart/form-data body with a single file field.
+func buildMultipartBody(t *testing.T, fieldName, filename string, content []byte) (*bytes.Buffer, string) {
+	t.Helper()
+	var body bytes.Buffer
+	w := multipart.NewWriter(&body)
+	fw, createErr := w.CreateFormFile(fieldName, filename)
+	if createErr != nil {
+		t.Fatalf("create form file: %v", createErr)
+	}
+	if _, writeErr := fw.Write(content); writeErr != nil {
+		t.Fatalf("write form file: %v", writeErr)
+	}
+	if closeErr := w.Close(); closeErr != nil {
+		t.Fatalf("close multipart writer: %v", closeErr)
+	}
+	return &body, w.FormDataContentType()
+}
+
+// ofxWithTransactions wraps the given SGML transactions block in a minimal valid OFX envelope.
+func ofxWithTransactions(transactions string) string {
+	return `OFXHEADER:100
+DATA:OFXSGML
+VERSION:102
+SECURITY:NONE
+ENCODING:USASCII
+CHARSET:1252
+COMPRESSION:NONE
+OLDFILEUID:NONE
+NEWFILEUID:NONE
+
+<OFX>
+<SIGNONMSGSRSV1>
+<SONRS>
+<STATUS>
+<CODE>0
+<SEVERITY>INFO
+</STATUS>
+<DTSERVER>20260301
+<LANGUAGE>POR
+</SONRS>
+</SIGNONMSGSRSV1>
+<BANKMSGSRSV1>
+<STMTTRNRS>
+<TRNUID>1
+<STATUS>
+<CODE>0
+<SEVERITY>INFO
+</STATUS>
+<STMTRS>
+<CURDEF>BRL
+<BANKACCTFROM>
+<BANKID>001
+<ACCTID>999
+<ACCTTYPE>CHECKING
+</BANKACCTFROM>
+<BANKTRANLIST>
+<DTSTART>20260101
+<DTEND>20260131
+` + transactions + `
+</BANKTRANLIST>
+</STMTRS>
+</STMTTRNRS>
+</BANKMSGSRSV1>
+</OFX>`
+}
+
+const validOFXTxn = `<STMTTRN>
+<TRNTYPE>CREDIT
+<DTPOSTED>20260105
+<TRNAMT>1000.00
+<FITID>FIT001
+<NAME>Salario
+<MEMO>Pagamento
+</STMTTRN>`
+
+const invalidAmountOFXTxn = `<STMTTRN>
+<TRNTYPE>CREDIT
+<DTPOSTED>20260105
+<TRNAMT>not-a-number
+<FITID>FIT001
+<NAME>Salario
+</STMTTRN>`
+
+const invalidDateOFXTxn = `<STMTTRN>
+<TRNTYPE>CREDIT
+<DTPOSTED>invalid-date
+<TRNAMT>1000.00
+<FITID>FIT001
+<NAME>Salario
+</STMTTRN>`
 
 func makeActiveAccount(accountID, ownerID pkgvo.ID) *accountdomain.Account {
 	now := time.Now()
@@ -488,6 +581,165 @@ func TestStatementHandler_GetByID(t *testing.T) {
 			url := fmt.Sprintf("/accounts/%s/statements/%s", tt.accountID, tt.statementID)
 			w := httptest.NewRecorder()
 			req := httptest.NewRequest(http.MethodGet, url, nil)
+			router.ServeHTTP(w, req)
+
+			assert.Equal(t, tt.wantStatus, w.Code)
+		})
+	}
+}
+
+// ---------------------------------------------------------------------------
+// Import
+// ---------------------------------------------------------------------------
+
+func TestStatementHandler_Import(t *testing.T) {
+	accountID := pkgvo.NewID()
+	ownerID := pkgvo.NewID()
+
+	validBody := []byte(ofxWithTransactions(validOFXTxn))
+	invalidAmountBody := []byte(ofxWithTransactions(invalidAmountOFXTxn))
+	invalidDateBody := []byte(ofxWithTransactions(invalidDateOFXTxn))
+	emptyTxnsBody := []byte(ofxWithTransactions(""))
+	garbageBody := []byte("this is not an OFX file at all")
+	oversizeBody := bytes.Repeat([]byte("x"), (5<<20)+1)
+
+	tests := []struct {
+		name        string
+		accountID   string
+		ownerID     string
+		fileContent []byte
+		omitFile    bool
+		setupMocks  func(*stmtuci.MockRepository, *stmtuci.MockAccountRepository)
+		wantStatus  int
+	}{
+		{
+			name:        "given valid OFX when importing then returns 200",
+			accountID:   accountID.String(),
+			ownerID:     ownerID.String(),
+			fileContent: validBody,
+			setupMocks: func(repo *stmtuci.MockRepository, accRepo *stmtuci.MockAccountRepository) {
+				accRepo.On("FindByID", mock.Anything, accountID).
+					Return(makeActiveAccount(accountID, ownerID), nil)
+				repo.On("FindExternalIDs", mock.Anything, accountID, mock.AnythingOfType("[]string")).
+					Return(map[string]bool{}, nil)
+				repo.On("CreateBatch", mock.Anything, mock.AnythingOfType("[]*statement.Statement"), accountID).
+					Return(int64(11000), nil)
+			},
+			wantStatus: http.StatusOK,
+		},
+		{
+			name:       "given missing file when importing then returns 400",
+			accountID:  accountID.String(),
+			ownerID:    ownerID.String(),
+			omitFile:   true,
+			setupMocks: func(_ *stmtuci.MockRepository, _ *stmtuci.MockAccountRepository) {},
+			wantStatus: http.StatusBadRequest,
+		},
+		{
+			name:        "given oversize file when importing then returns 400",
+			accountID:   accountID.String(),
+			ownerID:     ownerID.String(),
+			fileContent: oversizeBody,
+			setupMocks:  func(_ *stmtuci.MockRepository, _ *stmtuci.MockAccountRepository) {},
+			wantStatus:  http.StatusBadRequest,
+		},
+		{
+			name:        "given invalid OFX content when importing then returns 400",
+			accountID:   accountID.String(),
+			ownerID:     ownerID.String(),
+			fileContent: garbageBody,
+			setupMocks: func(_ *stmtuci.MockRepository, accRepo *stmtuci.MockAccountRepository) {
+				accRepo.On("FindByID", mock.Anything, accountID).
+					Return(makeActiveAccount(accountID, ownerID), nil)
+			},
+			wantStatus: http.StatusBadRequest,
+		},
+		{
+			name:        "given OFX with no transactions when importing then returns 400",
+			accountID:   accountID.String(),
+			ownerID:     ownerID.String(),
+			fileContent: emptyTxnsBody,
+			setupMocks: func(_ *stmtuci.MockRepository, accRepo *stmtuci.MockAccountRepository) {
+				accRepo.On("FindByID", mock.Anything, accountID).
+					Return(makeActiveAccount(accountID, ownerID), nil)
+			},
+			wantStatus: http.StatusBadRequest,
+		},
+		{
+			name:        "given malformed amount in OFX when importing then returns 400",
+			accountID:   accountID.String(),
+			ownerID:     ownerID.String(),
+			fileContent: invalidAmountBody,
+			setupMocks: func(_ *stmtuci.MockRepository, accRepo *stmtuci.MockAccountRepository) {
+				accRepo.On("FindByID", mock.Anything, accountID).
+					Return(makeActiveAccount(accountID, ownerID), nil)
+			},
+			wantStatus: http.StatusBadRequest,
+		},
+		{
+			name:        "given malformed date in OFX when importing then returns 400",
+			accountID:   accountID.String(),
+			ownerID:     ownerID.String(),
+			fileContent: invalidDateBody,
+			setupMocks: func(_ *stmtuci.MockRepository, accRepo *stmtuci.MockAccountRepository) {
+				accRepo.On("FindByID", mock.Anything, accountID).
+					Return(makeActiveAccount(accountID, ownerID), nil)
+			},
+			wantStatus: http.StatusBadRequest,
+		},
+		{
+			name:        "given invalid account ID when importing then returns 400",
+			accountID:   "bad-id",
+			ownerID:     ownerID.String(),
+			fileContent: validBody,
+			setupMocks:  func(_ *stmtuci.MockRepository, _ *stmtuci.MockAccountRepository) {},
+			wantStatus:  http.StatusBadRequest,
+		},
+		{
+			name:        "given nonexistent account when importing then returns 404",
+			accountID:   accountID.String(),
+			ownerID:     ownerID.String(),
+			fileContent: validBody,
+			setupMocks: func(_ *stmtuci.MockRepository, accRepo *stmtuci.MockAccountRepository) {
+				accRepo.On("FindByID", mock.Anything, accountID).
+					Return(nil, accountdomain.ErrAccountNotFound)
+			},
+			wantStatus: http.StatusNotFound,
+		},
+		{
+			name:        "given inactive account when importing then returns 422",
+			accountID:   accountID.String(),
+			ownerID:     ownerID.String(),
+			fileContent: validBody,
+			setupMocks: func(_ *stmtuci.MockRepository, accRepo *stmtuci.MockAccountRepository) {
+				accRepo.On("FindByID", mock.Anything, accountID).
+					Return(makeInactiveAccount(accountID, ownerID), nil)
+			},
+			wantStatus: http.StatusUnprocessableEntity,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			h, mockRepo, mockAccRepo := newStatementHandler(t)
+			tt.setupMocks(mockRepo, mockAccRepo)
+
+			router := setupStatementRouterWithAuth(h, tt.ownerID)
+
+			var (
+				body        *bytes.Buffer
+				contentType string
+			)
+			if tt.omitFile {
+				body, contentType = buildMultipartBody(t, "other_field", "irrelevant.txt", []byte("noop"))
+			} else {
+				body, contentType = buildMultipartBody(t, "file", "statement.ofx", tt.fileContent)
+			}
+
+			url := fmt.Sprintf("/accounts/%s/statements/import", tt.accountID)
+			w := httptest.NewRecorder()
+			req := httptest.NewRequest(http.MethodPost, url, body)
+			req.Header.Set("Content-Type", contentType)
 			router.ServeHTTP(w, req)
 
 			assert.Equal(t, tt.wantStatus, w.Code)

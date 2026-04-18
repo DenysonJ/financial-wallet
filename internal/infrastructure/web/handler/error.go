@@ -80,6 +80,8 @@ var domainErrors = []struct {
 	// OFX parser errors
 	{ofx.ErrInvalidFormat, domainErrorMapping{http.StatusBadRequest, apperror.CodeInvalidRequest, "invalid OFX file format"}},
 	{ofx.ErrNoTransactions, domainErrorMapping{http.StatusBadRequest, apperror.CodeInvalidRequest, "no transactions found in OFX file"}},
+	{ofx.ErrInvalidAmount, domainErrorMapping{http.StatusBadRequest, apperror.CodeInvalidRequest, "invalid amount in OFX file"}},
+	{ofx.ErrInvalidDate, domainErrorMapping{http.StatusBadRequest, apperror.CodeInvalidRequest, "invalid date in OFX file"}},
 }
 
 // HandleError handles errors in a centralized and consistent way.
