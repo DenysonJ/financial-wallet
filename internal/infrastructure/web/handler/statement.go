@@ -9,6 +9,7 @@ import (
 	stmtuc "github.com/DenysonJ/financial-wallet/internal/usecases/statement"
 	"github.com/DenysonJ/financial-wallet/internal/usecases/statement/dto"
 	"github.com/DenysonJ/financial-wallet/pkg/httputil/httpgin"
+	"github.com/DenysonJ/financial-wallet/pkg/logutil"
 	"github.com/gin-gonic/gin"
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/attribute"
@@ -271,9 +272,9 @@ func (h *StatementHandler) Import(c *gin.Context) {
 		return
 	}
 	defer func(file multipart.File) {
-		err := file.Close()
-		if err != nil {
+		if closeErr := file.Close(); closeErr != nil {
 			span.SetStatus(codes.Error, "failed to close file")
+			logutil.LogWarn(ctx, "ofx import: failed to close uploaded file", "error", closeErr.Error())
 		}
 	}(file)
 

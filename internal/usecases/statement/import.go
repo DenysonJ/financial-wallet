@@ -21,11 +21,12 @@ import (
 type ImportUseCase struct {
 	repo        interfaces.Repository
 	accountRepo interfaces.AccountRepository
+	parser      interfaces.OFXParser
 }
 
 // NewImportUseCase creates a new ImportUseCase instance.
-func NewImportUseCase(repo interfaces.Repository, accountRepo interfaces.AccountRepository) *ImportUseCase {
-	return &ImportUseCase{repo: repo, accountRepo: accountRepo}
+func NewImportUseCase(repo interfaces.Repository, accountRepo interfaces.AccountRepository, parser interfaces.OFXParser) *ImportUseCase {
+	return &ImportUseCase{repo: repo, accountRepo: accountRepo, parser: parser}
 }
 
 // Execute parses an OFX file and batch-creates statements for the given account.
@@ -66,7 +67,7 @@ func (uc *ImportUseCase) Execute(ctx context.Context, input dto.ImportOFXInput) 
 	}
 
 	// Parse OFX file
-	parseResult, ofxErr := ofx.Parse(input.FileContent)
+	parseResult, ofxErr := uc.parser.Parse(input.FileContent)
 	if ofxErr != nil {
 		span.SetStatus(otelcodes.Error, ofxErr.Error())
 		logutil.LogWarn(ctx, "statement import failed: OFX parse error", "error", ofxErr.Error())

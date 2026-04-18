@@ -29,5 +29,11 @@ type Repository interface {
 	CreateBatch(ctx context.Context, stmts []*stmtdomain.Statement, accountID vo.ID) (int64, error)
 
 	// FindExternalIDs returns which of the given external IDs already exist for the account.
+	//
+	// Implementations MUST query the writer (primary), not the reader replica.
+	// OFX imports rely on this lookup to deduplicate FITIDs; if the replica
+	// lag is non-zero, a just-imported FITID would be re-inserted on a retry
+	// that lands between write and replication. Consistency beats read-load
+	// distribution here.
 	FindExternalIDs(ctx context.Context, accountID vo.ID, externalIDs []string) (map[string]bool, error)
 }

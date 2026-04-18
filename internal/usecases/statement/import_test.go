@@ -309,7 +309,7 @@ func TestImportUseCase_Execute(t *testing.T) {
 					Return(tt.batchBalance, tt.batchErr)
 			}
 
-			uc := NewImportUseCase(mockRepo, mockAccRepo)
+			uc := NewImportUseCase(mockRepo, mockAccRepo, ofx.NewParser())
 			output, execErr := uc.Execute(context.Background(), tt.input)
 
 			if tt.wantErr != nil {

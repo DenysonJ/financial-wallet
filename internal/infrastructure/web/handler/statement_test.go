@@ -17,6 +17,7 @@ import (
 	"github.com/DenysonJ/financial-wallet/internal/infrastructure/web/middleware"
 	"github.com/DenysonJ/financial-wallet/internal/mocks/stmtuci"
 	stmtuc "github.com/DenysonJ/financial-wallet/internal/usecases/statement"
+	"github.com/DenysonJ/financial-wallet/pkg/ofx"
 	pkgvo "github.com/DenysonJ/financial-wallet/pkg/vo"
 	"github.com/gin-gonic/gin"
 	"github.com/stretchr/testify/assert"
@@ -35,7 +36,7 @@ func newStatementHandler(t *testing.T) (*StatementHandler, *stmtuci.MockReposito
 	reverseUC := stmtuc.NewReverseUseCase(mockRepo, mockAccRepo)
 	getUC := stmtuc.NewGetUseCase(mockRepo, mockAccRepo)
 	listUC := stmtuc.NewListUseCase(mockRepo, mockAccRepo)
-	importUC := stmtuc.NewImportUseCase(mockRepo, mockAccRepo)
+	importUC := stmtuc.NewImportUseCase(mockRepo, mockAccRepo, ofx.NewParser())
 	h := NewStatementHandler(createUC, reverseUC, getUC, listUC, importUC)
 	return h, mockRepo, mockAccRepo
 }

@@ -18,6 +18,7 @@ import (
 	"github.com/DenysonJ/financial-wallet/internal/infrastructure/web/middleware"
 	accountuc "github.com/DenysonJ/financial-wallet/internal/usecases/account"
 	stmtuc "github.com/DenysonJ/financial-wallet/internal/usecases/statement"
+	"github.com/DenysonJ/financial-wallet/pkg/ofx"
 	"github.com/DenysonJ/financial-wallet/pkg/vo"
 )
 
@@ -43,7 +44,7 @@ func setupStatementTestRouter(userID string) *gin.Engine {
 	stmtReverseUC := stmtuc.NewReverseUseCase(stmtRepo, accountRepo)
 	stmtGetUC := stmtuc.NewGetUseCase(stmtRepo, accountRepo)
 	stmtListUC := stmtuc.NewListUseCase(stmtRepo, accountRepo)
-	stmtImportUC := stmtuc.NewImportUseCase(stmtRepo, accountRepo)
+	stmtImportUC := stmtuc.NewImportUseCase(stmtRepo, accountRepo, ofx.NewParser())
 	stmtHandler := handler.NewStatementHandler(stmtCreateUC, stmtReverseUC, stmtGetUC, stmtListUC, stmtImportUC)
 
 	r := gin.New()

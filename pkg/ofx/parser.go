@@ -12,6 +12,18 @@ import (
 // maxOFXSize is the maximum OFX file size the parser will accept (5MB).
 const maxOFXSize = 5 << 20
 
+// Parser is a stateless OFX parser suitable for dependency injection. It lets
+// callers depend on an interface (for example internal/usecases/statement/
+// interfaces.OFXParser) while keeping the package-level Parse helper for
+// quick one-off use.
+type Parser struct{}
+
+// NewParser returns a new OFX Parser.
+func NewParser() *Parser { return &Parser{} }
+
+// Parse is the method form of the package-level Parse function.
+func (*Parser) Parse(r io.Reader) (*ParseResult, error) { return Parse(r) }
+
 // Parse reads an OFX file and extracts all bank statement transactions.
 // Supports both SGML (v1.x) and XML (v2.x) formats.
 func Parse(r io.Reader) (*ParseResult, error) {
@@ -33,11 +45,14 @@ func Parse(r io.Reader) (*ParseResult, error) {
 		return nil, splitErr
 	}
 
-	if isSGML(header) {
+	sgml := isSGML(header)
+	if sgml {
 		xmlBody = sgmlToXML(xmlBody)
 	}
 
-	transactions, parseErr := parseXMLBody(xmlBody)
+	// Strict XML decoding only for v2 (true XML). SGML after conversion is not
+	// always well-formed and requires the lenient decoder.
+	transactions, parseErr := parseXMLBody(xmlBody, !sgml)
 	if parseErr != nil {
 		return nil, parseErr
 	}
@@ -54,20 +69,47 @@ func Parse(r io.Reader) (*ParseResult, error) {
 
 // splitHeaderAndBody separates the OFX header from the XML/SGML body.
 // The body starts at the first occurrence of "<OFX>" (case-insensitive).
+// Operates on the original []byte without materializing an UPPER-cased copy
+// of the entire payload, to keep peak memory at ~1x the file size.
 func splitHeaderAndBody(data []byte) (Header, []byte, error) {
-	content := string(data)
-	upperContent := strings.ToUpper(content)
-
-	ofxIdx := strings.Index(upperContent, "<OFX>")
+	ofxIdx := indexFoldASCII(data, []byte("<OFX>"))
 	if ofxIdx == -1 {
 		return Header{}, nil, fmt.Errorf("%w: missing <OFX> tag", ErrInvalidFormat)
 	}
 
-	headerStr := content[:ofxIdx]
-	body := []byte(content[ofxIdx:])
+	// parseHeader only reads ASCII key:value pairs; converting just the
+	// header slice to string is cheap (headers are typically <1KB).
+	header := parseHeader(string(data[:ofxIdx]))
+	return header, data[ofxIdx:], nil
+}
 
-	header := parseHeader(headerStr)
-	return header, body, nil
+// indexFoldASCII returns the index of the first case-insensitive ASCII match
+// of sep in data, or -1 if not found. Avoids allocating a full upper-case
+// copy the way strings.Index(strings.ToUpper(...), ...) would.
+func indexFoldASCII(data, sep []byte) int {
+	if len(sep) == 0 || len(data) < len(sep) {
+		return -1
+	}
+	for i := 0; i <= len(data)-len(sep); i++ {
+		match := true
+		for j := 0; j < len(sep); j++ {
+			if asciiFold(data[i+j]) != asciiFold(sep[j]) {
+				match = false
+				break
+			}
+		}
+		if match {
+			return i
+		}
+	}
+	return -1
+}
+
+func asciiFold(b byte) byte {
+	if b >= 'a' && b <= 'z' {
+		return b - ('a' - 'A')
+	}
+	return b
 }
 
 // parseHeader extracts key-value pairs from the OFX header block.
@@ -221,10 +263,12 @@ type xmlStmtTrn struct {
 }
 
 // parseXMLBody decodes the XML body and extracts transactions.
+// strict=true enforces well-formed XML (OFX v2). For SGML (v1), pass strict=false
+// because sgmlToXML produces approximate XML that may not be fully compliant.
 // Uses xml.NewDecoder with an empty entity map to prevent XML entity expansion attacks.
-func parseXMLBody(data []byte) ([]Transaction, error) {
+func parseXMLBody(data []byte, strict bool) ([]Transaction, error) {
 	decoder := xml.NewDecoder(bytes.NewReader(data))
-	decoder.Strict = false
+	decoder.Strict = strict
 	decoder.Entity = map[string]string{} // block custom entity expansion (Billion Laughs)
 
 	var ofxDoc xmlOFX

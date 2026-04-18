@@ -7,8 +7,15 @@ import (
 )
 
 const TracerKey = "usecase"
-const ActionReverse = "reverse"
-const ActionImport = "import"
+
+// Statement-specific action constants. They extend the generic CRUD set in
+// pkg/logutil (ActionCreate, ActionList, ActionGet, ...) with operations that
+// only apply to the statement domain. Kept local on purpose — ActionReverse
+// and ActionImport are not meaningful outside financial statements
+const (
+	ActionReverse = "reverse"
+	ActionImport  = "import"
+)
 
 // injectLogContext enriches the context with structured logging fields for the use case layer.
 func injectLogContext(ctx context.Context, action string) context.Context {

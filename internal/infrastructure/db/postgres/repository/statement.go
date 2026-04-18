@@ -341,8 +341,9 @@ func (r *StatementRepository) CreateBatch(ctx context.Context, stmts []*stmtdoma
 			runningBalance -= amount
 		}
 
-		stmt.SetBalanceAfter(runningBalance)
+		// Compute balance_after directly on the DB model.
 		dbModel := fromDomainStatement(stmt)
+		dbModel.BalanceAfter = runningBalance
 
 		base := i * colCount
 		placeholders = append(placeholders, fmt.Sprintf(

@@ -1,6 +1,8 @@
 package account
 
 import (
+	"time"
+
 	"github.com/DenysonJ/financial-wallet/pkg/vo"
 )
 
@@ -12,6 +14,16 @@ type ListFilter struct {
 	Name       string
 	Type       string
 	ActiveOnly bool
+
+	// Cursor-based pagination (keyset on created_at DESC, id DESC). Populated
+	// when the client passes an opaque cursor; overrides Page.
+	CursorCreatedAt *time.Time
+	CursorID        *vo.ID
+}
+
+// UseCursor returns true if cursor-based pagination should be used.
+func (f *ListFilter) UseCursor() bool {
+	return f.CursorCreatedAt != nil && f.CursorID != nil
 }
 
 // Normalize aplica valores padrão aos parâmetros de paginação.
@@ -34,8 +46,9 @@ func (f *ListFilter) Offset() int {
 
 // ListResult contém o resultado paginado de accounts.
 type ListResult struct {
-	Accounts []*Account
-	Total    int
-	Page     int
-	Limit    int
+	Accounts   []*Account
+	Total      int
+	Page       int
+	Limit      int
+	NextCursor string
 }

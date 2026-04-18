@@ -3,6 +3,7 @@ package repository
 import (
 	"context"
 	"database/sql"
+	"encoding/base64"
 	"errors"
 	"fmt"
 	"strings"
@@ -160,17 +161,32 @@ func (r *AccountRepository) List(ctx context.Context, filter accountdomain.ListF
 		return nil, countErr
 	}
 
-	// Paginated data query
+	// Paginated data query — keyset when cursor provided, OFFSET otherwise.
 	args["limit"] = filter.Limit
-	args["offset"] = filter.Offset()
 
-	dataQuery := fmt.Sprintf(`
-		SELECT id, user_id, name, type, description, balance, active, created_at, updated_at
-		FROM accounts
-		%s
-		ORDER BY created_at DESC
-		LIMIT :limit OFFSET :offset
-	`, whereClause)
+	var dataQuery string
+	if filter.UseCursor() {
+		cursorConditions := append(conditions, "(created_at, id) < (:cursor_created_at, :cursor_id)")
+		args["cursor_created_at"] = *filter.CursorCreatedAt
+		args["cursor_id"] = filter.CursorID.String()
+		cursorWhere := "WHERE " + strings.Join(cursorConditions, " AND ")
+		dataQuery = fmt.Sprintf(`
+			SELECT id, user_id, name, type, description, balance, active, created_at, updated_at
+			FROM accounts
+			%s
+			ORDER BY created_at DESC, id DESC
+			LIMIT :limit
+		`, cursorWhere)
+	} else {
+		args["offset"] = filter.Offset()
+		dataQuery = fmt.Sprintf(`
+			SELECT id, user_id, name, type, description, balance, active, created_at, updated_at
+			FROM accounts
+			%s
+			ORDER BY created_at DESC, id DESC
+			LIMIT :limit OFFSET :offset
+		`, whereClause)
+	}
 
 	dataQuery, dataArgs, dataNamedErr := sqlx.Named(dataQuery, args)
 	if dataNamedErr != nil {
@@ -199,11 +215,20 @@ func (r *AccountRepository) List(ctx context.Context, filter accountdomain.ListF
 		accounts = append(accounts, acc)
 	}
 
+	// Emit next cursor when this page is full (there may be more rows).
+	var nextCursor string
+	if len(accounts) == filter.Limit && len(accounts) > 0 {
+		last := accounts[len(accounts)-1]
+		raw := last.CreatedAt.Format(time.RFC3339Nano) + "|" + last.ID.String()
+		nextCursor = base64.URLEncoding.EncodeToString([]byte(raw))
+	}
+
 	return &accountdomain.ListResult{
-		Accounts: accounts,
-		Total:    total,
-		Page:     filter.Page,
-		Limit:    filter.Limit,
+		Accounts:   accounts,
+		Total:      total,
+		Page:       filter.Page,
+		Limit:      filter.Limit,
+		NextCursor: nextCursor,
 	}, nil
 }
 

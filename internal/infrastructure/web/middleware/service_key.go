@@ -104,9 +104,15 @@ func ServiceKeyAuth(config ServiceKeyConfig) gin.HandlerFunc {
 			return
 		}
 
-		// Validar chave do serviço
+		// Validate service key — always run ConstantTimeCompare, even when the
+		// service name is unknown, so the response time does not reveal whether
+		// a given service name is configured. Without the dummy compare, an
+		// attacker can enumerate valid service names via timing.
 		expectedKey, exists := config.Keys[serviceName]
 		if !exists {
+			// Compare against a fixed dummy of the same shape as a real key so
+			// the code path takes comparable time before we return 401.
+			_ = subtle.ConstantTimeCompare([]byte("00000000000000000000000000000000"), []byte(serviceKey))
 			httpgin.SendError(c, http.StatusUnauthorized, "unauthorized")
 			c.Abort()
 			return
