@@ -173,13 +173,11 @@ func extractAttr(pi, name string) string {
 }
 
 // isSGML returns true if the header indicates SGML-based OFX (v1.x).
+// Versions starting with "2" are XML-based (OFX 2.x); everything else
+// (including malformed/empty version) is treated as SGML to match the
+// typical OFX 1.0x output from Brazilian banks.
 func isSGML(h Header) bool {
-	// Version starting with '2' or higher is XML-based (OFX 2.x+)
-	if h.Version != "" && h.Version[0] >= '2' {
-		return false
-	}
-	// If version starts with "1" or is legacy format, it's SGML
-	return true
+	return !strings.HasPrefix(h.Version, "2")
 }
 
 // sgmlToXML converts OFX SGML to valid XML by adding closing tags

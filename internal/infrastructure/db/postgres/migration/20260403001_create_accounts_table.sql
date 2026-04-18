@@ -17,11 +17,11 @@ CREATE INDEX idx_accounts_user_type ON accounts(user_id, type);
 CREATE INDEX idx_accounts_user_active ON accounts(user_id, created_at DESC) WHERE active = true;
 
 -- Seed: account permissions
-INSERT INTO permissions (id, name, description) VALUES
-    ('00000000-0000-0000-0000-000000000007', 'account:read', 'Read account data'),
-    ('00000000-0000-0000-0000-000000000008', 'account:write', 'Create accounts'),
-    ('00000000-0000-0000-0000-000000000009', 'account:update', 'Update accounts'),
-    ('00000000-0000-0000-0000-000000000010', 'account:delete', 'Delete accounts');
+INSERT INTO permissions (id, name, description, created_at) VALUES
+    ('00000000-0000-0000-0000-000000000007', 'account:read', 'Read account data', NOW()),
+    ('00000000-0000-0000-0000-000000000008', 'account:write', 'Create accounts', NOW()),
+    ('00000000-0000-0000-0000-000000000009', 'account:update', 'Update accounts', NOW()),
+    ('00000000-0000-0000-0000-000000000010', 'account:delete', 'Delete accounts', NOW());
 
 -- Seed: admin gets all account permissions
 INSERT INTO role_permissions (role_id, permission_id) VALUES
