@@ -60,6 +60,8 @@ definitions:
     properties:
       limit:
         type: integer
+      next_cursor:
+        type: string
       page:
         type: integer
       total:
@@ -255,6 +257,8 @@ definitions:
     properties:
       limit:
         type: integer
+      next_cursor:
+        type: string
       page:
         type: integer
       total:

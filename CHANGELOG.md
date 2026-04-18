@@ -14,6 +14,10 @@ Commits seguem [Conventional Commits](https://www.conventionalcommits.org/).
 
 ### Funcionalidades
 
+- **ofx-import**: Corrigir problemas pequenos
+- **ofx-import**: Corrigir problemas menores de segurança e arquitetura
+- **ofx-import**: Corrigir problemas
+- **ofx-import**: Corrigir pontos críticos
 - **ofx-import**: Corrigir pequenos problemas de arquitetura
 - **ofx-import**: Corrigir problemas de arquitetura e base de dados
 - **ofx-import**: Corrigir problemas críticos

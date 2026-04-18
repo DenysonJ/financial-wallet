@@ -1771,6 +1771,9 @@ const docTemplate = `{
                 "limit": {
                     "type": "integer"
                 },
+                "next_cursor": {
+                    "type": "string"
+                },
                 "page": {
                     "type": "integer"
                 },
@@ -2058,6 +2061,9 @@ const docTemplate = `{
             "properties": {
                 "limit": {
                     "type": "integer"
+                },
+                "next_cursor": {
+                    "type": "string"
                 },
                 "page": {
                     "type": "integer"
