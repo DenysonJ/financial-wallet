@@ -23,7 +23,7 @@ type RateLimitConfig struct {
 // Behavior:
 //   - Builds key from client IP + HTTP method + matched route
 //   - Checks rate limit via Store.Allow (Redis-backed)
-//   - Sets X-RateLimit-Limit, X-RateLimit-Remaining, X-RateLimit-Reset headers
+//   - Sets RateLimit-Limit, RateLimit-Remaining, RateLimit-Reset headers
 //   - Returns 429 Too Many Requests if limit exceeded
 //   - Fail-open: if store returns error, logs warning and allows request
 func RateLimit(cfg RateLimitConfig) gin.HandlerFunc {

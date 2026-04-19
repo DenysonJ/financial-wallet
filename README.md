@@ -140,12 +140,12 @@ curl -X POST http://localhost:8080/auth/refresh \
 
 #### Service Key (service-to-service)
 
-Para comunicação entre serviços, use headers `X-Service-Name` e `X-Service-Key`:
+Para comunicação entre serviços, use headers `Service-Name` e `Service-Key`:
 
 ```bash
 curl -X GET http://localhost:8080/users \
-  -H "X-Service-Name: financial-wallet" \
-  -H "X-Service-Key: sk_financial_wallet_abc123"
+  -H "Service-Name: financial-wallet" \
+  -H "Service-Key: sk_financial_wallet_abc123"
 ```
 
 #### Rotas e permissões

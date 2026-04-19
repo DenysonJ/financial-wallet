@@ -19,7 +19,7 @@ var validRequestID = regexp.MustCompile(`^[a-zA-Z0-9-]+$`)
 
 const (
 	// RequestIDHeader é o header usado para o Request ID
-	RequestIDHeader = "X-Request-ID"
+	RequestIDHeader = "Request-ID"
 )
 
 // Logger retorna um middleware de logging estruturado

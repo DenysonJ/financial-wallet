@@ -12,12 +12,12 @@ package main
 
 // @securityDefinitions.apikey ServiceName
 // @in header
-// @name X-Service-Name
+// @name Service-Name
 // @description Name of the calling service (e.g. "billing-api")
 
 // @securityDefinitions.apikey ServiceKey
 // @in header
-// @name X-Service-Key
+// @name Service-Key
 // @description Secret key for the calling service
 
 // @securityDefinitions.apikey BearerAuth

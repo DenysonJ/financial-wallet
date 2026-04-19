@@ -71,7 +71,7 @@ swag init -g cmd/api/main.go -o docs --parseDependency --parseInternal
 - **DB Cluster**: Writer/Reader split via `pkg/database.DBCluster`. Reader is optional, falls back to writer.
 - **API Response Format**: Gin handlers use `httpgin.SendSuccess(c, status, data)` and `httpgin.SendError(c, status, message)`. Core helpers (`httputil.WriteSuccess`/`httputil.WriteError`) work with stdlib `http.ResponseWriter`. Responses wrap in `{"data": ...}` or `{"errors": {"message": ...}}`.
 - **Error Handling**: Domain defines pure errors (`user.ErrNotFound`, etc.). `pkg/apperror.AppError` provides structured errors with HTTP status. Handlers translate errors via `handler.HandleError()`. Never return HTTP concepts from domain layer.
-- **Service Key Auth**: Optional service-to-service authentication via `X-Service-Name` + `X-Service-Key` headers. See `docs/adr/005-service-key-auth.md`.
+- **Service Key Auth**: Optional service-to-service authentication via `Service-Name` + `Service-Key` headers. See `docs/adr/005-service-key-auth.md`.
 - **Singleflight**: GetUseCase uses `golang.org/x/sync/singleflight` to prevent cache stampede on concurrent reads for the same entity.
 - **Idempotency**: Redis-backed idempotency via `pkg/idempotency.Store`, wired as optional middleware. Uses SHA-256 fingerprint + lock/unlock pattern.
 

@@ -25,11 +25,11 @@ type ServiceKeyConfig struct {
 	Keys map[string]string
 
 	// ServiceNameHeader é o header que contém o nome do serviço chamador.
-	// Default: "X-Service-Name"
+	// Default: "Service-Name"
 	ServiceNameHeader string
 
 	// ServiceKeyHeader é o header que contém a chave do serviço.
-	// Default: "X-Service-Key"
+	// Default: "Service-Key"
 	ServiceKeyHeader string
 }
 
@@ -59,8 +59,8 @@ func ParseServiceKeys(raw string) map[string]string {
 func DefaultServiceKeyConfig() ServiceKeyConfig {
 	return ServiceKeyConfig{
 		Keys:              make(map[string]string),
-		ServiceNameHeader: "X-Service-Name",
-		ServiceKeyHeader:  "X-Service-Key",
+		ServiceNameHeader: "Service-Name",
+		ServiceKeyHeader:  "Service-Key",
 	}
 }
 
@@ -73,10 +73,10 @@ func DefaultServiceKeyConfig() ServiceKeyConfig {
 func ServiceKeyAuth(config ServiceKeyConfig) gin.HandlerFunc {
 	// Define headers padrão se não configurados
 	if config.ServiceNameHeader == "" {
-		config.ServiceNameHeader = "X-Service-Name"
+		config.ServiceNameHeader = "Service-Name"
 	}
 	if config.ServiceKeyHeader == "" {
-		config.ServiceKeyHeader = "X-Service-Key"
+		config.ServiceKeyHeader = "Service-Key"
 	}
 
 	return func(c *gin.Context) {

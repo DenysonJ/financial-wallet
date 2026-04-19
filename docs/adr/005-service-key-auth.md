@@ -26,8 +26,8 @@ Implementamos **autenticação via Service Keys com suporte a múltiplas chaves*
 Cada serviço consumidor recebe uma chave única. As requisições devem incluir dois headers:
 
 ```http
-X-Service-Name: banking-router
-X-Service-Key: sk_banking_router_abc123def456
+Service-Name: banking-router
+Service-Key: sk_banking_router_abc123def456
 ```
 
 ### Configuração

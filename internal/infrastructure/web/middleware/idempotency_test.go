@@ -399,7 +399,7 @@ func TestIdempotency_WithServiceNameHeader_NamespacesKey(t *testing.T) {
 	req, reqErr := http.NewRequest("POST", "/test", bytes.NewBuffer(body))
 	require.NoError(t, reqErr)
 	req.Header.Set(IdempotencyKeyHeader, "ns-key")
-	req.Header.Set("X-Service-Name", "my-service")
+	req.Header.Set("Service-Name", "my-service")
 
 	r.ServeHTTP(w, req)
 
