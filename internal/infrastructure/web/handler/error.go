@@ -13,6 +13,7 @@ import (
 	uservo "github.com/DenysonJ/financial-wallet/internal/domain/user/vo"
 	"github.com/DenysonJ/financial-wallet/pkg/apperror"
 	"github.com/DenysonJ/financial-wallet/pkg/httputil/httpgin"
+	"github.com/DenysonJ/financial-wallet/pkg/ofx"
 	"github.com/DenysonJ/financial-wallet/pkg/vo"
 	"github.com/gin-gonic/gin"
 	"go.opentelemetry.io/otel/codes"
@@ -76,12 +77,32 @@ var domainErrors = []struct {
 	{stmtdomain.ErrStatementNotFound, domainErrorMapping{http.StatusNotFound, apperror.CodeNotFound, "statement not found"}},
 	{stmtdomain.ErrAlreadyReversed, domainErrorMapping{http.StatusConflict, apperror.CodeConflict, "statement already reversed"}},
 	{stmtdomain.ErrAccountNotActive, domainErrorMapping{http.StatusUnprocessableEntity, apperror.CodeValidationError, "account is not active"}},
+	// OFX parser errors
+	{ofx.ErrInvalidFormat, domainErrorMapping{http.StatusBadRequest, apperror.CodeInvalidRequest, "invalid OFX file format"}},
+	{ofx.ErrNoTransactions, domainErrorMapping{http.StatusBadRequest, apperror.CodeInvalidRequest, "no transactions found in OFX file"}},
+	{ofx.ErrInvalidAmount, domainErrorMapping{http.StatusBadRequest, apperror.CodeInvalidRequest, "invalid amount in OFX file"}},
+	{ofx.ErrInvalidDate, domainErrorMapping{http.StatusBadRequest, apperror.CodeInvalidRequest, "invalid date in OFX file"}},
 }
 
 // HandleError handles errors in a centralized and consistent way.
-// It supports AppError (structured) and falls back to domain error translation.
+//
+// Precedence is intentional: a domain-sentinel match (via errors.Is, which
+// traverses AppError.Unwrap) always wins over AppError.Message. This keeps
+// client-facing messages confined to the static strings in domainErrors —
+// even if an AppError further up the chain carries verbose text from an
+// external parser (e.g. OFX/XML decoder). See security review SEC-H-3.
 func HandleError(c *gin.Context, span trace.Span, err error) {
-	// 1. Try AppError first (structured errors from use cases)
+	// 1. Domain sentinel match — safe static message wins.
+	if status, code, message, ok := translateDomainError(err); ok {
+		span.SetStatus(codes.Error, code)
+		if status >= 500 {
+			span.RecordError(err)
+		}
+		httpgin.SendError(c, status, message)
+		return
+	}
+
+	// 2. Structured AppError with no sentinel match.
 	if appErr, ok2 := errors.AsType[*apperror.AppError](err); ok2 {
 		status, ok := codeToStatus[appErr.Code]
 		if !ok {
@@ -95,23 +116,20 @@ func HandleError(c *gin.Context, span trace.Span, err error) {
 		return
 	}
 
-	// 2. Fallback: translate domain errors to HTTP
-	status, code, message := translateError(err)
-
-	span.SetStatus(codes.Error, code)
-	if status >= 500 {
-		span.RecordError(err)
-	}
-
-	httpgin.SendError(c, status, message)
+	// 3. Unknown error — default to 500 with a generic message.
+	span.SetStatus(codes.Error, apperror.CodeInternalError)
+	span.RecordError(err)
+	httpgin.SendError(c, http.StatusInternalServerError, "internal server error")
 }
 
-// translateError maps domain errors to HTTP responses by looking up domainErrors.
-func translateError(err error) (status int, code, message string) {
+// translateDomainError looks up err in domainErrors via errors.Is. Returns
+// ok=false when no sentinel matches; the caller is responsible for choosing
+// the fallback behavior.
+func translateDomainError(err error) (status int, code, message string, ok bool) {
 	for _, entry := range domainErrors {
 		if errors.Is(err, entry.err) {
-			return entry.mapping.Status, entry.mapping.Code, entry.mapping.Message
+			return entry.mapping.Status, entry.mapping.Code, entry.mapping.Message, true
 		}
 	}
-	return http.StatusInternalServerError, apperror.CodeInternalError, "internal server error"
+	return 0, "", "", false
 }

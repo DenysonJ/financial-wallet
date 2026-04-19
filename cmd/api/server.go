@@ -32,6 +32,7 @@ import (
 	"github.com/DenysonJ/financial-wallet/pkg/idempotency/redisstore"
 	pkgjwt "github.com/DenysonJ/financial-wallet/pkg/jwt"
 	"github.com/DenysonJ/financial-wallet/pkg/logutil"
+	"github.com/DenysonJ/financial-wallet/pkg/ofx"
 	"github.com/DenysonJ/financial-wallet/pkg/ratelimit"
 	rlredis "github.com/DenysonJ/financial-wallet/pkg/ratelimit/redisstore"
 	pkgtelemetry "github.com/DenysonJ/financial-wallet/pkg/telemetry"
@@ -267,7 +268,8 @@ func buildDependencies(cluster *database.DBCluster, sqlxWriter, sqlxReader *sqlx
 	stmtReverseUC := stmtuc.NewReverseUseCase(stmtRepo, accountRepo)
 	stmtGetUC := stmtuc.NewGetUseCase(stmtRepo, accountRepo)
 	stmtListUC := stmtuc.NewListUseCase(stmtRepo, accountRepo)
-	stmtHandler := handler.NewStatementHandler(stmtCreateUC, stmtReverseUC, stmtGetUC, stmtListUC)
+	stmtImportUC := stmtuc.NewImportUseCase(stmtRepo, accountRepo, ofx.NewParser())
+	stmtHandler := handler.NewStatementHandler(stmtCreateUC, stmtReverseUC, stmtGetUC, stmtListUC, stmtImportUC)
 
 	// --- JWT Service ---
 	var jwtService *pkgjwt.Service

@@ -2,6 +2,9 @@ package statement
 
 import (
 	"context"
+	"encoding/base64"
+	"fmt"
+	"strings"
 	"time"
 
 	"go.opentelemetry.io/otel"
@@ -65,6 +68,18 @@ func (uc *ListUseCase) Execute(ctx context.Context, input dto.ListInput) (*dto.L
 		Limit:     input.Limit,
 	}
 
+	// Parse optional cursor (overrides page-based pagination)
+	if input.Cursor != "" {
+		cursorPostedAt, cursorID, cursorErr := decodeCursor(input.Cursor)
+		if cursorErr != nil {
+			span.SetStatus(otelcodes.Error, cursorErr.Error())
+			logutil.LogWarn(ctx, "statement list failed: invalid cursor", "error", cursorErr.Error())
+			return nil, cursorErr
+		}
+		filter.CursorPostedAt = &cursorPostedAt
+		filter.CursorID = &cursorID
+	}
+
 	// Parse optional type filter
 	if input.Type != "" {
 		stmtType, typeErr := stmtvo.NewStatementType(input.Type)
@@ -119,13 +134,45 @@ func (uc *ListUseCase) Execute(ctx context.Context, input dto.ListInput) (*dto.L
 
 	logutil.LogInfo(ctx, "statements listed", "account.id", accountID.String(), "count", len(data))
 
+	pagination := dto.PaginationOutput{
+		Page:       result.Page,
+		Limit:      result.Limit,
+		Total:      result.Total,
+		TotalPages: totalPages,
+	}
+	if result.NextCursor != "" {
+		pagination.NextCursor = &result.NextCursor
+	}
+
 	return &dto.ListOutput{
-		Data: data,
-		Pagination: dto.PaginationOutput{
-			Page:       result.Page,
-			Limit:      result.Limit,
-			Total:      result.Total,
-			TotalPages: totalPages,
-		},
+		Data:       data,
+		Pagination: pagination,
 	}, nil
+}
+
+// decodeCursor parses an opaque cursor back into posted_at and id.
+func decodeCursor(cursor string) (time.Time, pkgvo.ID, error) {
+	var zeroID pkgvo.ID
+
+	raw, decodeErr := base64.URLEncoding.DecodeString(cursor)
+	if decodeErr != nil {
+		return time.Time{}, zeroID, fmt.Errorf("invalid cursor: %w", decodeErr)
+	}
+
+	parts := strings.SplitN(string(raw), "|", 2)
+	if len(parts) != 2 {
+		return time.Time{}, zeroID, fmt.Errorf("invalid cursor format")
+	}
+
+	postedAt, timeErr := time.Parse(time.RFC3339Nano, parts[0])
+	if timeErr != nil {
+		return time.Time{}, zeroID, fmt.Errorf("invalid cursor timestamp: %w", timeErr)
+	}
+
+	id, idErr := pkgvo.ParseID(parts[1])
+	if idErr != nil {
+		return time.Time{}, zeroID, fmt.Errorf("invalid cursor ID: %w", idErr)
+	}
+
+	return postedAt, id, nil
 }

@@ -2,6 +2,9 @@ package account
 
 import (
 	"context"
+	"encoding/base64"
+	"fmt"
+	"strings"
 	"time"
 
 	"go.opentelemetry.io/otel"
@@ -56,6 +59,18 @@ func (uc *ListUseCase) Execute(ctx context.Context, input dto.ListInput) (*dto.L
 		ActiveOnly: input.ActiveOnly,
 	}
 
+	// Parse optional cursor — when present, it overrides Page-based pagination.
+	if input.Cursor != "" {
+		cursorCreatedAt, cursorID, cursorErr := decodeAccountCursor(input.Cursor)
+		if cursorErr != nil {
+			span.SetStatus(otelcodes.Error, cursorErr.Error())
+			logutil.LogWarn(ctx, "account list failed: invalid cursor", "error", cursorErr.Error())
+			return nil, cursorErr
+		}
+		filter.CursorCreatedAt = &cursorCreatedAt
+		filter.CursorID = &cursorID
+	}
+
 	// Buscar no repositório
 	result, listErr := uc.repo.List(ctx, filter)
 	if listErr != nil {
@@ -89,13 +104,45 @@ func (uc *ListUseCase) Execute(ctx context.Context, input dto.ListInput) (*dto.L
 	span.SetAttributes(attribute.Int("result.total", result.Total))
 	logutil.LogInfo(ctx, "accounts listed", "total", result.Total, "page", result.Page)
 
+	pagination := dto.PaginationOutput{
+		Page:       result.Page,
+		Limit:      result.Limit,
+		Total:      result.Total,
+		TotalPages: totalPages,
+	}
+	if result.NextCursor != "" {
+		pagination.NextCursor = &result.NextCursor
+	}
+
 	return &dto.ListOutput{
-		Data: items,
-		Pagination: dto.PaginationOutput{
-			Page:       result.Page,
-			Limit:      result.Limit,
-			Total:      result.Total,
-			TotalPages: totalPages,
-		},
+		Data:       items,
+		Pagination: pagination,
 	}, nil
+}
+
+// decodeAccountCursor parses an opaque cursor back into created_at and id.
+func decodeAccountCursor(cursor string) (time.Time, uservo.ID, error) {
+	var zeroID uservo.ID
+
+	raw, decodeErr := base64.URLEncoding.DecodeString(cursor)
+	if decodeErr != nil {
+		return time.Time{}, zeroID, fmt.Errorf("invalid cursor: %w", decodeErr)
+	}
+
+	parts := strings.SplitN(string(raw), "|", 2)
+	if len(parts) != 2 {
+		return time.Time{}, zeroID, fmt.Errorf("invalid cursor format")
+	}
+
+	createdAt, timeErr := time.Parse(time.RFC3339Nano, parts[0])
+	if timeErr != nil {
+		return time.Time{}, zeroID, fmt.Errorf("invalid cursor timestamp: %w", timeErr)
+	}
+
+	id, idErr := uservo.ParseID(parts[1])
+	if idErr != nil {
+		return time.Time{}, zeroID, fmt.Errorf("invalid cursor ID: %w", idErr)
+	}
+
+	return createdAt, id, nil
 }

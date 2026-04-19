@@ -60,6 +60,8 @@ definitions:
     properties:
       limit:
         type: integer
+      next_cursor:
+        type: string
       page:
         type: integer
       total:
@@ -221,6 +223,8 @@ definitions:
         description: Optional description
         maxLength: 1000
         type: string
+      posted_at:
+        type: string
       type:
         description: credit or debit
         enum:
@@ -230,6 +234,15 @@ definitions:
     required:
     - amount
     - type
+    type: object
+  github_com_DenysonJ_financial-wallet_internal_usecases_statement_dto.ImportOutput:
+    properties:
+      created:
+        type: integer
+      skipped:
+        type: integer
+      total_transactions:
+        type: integer
     type: object
   github_com_DenysonJ_financial-wallet_internal_usecases_statement_dto.ListOutput:
     properties:
@@ -244,6 +257,8 @@ definitions:
     properties:
       limit:
         type: integer
+      next_cursor:
+        type: string
       page:
         type: integer
       total:
@@ -270,7 +285,11 @@ definitions:
         type: string
       description:
         type: string
+      external_id:
+        type: string
       id:
+        type: string
+      posted_at:
         type: string
       reference_id:
         type: string
@@ -827,6 +846,60 @@ paths:
       - ServiceName: []
       - ServiceKey: []
       summary: Reverse a statement
+      tags:
+      - statements
+  /accounts/{id}/statements/import:
+    post:
+      consumes:
+      - multipart/form-data
+      description: Parse an OFX bank statement file and batch-create statements. Duplicates
+        are skipped via FITID.
+      parameters:
+      - description: Account ID
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: OFX file
+        in: formData
+        name: file
+        required: true
+        type: file
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/github_com_DenysonJ_financial-wallet_internal_usecases_statement_dto.ImportOutput'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/internal_infrastructure_web_handler.ErrorResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/internal_infrastructure_web_handler.ErrorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/internal_infrastructure_web_handler.ErrorResponse'
+        "422":
+          description: Unprocessable Entity
+          schema:
+            $ref: '#/definitions/internal_infrastructure_web_handler.ErrorResponse'
+        "429":
+          description: Too Many Requests
+          schema:
+            $ref: '#/definitions/internal_infrastructure_web_handler.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/internal_infrastructure_web_handler.ErrorResponse'
+      security:
+      - ServiceName: []
+      - ServiceKey: []
+      summary: Import statements from OFX file
       tags:
       - statements
   /auth/login:

@@ -1,0 +1,315 @@
+package ofx
+
+import (
+	"bufio"
+	"bytes"
+	"encoding/xml"
+	"fmt"
+	"io"
+	"strings"
+)
+
+// maxOFXSize is the maximum OFX file size the parser will accept (5MB).
+const maxOFXSize = 5 << 20
+
+// Parser is a stateless OFX parser suitable for dependency injection. It lets
+// callers depend on an interface (for example internal/usecases/statement/
+// interfaces.OFXParser) while keeping the package-level Parse helper for
+// quick one-off use.
+type Parser struct{}
+
+// NewParser returns a new OFX Parser.
+func NewParser() *Parser { return &Parser{} }
+
+// Parse is the method form of the package-level Parse function.
+func (*Parser) Parse(r io.Reader) (*ParseResult, error) { return Parse(r) }
+
+// Parse reads an OFX file and extracts all bank statement transactions.
+// Supports both SGML (v1.x) and XML (v2.x) formats.
+func Parse(r io.Reader) (*ParseResult, error) {
+	data, readErr := io.ReadAll(io.LimitReader(r, maxOFXSize+1))
+	if readErr != nil {
+		return nil, fmt.Errorf("%w: reading input: %s", ErrInvalidFormat, readErr.Error())
+	}
+
+	if len(data) > maxOFXSize {
+		return nil, fmt.Errorf("%w: file exceeds maximum size of 5MB", ErrInvalidFormat)
+	}
+
+	if len(bytes.TrimSpace(data)) == 0 {
+		return nil, fmt.Errorf("%w: empty input", ErrInvalidFormat)
+	}
+
+	header, xmlBody, splitErr := splitHeaderAndBody(data)
+	if splitErr != nil {
+		return nil, splitErr
+	}
+
+	sgml := isSGML(header)
+	if sgml {
+		xmlBody = sgmlToXML(xmlBody)
+	}
+
+	// Strict XML decoding only for v2 (true XML). SGML after conversion is not
+	// always well-formed and requires the lenient decoder.
+	transactions, parseErr := parseXMLBody(xmlBody, !sgml)
+	if parseErr != nil {
+		return nil, parseErr
+	}
+
+	if len(transactions) == 0 {
+		return nil, ErrNoTransactions
+	}
+
+	return &ParseResult{
+		Header:       header,
+		Transactions: transactions,
+	}, nil
+}
+
+// splitHeaderAndBody separates the OFX header from the XML/SGML body.
+// The body starts at the first occurrence of "<OFX>" (case-insensitive).
+// Operates on the original []byte without materializing an UPPER-cased copy
+// of the entire payload, to keep peak memory at ~1x the file size.
+func splitHeaderAndBody(data []byte) (Header, []byte, error) {
+	ofxIdx := indexFoldASCII(data, []byte("<OFX>"))
+	if ofxIdx == -1 {
+		return Header{}, nil, fmt.Errorf("%w: missing <OFX> tag", ErrInvalidFormat)
+	}
+
+	// parseHeader only reads ASCII key:value pairs; converting just the
+	// header slice to string is cheap (headers are typically <1KB).
+	header := parseHeader(string(data[:ofxIdx]))
+	return header, data[ofxIdx:], nil
+}
+
+// indexFoldASCII returns the index of the first case-insensitive ASCII match
+// of sep in data, or -1 if not found. Avoids allocating a full upper-case
+// copy the way strings.Index(strings.ToUpper(...), ...) would.
+func indexFoldASCII(data, sep []byte) int {
+	if len(sep) == 0 || len(data) < len(sep) {
+		return -1
+	}
+	for i := 0; i <= len(data)-len(sep); i++ {
+		match := true
+		for j := 0; j < len(sep); j++ {
+			if asciiFold(data[i+j]) != asciiFold(sep[j]) {
+				match = false
+				break
+			}
+		}
+		if match {
+			return i
+		}
+	}
+	return -1
+}
+
+func asciiFold(b byte) byte {
+	if b >= 'a' && b <= 'z' {
+		return b - ('a' - 'A')
+	}
+	return b
+}
+
+// parseHeader extracts key-value pairs from the OFX header block.
+func parseHeader(s string) Header {
+	h := Header{}
+	scanner := bufio.NewScanner(strings.NewReader(s))
+	for scanner.Scan() {
+		line := strings.TrimSpace(scanner.Text())
+		if line == "" || strings.HasPrefix(line, "<?") {
+			continue
+		}
+
+		parts := strings.SplitN(line, ":", 2)
+		if len(parts) != 2 {
+			continue
+		}
+
+		key := strings.TrimSpace(parts[0])
+		value := strings.TrimSpace(parts[1])
+
+		switch strings.ToUpper(key) {
+		case "VERSION":
+			h.Version = value
+		case "ENCODING":
+			h.Encoding = value
+		}
+	}
+
+	// For XML-based OFX (v2), try to parse version from <?OFX ... ?> processing instruction
+	if h.Version == "" {
+		if idx := strings.Index(s, "<?OFX"); idx != -1 {
+			piEnd := strings.Index(s[idx:], "?>")
+			if piEnd != -1 {
+				pi := s[idx : idx+piEnd+2]
+				h.Version = extractAttr(pi, "VERSION")
+			}
+		}
+	}
+
+	return h
+}
+
+// extractAttr extracts a named attribute value from a processing instruction string.
+func extractAttr(pi, name string) string {
+	upper := strings.ToUpper(pi)
+	nameUpper := strings.ToUpper(name)
+
+	idx := strings.Index(upper, nameUpper+"=")
+	if idx == -1 {
+		return ""
+	}
+
+	rest := pi[idx+len(name)+1:]
+	rest = strings.TrimLeft(rest, "\"' ")
+
+	endIdx := strings.IndexAny(rest, "\"' ?>")
+	if endIdx == -1 {
+		return rest
+	}
+	return rest[:endIdx]
+}
+
+// isSGML returns true if the header indicates SGML-based OFX (v1.x).
+// Versions starting with "2" are XML-based (OFX 2.x); everything else
+// (including malformed/empty version) is treated as SGML to match the
+// typical OFX 1.0x output from Brazilian banks.
+func isSGML(h Header) bool {
+	return !strings.HasPrefix(h.Version, "2")
+}
+
+// sgmlToXML converts OFX SGML to valid XML by adding closing tags
+// for leaf elements that don't have them.
+func sgmlToXML(data []byte) []byte {
+	var buf bytes.Buffer
+	scanner := bufio.NewScanner(bytes.NewReader(data))
+
+	for scanner.Scan() {
+		line := strings.TrimSpace(scanner.Text())
+		if line == "" {
+			continue
+		}
+
+		buf.WriteString(processLine(line))
+		buf.WriteByte('\n')
+	}
+
+	return buf.Bytes()
+}
+
+// processLine handles a single line of SGML OFX, adding closing tags where needed.
+func processLine(line string) string {
+	// If the line is a closing tag, pass through: </TAG>
+	if strings.HasPrefix(line, "</") {
+		return line
+	}
+
+	// If the line starts with < but has content after the tag name,
+	// it's a leaf element like: <TRNAMT>-150.75
+	if !strings.HasPrefix(line, "<") {
+		return line
+	}
+
+	// Find end of opening tag
+	tagEnd := strings.Index(line, ">")
+	if tagEnd == -1 {
+		return line
+	}
+
+	tagName := line[1:tagEnd]
+	valueAfter := strings.TrimSpace(line[tagEnd+1:])
+
+	// If there's a value after the tag (leaf element), add closing tag
+	if valueAfter != "" && !strings.HasPrefix(valueAfter, "<") {
+		return fmt.Sprintf("<%s>%s</%s>", tagName, valueAfter, tagName)
+	}
+
+	return line
+}
+
+// XML structures for parsing the OFX body
+
+type xmlOFX struct {
+	BankMsgs xmlBankMsgsRsV1 `xml:"BANKMSGSRSV1"`
+}
+
+type xmlBankMsgsRsV1 struct {
+	StmtTrnRs xmlStmtTrnRs `xml:"STMTTRNRS"`
+}
+
+type xmlStmtTrnRs struct {
+	StmtRs xmlStmtRs `xml:"STMTRS"`
+}
+
+type xmlStmtRs struct {
+	BankTranList xmlBankTranList `xml:"BANKTRANLIST"`
+}
+
+type xmlBankTranList struct {
+	Transactions []xmlStmtTrn `xml:"STMTTRN"`
+}
+
+type xmlStmtTrn struct {
+	TrnType  string `xml:"TRNTYPE"`
+	DtPosted string `xml:"DTPOSTED"`
+	TrnAmt   string `xml:"TRNAMT"`
+	FITID    string `xml:"FITID"`
+	Name     string `xml:"NAME"`
+	Memo     string `xml:"MEMO"`
+}
+
+// parseXMLBody decodes the XML body and extracts transactions.
+// strict=true enforces well-formed XML (OFX v2). For SGML (v1), pass strict=false
+// because sgmlToXML produces approximate XML that may not be fully compliant.
+// Uses xml.NewDecoder with an empty entity map to prevent XML entity expansion attacks.
+func parseXMLBody(data []byte, strict bool) ([]Transaction, error) {
+	decoder := xml.NewDecoder(bytes.NewReader(data))
+	decoder.Strict = strict
+	decoder.Entity = map[string]string{} // block custom entity expansion (Billion Laughs)
+
+	var ofxDoc xmlOFX
+	decodeErr := decoder.Decode(&ofxDoc)
+	if decodeErr != nil {
+		return nil, fmt.Errorf("%w: %s", ErrInvalidFormat, decodeErr.Error())
+	}
+
+	rawTxns := ofxDoc.BankMsgs.StmtTrnRs.StmtRs.BankTranList.Transactions
+	if len(rawTxns) == 0 {
+		return nil, nil
+	}
+
+	transactions := make([]Transaction, 0, len(rawTxns))
+	for _, raw := range rawTxns {
+		txn, mapErr := mapTransaction(raw)
+		if mapErr != nil {
+			return nil, mapErr
+		}
+		transactions = append(transactions, txn)
+	}
+
+	return transactions, nil
+}
+
+// mapTransaction converts a raw XML transaction to the domain Transaction type.
+func mapTransaction(raw xmlStmtTrn) (Transaction, error) {
+	amount, amountErr := ParseAmount(strings.TrimSpace(raw.TrnAmt))
+	if amountErr != nil {
+		return Transaction{}, fmt.Errorf("parsing amount for FITID %s: %w", raw.FITID, amountErr)
+	}
+
+	datePosted, dateErr := ParseDate(strings.TrimSpace(raw.DtPosted))
+	if dateErr != nil {
+		return Transaction{}, fmt.Errorf("parsing date for FITID %s: %w", raw.FITID, dateErr)
+	}
+
+	return Transaction{
+		FITID:      strings.TrimSpace(raw.FITID),
+		Type:       strings.TrimSpace(raw.TrnType),
+		Amount:     amount,
+		Name:       strings.TrimSpace(raw.Name),
+		Memo:       strings.TrimSpace(raw.Memo),
+		DatePosted: datePosted,
+	}, nil
+}
