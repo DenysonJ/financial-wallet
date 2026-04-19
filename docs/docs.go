@@ -519,6 +519,89 @@ const docTemplate = `{
                 }
             }
         },
+        "/accounts/{id}/statements/import": {
+            "post": {
+                "security": [
+                    {
+                        "ServiceName": []
+                    },
+                    {
+                        "ServiceKey": []
+                    }
+                ],
+                "description": "Parse an OFX bank statement file and batch-create statements. Duplicates are skipped via FITID.",
+                "consumes": [
+                    "multipart/form-data"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "statements"
+                ],
+                "summary": "Import statements from OFX file",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Account ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "file",
+                        "description": "OFX file",
+                        "name": "file",
+                        "in": "formData",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_DenysonJ_financial-wallet_internal_usecases_statement_dto.ImportOutput"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/internal_infrastructure_web_handler.ErrorResponse"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/internal_infrastructure_web_handler.ErrorResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/internal_infrastructure_web_handler.ErrorResponse"
+                        }
+                    },
+                    "422": {
+                        "description": "Unprocessable Entity",
+                        "schema": {
+                            "$ref": "#/definitions/internal_infrastructure_web_handler.ErrorResponse"
+                        }
+                    },
+                    "429": {
+                        "description": "Too Many Requests",
+                        "schema": {
+                            "$ref": "#/definitions/internal_infrastructure_web_handler.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/internal_infrastructure_web_handler.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
         "/accounts/{id}/statements/{statement_id}": {
             "get": {
                 "security": [
@@ -1688,6 +1771,9 @@ const docTemplate = `{
                 "limit": {
                     "type": "integer"
                 },
+                "next_cursor": {
+                    "type": "string"
+                },
                 "page": {
                     "type": "integer"
                 },
@@ -1929,6 +2015,9 @@ const docTemplate = `{
                     "type": "string",
                     "maxLength": 1000
                 },
+                "posted_at": {
+                    "type": "string"
+                },
                 "type": {
                     "description": "credit or debit",
                     "type": "string",
@@ -1936,6 +2025,20 @@ const docTemplate = `{
                         "credit",
                         "debit"
                     ]
+                }
+            }
+        },
+        "github_com_DenysonJ_financial-wallet_internal_usecases_statement_dto.ImportOutput": {
+            "type": "object",
+            "properties": {
+                "created": {
+                    "type": "integer"
+                },
+                "skipped": {
+                    "type": "integer"
+                },
+                "total_transactions": {
+                    "type": "integer"
                 }
             }
         },
@@ -1958,6 +2061,9 @@ const docTemplate = `{
             "properties": {
                 "limit": {
                     "type": "integer"
+                },
+                "next_cursor": {
+                    "type": "string"
                 },
                 "page": {
                     "type": "integer"
@@ -1998,7 +2104,13 @@ const docTemplate = `{
                 "description": {
                     "type": "string"
                 },
+                "external_id": {
+                    "type": "string"
+                },
                 "id": {
+                    "type": "string"
+                },
+                "posted_at": {
                     "type": "string"
                 },
                 "reference_id": {

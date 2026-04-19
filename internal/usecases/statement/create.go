@@ -80,8 +80,23 @@ func (uc *CreateUseCase) Execute(ctx context.Context, input dto.CreateInput) (*d
 		return nil, amountErr
 	}
 
+	// Parse optional PostedAt (defaults to now inside NewStatement)
+	var postedAt time.Time
+	if input.PostedAt != "" {
+		parsedPostedAt, postedAtErr := time.Parse(time.RFC3339, input.PostedAt)
+		if postedAtErr != nil {
+			span.SetStatus(otelcodes.Error, postedAtErr.Error())
+			logutil.LogWarn(ctx, "statement creation failed: invalid posted_at", "error", postedAtErr.Error())
+			return nil, postedAtErr
+		}
+		postedAt = parsedPostedAt
+	}
+
 	// Create domain entity
 	stmt := stmtdomain.NewStatement(accountID, stmtType, amount, input.Description)
+	if !postedAt.IsZero() {
+		stmt.PostedAt = postedAt
+	}
 
 	// Persist (transactional: INSERT statement + UPDATE account balance)
 	balanceAfter, createErr := uc.repo.Create(ctx, stmt, accountID)
@@ -106,7 +121,9 @@ func toOutput(stmt *stmtdomain.Statement) *dto.StatementOutput {
 		Type:         stmt.Type.String(),
 		Amount:       stmt.Amount.Int64(),
 		Description:  stmt.Description,
+		ExternalID:   stmt.ExternalID,
 		BalanceAfter: stmt.BalanceAfter,
+		PostedAt:     stmt.PostedAt.Format(time.RFC3339),
 		CreatedAt:    stmt.CreatedAt.Format(time.RFC3339),
 	}
 	if stmt.ReferenceID != nil {

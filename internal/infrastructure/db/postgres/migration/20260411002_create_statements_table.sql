@@ -12,14 +12,15 @@ CREATE TABLE statements (
     created_at TIMESTAMP WITH TIME ZONE NOT NULL
 );
 
-CREATE INDEX idx_statements_account_id ON statements(account_id, created_at DESC);
-CREATE INDEX idx_statements_reference_id ON statements(reference_id) WHERE reference_id IS NOT NULL;
+-- Note: the reference_id lookup (HasReversal) is covered by the UNIQUE partial
+-- index `idx_statements_unique_reversal` added in migration 20260416002257 —
+-- no separate non-unique index is needed here.
 CREATE INDEX idx_statements_account_type ON statements(account_id, type);
 
 -- Seed: statement permissions
-INSERT INTO permissions (id, name, description) VALUES
-    ('00000000-0000-0000-0000-000000000011', 'statement:read', 'Read statement data'),
-    ('00000000-0000-0000-0000-000000000012', 'statement:write', 'Create statements');
+INSERT INTO permissions (id, name, description, created_at) VALUES
+    ('00000000-0000-0000-0000-000000000011', 'statement:read', 'Read statement data', NOW()),
+    ('00000000-0000-0000-0000-000000000012', 'statement:write', 'Create statements', NOW());
 
 -- Seed: admin gets all statement permissions
 INSERT INTO role_permissions (role_id, permission_id) VALUES
@@ -42,6 +43,4 @@ DELETE FROM permissions WHERE id IN (
     '00000000-0000-0000-0000-000000000012'
 );
 DROP INDEX IF EXISTS idx_statements_account_type;
-DROP INDEX IF EXISTS idx_statements_reference_id;
-DROP INDEX IF EXISTS idx_statements_account_id;
 DROP TABLE IF EXISTS statements;

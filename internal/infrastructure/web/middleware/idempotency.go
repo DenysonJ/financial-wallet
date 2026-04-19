@@ -21,6 +21,28 @@ const (
 	idempotencyKeyPrefix = "idempotency:"
 )
 
+// RequireIdempotencyKey returns a middleware that rejects requests missing the
+// Idempotency-Key header with HTTP 400. Intended for endpoints where duplicate
+// retries could cause data corruption (e.g. financial batch imports). It must
+// be composed AFTER the global Idempotency middleware so replays can still be
+// served. If store is nil (dev/test without Redis), the middleware is a no-op
+// to match the graceful-degradation pattern used elsewhere.
+func RequireIdempotencyKey(store idempotency.Store) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		if store == nil {
+			c.Next()
+			return
+		}
+		if c.GetHeader(IdempotencyKeyHeader) == "" {
+			c.AbortWithStatusJSON(http.StatusBadRequest, httputil.ErrorResponse{
+				Errors: httputil.ErrorDetail{Message: "Idempotency-Key header is required for this endpoint"},
+			})
+			return
+		}
+		c.Next()
+	}
+}
+
 // Idempotency returns a middleware that ensures idempotency for POST requests.
 // The Idempotency-Key header is optional: if absent, the request is processed normally.
 // If Redis is unavailable, the middleware operates in fail-open mode (degrades gracefully).

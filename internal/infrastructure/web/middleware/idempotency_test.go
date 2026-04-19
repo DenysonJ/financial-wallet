@@ -480,3 +480,66 @@ func TestBodyFingerprint_DifferentBodies(t *testing.T) {
 	fp2 := bodyFingerprint([]byte(`{"name":"second"}`))
 	assert.NotEqual(t, fp1, fp2, "different bodies should produce different fingerprints")
 }
+
+// --- RequireIdempotencyKey tests ---
+
+func TestRequireIdempotencyKey_MissingHeader_Returns400(t *testing.T) {
+	store := newMockStore()
+
+	handlerCalled := false
+	r := gin.New()
+	r.POST("/test", RequireIdempotencyKey(store), func(c *gin.Context) {
+		handlerCalled = true
+		c.JSON(http.StatusOK, gin.H{"status": "ok"})
+	})
+
+	w := httptest.NewRecorder()
+	req, reqErr := http.NewRequest("POST", "/test", nil)
+	require.NoError(t, reqErr)
+
+	r.ServeHTTP(w, req)
+
+	assert.Equal(t, http.StatusBadRequest, w.Code)
+	assert.False(t, handlerCalled, "handler must not run when key is missing")
+	assert.Contains(t, w.Body.String(), "Idempotency-Key header is required")
+}
+
+func TestRequireIdempotencyKey_HeaderPresent_PassesThrough(t *testing.T) {
+	store := newMockStore()
+
+	handlerCalled := false
+	r := gin.New()
+	r.POST("/test", RequireIdempotencyKey(store), func(c *gin.Context) {
+		handlerCalled = true
+		c.JSON(http.StatusOK, gin.H{"status": "ok"})
+	})
+
+	w := httptest.NewRecorder()
+	req, reqErr := http.NewRequest("POST", "/test", nil)
+	require.NoError(t, reqErr)
+	req.Header.Set(IdempotencyKeyHeader, "abc-123")
+
+	r.ServeHTTP(w, req)
+
+	assert.Equal(t, http.StatusOK, w.Code)
+	assert.True(t, handlerCalled, "handler must run when key is present")
+}
+
+func TestRequireIdempotencyKey_NilStore_IsNoOp(t *testing.T) {
+	handlerCalled := false
+	r := gin.New()
+	r.POST("/test", RequireIdempotencyKey(nil), func(c *gin.Context) {
+		handlerCalled = true
+		c.JSON(http.StatusOK, gin.H{"status": "ok"})
+	})
+
+	w := httptest.NewRecorder()
+	req, reqErr := http.NewRequest("POST", "/test", nil)
+	require.NoError(t, reqErr)
+	// No Idempotency-Key header — but nil store disables enforcement.
+
+	r.ServeHTTP(w, req)
+
+	assert.Equal(t, http.StatusOK, w.Code)
+	assert.True(t, handlerCalled, "handler must run when store is nil")
+}

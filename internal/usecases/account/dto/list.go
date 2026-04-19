@@ -7,11 +7,12 @@ package dto
 // ListInput representa os dados de entrada para listar accounts.
 type ListInput struct {
 	UserID     string `form:"-"`                       // Vem do JWT context
-	Page       int    `form:"page"`                    // Página atual (1-indexed)
+	Page       int    `form:"page"`                    // Página atual (1-indexed, usada quando cursor é vazio)
 	Limit      int    `form:"limit"`                   // Itens por página
 	Name       string `form:"name"  binding:"max=255"` // Filtro por nome
 	Type       string `form:"type"  binding:"max=50"`  // Filtro por tipo
 	ActiveOnly bool   `form:"active_only"`             // Apenas ativos
+	Cursor     string `form:"cursor"`                  // Cursor opaco (keyset); quando presente sobrescreve Page
 }
 
 // ListOutput representa os dados de saída da listagem.
@@ -22,8 +23,9 @@ type ListOutput struct {
 
 // PaginationOutput representa os dados de paginação.
 type PaginationOutput struct {
-	Page       int `json:"page"`
-	Limit      int `json:"limit"`
-	Total      int `json:"total"`
-	TotalPages int `json:"total_pages"`
+	Page       int     `json:"page"`
+	Limit      int     `json:"limit"`
+	Total      int     `json:"total"`
+	TotalPages int     `json:"total_pages"`
+	NextCursor *string `json:"next_cursor,omitempty"`
 }

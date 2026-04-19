@@ -1,5 +1,7 @@
 package dto
 
+import "io"
+
 // =============================================================================
 // Statement Input DTOs
 // =============================================================================
@@ -11,6 +13,7 @@ type CreateInput struct {
 	Type             string `json:"type" binding:"required,oneof=credit debit"`         // credit or debit
 	Amount           int64  `json:"amount" binding:"required,gt=0"`                     // Amount in cents (positive)
 	Description      string `json:"description,omitempty" binding:"omitempty,max=1000"` // Optional description
+	PostedAt         string `json:"posted_at" binding:"omitempty"`
 }
 
 // ReverseInput represents the input data for reversing a statement.
@@ -35,6 +38,14 @@ type ListInput struct {
 	Type             string `form:"type"`      // Optional filter: credit or debit
 	DateFrom         string `form:"date_from"` // Optional filter: RFC3339 date
 	DateTo           string `form:"date_to"`   // Optional filter: RFC3339 date
-	Page             int    `form:"page"`      // Page number (1-indexed)
+	Page             int    `form:"page"`      // Page number (1-indexed, used when cursor is empty)
 	Limit            int    `form:"limit"`     // Items per page
+	Cursor           string `form:"cursor"`    // Opaque cursor for keyset pagination (overrides page)
+}
+
+// ImportOFXInput represents the input data for importing an OFX file.
+type ImportOFXInput struct {
+	AccountID        string    // Account UUID from URL path
+	RequestingUserID string    // From JWT context
+	FileContent      io.Reader // OFX file content
 }

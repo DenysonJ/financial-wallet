@@ -3,6 +3,7 @@ package repository
 import (
 	"context"
 	"database/sql"
+	"encoding/base64"
 	"errors"
 	"fmt"
 	"strings"
@@ -13,6 +14,7 @@ import (
 	stmtvo "github.com/DenysonJ/financial-wallet/internal/domain/statement/vo"
 	pkgvo "github.com/DenysonJ/financial-wallet/pkg/vo"
 	"github.com/jmoiron/sqlx"
+	"github.com/lib/pq"
 )
 
 // statementDB is the database model for Statement.
@@ -23,7 +25,9 @@ type statementDB struct {
 	Amount       int64     `db:"amount"`
 	Description  string    `db:"description"`
 	ReferenceID  *string   `db:"reference_id"`
+	ExternalID   *string   `db:"external_id"`
 	BalanceAfter int64     `db:"balance_after"`
+	PostedAt     time.Time `db:"posted_at"`
 	CreatedAt    time.Time `db:"created_at"`
 }
 
@@ -44,7 +48,9 @@ func (s *statementDB) toStatement() (*stmtdomain.Statement, error) {
 		Type:         stmtvo.ParseStatementType(s.Type),
 		Amount:       stmtvo.ParseAmount(s.Amount),
 		Description:  s.Description,
+		ExternalID:   s.ExternalID,
 		BalanceAfter: s.BalanceAfter,
+		PostedAt:     s.PostedAt,
 		CreatedAt:    s.CreatedAt,
 	}
 
@@ -66,7 +72,9 @@ func fromDomainStatement(s *stmtdomain.Statement) statementDB {
 		Type:         s.Type.String(),
 		Amount:       s.Amount.Int64(),
 		Description:  s.Description,
+		ExternalID:   s.ExternalID,
 		BalanceAfter: s.BalanceAfter,
+		PostedAt:     s.PostedAt,
 		CreatedAt:    s.CreatedAt,
 	}
 	if s.ReferenceID != nil {
@@ -122,9 +130,9 @@ func (r *StatementRepository) Create(ctx context.Context, stmt *stmtdomain.State
 	dbModel.BalanceAfter = newBalance
 	insertQuery := `
 		INSERT INTO statements (
-			id, account_id, type, amount, description, reference_id, balance_after, created_at
+			id, account_id, type, amount, description, reference_id, external_id, balance_after, posted_at, created_at
 		) VALUES (
-			:id, :account_id, :type, :amount, :description, :reference_id, :balance_after, :created_at
+			:id, :account_id, :type, :amount, :description, :reference_id, :external_id, :balance_after, :posted_at, :created_at
 		)
 	`
 	_, insertErr := tx.NamedExecContext(ctx, insertQuery, dbModel)
@@ -150,7 +158,7 @@ func (r *StatementRepository) Create(ctx context.Context, stmt *stmtdomain.State
 // FindByID returns a Statement by its ID.
 func (r *StatementRepository) FindByID(ctx context.Context, id pkgvo.ID) (*stmtdomain.Statement, error) {
 	query := `
-		SELECT id, account_id, type, amount, description, reference_id, balance_after, created_at
+		SELECT id, account_id, type, amount, description, reference_id, external_id, balance_after, posted_at, created_at
 		FROM statements
 		WHERE id = $1
 	`
@@ -179,11 +187,11 @@ func (r *StatementRepository) List(ctx context.Context, filter stmtdomain.ListFi
 		args["type"] = filter.Type.String()
 	}
 	if filter.DateFrom != nil {
-		conditions = append(conditions, "created_at >= :date_from")
+		conditions = append(conditions, "posted_at >= :date_from")
 		args["date_from"] = *filter.DateFrom
 	}
 	if filter.DateTo != nil {
-		conditions = append(conditions, "created_at <= :date_to")
+		conditions = append(conditions, "posted_at <= :date_to")
 		args["date_to"] = *filter.DateTo
 	}
 
@@ -210,17 +218,32 @@ func (r *StatementRepository) List(ctx context.Context, filter stmtdomain.ListFi
 		return nil, countErr
 	}
 
-	// Paginated data query
+	// Paginated data query — use keyset (cursor) when available, fall back to OFFSET
 	args["limit"] = filter.Limit
-	args["offset"] = filter.Offset()
 
-	dataQuery := fmt.Sprintf(`
-		SELECT id, account_id, type, amount, description, reference_id, balance_after, created_at
-		FROM statements
-		%s
-		ORDER BY created_at DESC
-		LIMIT :limit OFFSET :offset
-	`, whereClause)
+	var dataQuery string
+	if filter.UseCursor() {
+		conditions = append(conditions, "(posted_at, id) < (:cursor_posted_at, :cursor_id)")
+		args["cursor_posted_at"] = *filter.CursorPostedAt
+		args["cursor_id"] = filter.CursorID.String()
+		cursorWhere := "WHERE " + strings.Join(conditions, " AND ")
+		dataQuery = fmt.Sprintf(`
+			SELECT id, account_id, type, amount, description, reference_id, external_id, balance_after, posted_at, created_at
+			FROM statements
+			%s
+			ORDER BY posted_at DESC, id DESC
+			LIMIT :limit
+		`, cursorWhere)
+	} else {
+		args["offset"] = filter.Offset()
+		dataQuery = fmt.Sprintf(`
+			SELECT id, account_id, type, amount, description, reference_id, external_id, balance_after, posted_at, created_at
+			FROM statements
+			%s
+			ORDER BY posted_at DESC, id DESC
+			LIMIT :limit OFFSET :offset
+		`, whereClause)
+	}
 
 	dataQuery, dataArgs, dataNamedErr := sqlx.Named(dataQuery, args)
 	if dataNamedErr != nil {
@@ -249,11 +272,20 @@ func (r *StatementRepository) List(ctx context.Context, filter stmtdomain.ListFi
 		statements = append(statements, stmt)
 	}
 
+	// Build next cursor from last row (if we got a full page, there may be more)
+	var nextCursor string
+	if len(statements) == filter.Limit && len(statements) > 0 {
+		last := statements[len(statements)-1]
+		raw := last.PostedAt.Format(time.RFC3339Nano) + "|" + last.ID.String()
+		nextCursor = base64.URLEncoding.EncodeToString([]byte(raw))
+	}
+
 	return &stmtdomain.ListResult{
 		Statements: statements,
 		Total:      total,
 		Page:       filter.Page,
 		Limit:      filter.Limit,
+		NextCursor: nextCursor,
 	}, nil
 }
 
@@ -268,4 +300,105 @@ func (r *StatementRepository) HasReversal(ctx context.Context, statementID pkgvo
 		return false, fmt.Errorf("checking reversal: %w", queryErr)
 	}
 	return exists, nil
+}
+
+// CreateBatch inserts multiple statements and atomically updates the account balance.
+func (r *StatementRepository) CreateBatch(ctx context.Context, stmts []*stmtdomain.Statement, accountID pkgvo.ID) (int64, error) {
+	if len(stmts) == 0 {
+		return 0, nil
+	}
+
+	tx, txErr := r.writer.BeginTxx(ctx, nil)
+	if txErr != nil {
+		return 0, fmt.Errorf("beginning transaction: %w", txErr)
+	}
+	defer func() { _ = tx.Rollback() }()
+
+	// Lock account row and get current balance
+	var currentBalance int64
+	lockErr := tx.GetContext(ctx, &currentBalance,
+		"SELECT balance FROM accounts WHERE id = $1 FOR UPDATE",
+		accountID.String(),
+	)
+	if lockErr != nil {
+		if errors.Is(lockErr, sql.ErrNoRows) {
+			return 0, accountdomain.ErrAccountNotFound
+		}
+		return 0, fmt.Errorf("locking account: %w", lockErr)
+	}
+
+	// Compute running balance and prepare all DB models
+	const colCount = 10
+	runningBalance := currentBalance
+	placeholders := make([]string, 0, len(stmts))
+	allArgs := make([]interface{}, 0, len(stmts)*colCount)
+
+	for i, stmt := range stmts {
+		amount := stmt.Amount.Int64()
+		if stmt.Type == stmtvo.TypeCredit {
+			runningBalance += amount
+		} else {
+			runningBalance -= amount
+		}
+
+		// Compute balance_after directly on the DB model.
+		dbModel := fromDomainStatement(stmt)
+		dbModel.BalanceAfter = runningBalance
+
+		base := i * colCount
+		placeholders = append(placeholders, fmt.Sprintf(
+			"($%d,$%d,$%d,$%d,$%d,$%d,$%d,$%d,$%d,$%d)",
+			base+1, base+2, base+3, base+4, base+5,
+			base+6, base+7, base+8, base+9, base+10,
+		))
+		allArgs = append(allArgs,
+			dbModel.ID, dbModel.AccountID, dbModel.Type, dbModel.Amount,
+			dbModel.Description, dbModel.ReferenceID, dbModel.ExternalID,
+			dbModel.BalanceAfter, dbModel.PostedAt, dbModel.CreatedAt,
+		)
+	}
+
+	insertQuery := "INSERT INTO statements (id, account_id, type, amount, description, reference_id, external_id, balance_after, posted_at, created_at) VALUES " +
+		strings.Join(placeholders, ",")
+
+	_, insertErr := tx.ExecContext(ctx, insertQuery, allArgs...)
+	if insertErr != nil {
+		return 0, fmt.Errorf("inserting statement batch: %w", insertErr)
+	}
+
+	// Update account balance with final balance
+	_, updateErr := tx.ExecContext(ctx,
+		"UPDATE accounts SET balance = $1, updated_at = NOW() WHERE id = $2",
+		runningBalance, accountID.String(),
+	)
+	if updateErr != nil {
+		return 0, fmt.Errorf("updating account balance: %w", updateErr)
+	}
+
+	if commitErr := tx.Commit(); commitErr != nil {
+		return 0, commitErr
+	}
+	return runningBalance, nil
+}
+
+// FindExternalIDs returns which of the given external IDs already exist for the account.
+func (r *StatementRepository) FindExternalIDs(ctx context.Context, accountID pkgvo.ID, externalIDs []string) (map[string]bool, error) {
+	if len(externalIDs) == 0 {
+		return make(map[string]bool), nil
+	}
+
+	query := `SELECT external_id FROM statements WHERE account_id = $1 AND external_id = ANY($2)`
+
+	var found []string
+	// Use writer to avoid replication lag race during import dedup checks
+	selectErr := r.writer.SelectContext(ctx, &found, query, accountID.String(), pq.Array(externalIDs))
+	if selectErr != nil {
+		return nil, fmt.Errorf("finding external IDs: %w", selectErr)
+	}
+
+	result := make(map[string]bool, len(found))
+	for _, id := range found {
+		result[id] = true
+	}
+	return result, nil
 }

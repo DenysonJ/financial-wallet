@@ -258,6 +258,64 @@ func (_c *MockRepository_List_Call) RunAndReturn(run func(context.Context, state
 	return _c
 }
 
+// CreateBatch provides a mock function with given fields: ctx, stmts, accountID
+func (_m *MockRepository) CreateBatch(ctx context.Context, stmts []*statement.Statement, accountID vo.ID) (int64, error) {
+	ret := _m.Called(ctx, stmts, accountID)
+
+	if len(ret) == 0 {
+		panic("no return value specified for CreateBatch")
+	}
+
+	var r0 int64
+	var r1 error
+	if rf, ok := ret.Get(0).(func(context.Context, []*statement.Statement, vo.ID) (int64, error)); ok {
+		return rf(ctx, stmts, accountID)
+	}
+	if rf, ok := ret.Get(0).(func(context.Context, []*statement.Statement, vo.ID) int64); ok {
+		r0 = rf(ctx, stmts, accountID)
+	} else {
+		r0 = ret.Get(0).(int64)
+	}
+
+	if rf, ok := ret.Get(1).(func(context.Context, []*statement.Statement, vo.ID) error); ok {
+		r1 = rf(ctx, stmts, accountID)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// FindExternalIDs provides a mock function with given fields: ctx, accountID, externalIDs
+func (_m *MockRepository) FindExternalIDs(ctx context.Context, accountID vo.ID, externalIDs []string) (map[string]bool, error) {
+	ret := _m.Called(ctx, accountID, externalIDs)
+
+	if len(ret) == 0 {
+		panic("no return value specified for FindExternalIDs")
+	}
+
+	var r0 map[string]bool
+	var r1 error
+	if rf, ok := ret.Get(0).(func(context.Context, vo.ID, []string) (map[string]bool, error)); ok {
+		return rf(ctx, accountID, externalIDs)
+	}
+	if rf, ok := ret.Get(0).(func(context.Context, vo.ID, []string) map[string]bool); ok {
+		r0 = rf(ctx, accountID, externalIDs)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(map[string]bool)
+		}
+	}
+
+	if rf, ok := ret.Get(1).(func(context.Context, vo.ID, []string) error); ok {
+		r1 = rf(ctx, accountID, externalIDs)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
 // NewMockRepository creates a new instance of MockRepository. It also registers a testing interface on the mock and a cleanup function to assert the mocks expectations.
 // The first argument is typically a *testing.T value.
 func NewMockRepository(t interface {

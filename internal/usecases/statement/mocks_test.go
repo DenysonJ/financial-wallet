@@ -40,6 +40,19 @@ func (m *mockRepository) HasReversal(ctx context.Context, statementID vo.ID) (bo
 	return args.Bool(0), args.Error(1)
 }
 
+func (m *mockRepository) CreateBatch(ctx context.Context, stmts []*stmtdomain.Statement, accountID vo.ID) (int64, error) {
+	args := m.Called(ctx, stmts, accountID)
+	return args.Get(0).(int64), args.Error(1)
+}
+
+func (m *mockRepository) FindExternalIDs(ctx context.Context, accountID vo.ID, externalIDs []string) (map[string]bool, error) {
+	args := m.Called(ctx, accountID, externalIDs)
+	if args.Get(0) == nil {
+		return nil, args.Error(1)
+	}
+	return args.Get(0).(map[string]bool), args.Error(1)
+}
+
 // mockAccountRepository is a hand-written mock for interfaces.AccountRepository.
 type mockAccountRepository struct {
 	mock.Mock
