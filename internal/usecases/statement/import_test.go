@@ -81,6 +81,27 @@ const twoTransactions = `<STMTTRN>
 <MEMO>Uber
 </STMTTRN>`
 
+// zeroAmountTxn exercises the skip branch at import.go:107-111 — lançamentos
+// informativos (isenção de tarifa, estornos cancelando pendente) que o banco
+// manda com TRNAMT=0 e não devem virar linha no ledger.
+const zeroAmountTxn = `<STMTTRN>
+<TRNTYPE>CREDIT
+<DTPOSTED>20260105
+<TRNAMT>0.00
+<FITID>FIT999
+<NAME>Tarifa isenta
+</STMTTRN>`
+
+// noFITIDTxn exercises the fallback branch at import.go:167-173 — OFX gerados
+// por bancos que não emitem FITID: a transação ainda é persistida, mas via
+// NewStatement (sem external_id) em vez de NewImportedStatement.
+const noFITIDTxn = `<STMTTRN>
+<TRNTYPE>CREDIT
+<DTPOSTED>20260107
+<TRNAMT>250.00
+<NAME>Transferencia recebida
+</STMTTRN>`
+
 const emptyOFX = `OFXHEADER:100
 DATA:OFXSGML
 VERSION:102
@@ -191,6 +212,30 @@ func TestImportUseCase_Execute(t *testing.T) {
 			existingIDs:   map[string]bool{"FIT001": true, "FIT002": true},
 			wantOutput:    &dto.ImportOutput{TotalTransactions: 2, Created: 0, Skipped: 2},
 			skipBatchCall: true,
+		},
+		{
+			name: "given zero-amount transaction when importing then skips without creating",
+			input: dto.ImportOFXInput{
+				AccountID:        accountID.String(),
+				RequestingUserID: ownerID.String(),
+				FileContent:      strings.NewReader(validOFXContent(zeroAmountTxn)),
+			},
+			accountResult: activeAccount,
+			existingIDs:   map[string]bool{},
+			wantOutput:    &dto.ImportOutput{TotalTransactions: 1, Created: 0, Skipped: 1},
+			skipBatchCall: true,
+		},
+		{
+			name: "given transaction without FITID when importing then creates via NewStatement fallback",
+			input: dto.ImportOFXInput{
+				AccountID:        accountID.String(),
+				RequestingUserID: ownerID.String(),
+				FileContent:      strings.NewReader(validOFXContent(noFITIDTxn)),
+			},
+			accountResult: activeAccount,
+			existingIDs:   map[string]bool{},
+			batchBalance:  35000,
+			wantOutput:    &dto.ImportOutput{TotalTransactions: 1, Created: 1, Skipped: 0},
 		},
 		{
 			name: "given invalid account ID when importing then returns invalid ID error",

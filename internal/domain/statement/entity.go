@@ -52,7 +52,7 @@ func NewReversalStatement(accountID pkgvo.ID, stmtType vo.StatementType, amount 
 
 // NewImportedStatement creates a Statement from an external source (e.g., OFX import).
 // PostedAt preserves the original transaction date; CreatedAt records when it was imported.
-func NewImportedStatement(accountID pkgvo.ID, stmtType vo.StatementType, amount vo.Amount, description string, externalID string, postedAt time.Time) *Statement {
+func NewImportedStatement(accountID pkgvo.ID, stmtType vo.StatementType, amount vo.Amount, description, externalID string, postedAt time.Time) *Statement {
 	return &Statement{
 		ID:          pkgvo.NewID(),
 		AccountID:   accountID,

@@ -124,7 +124,7 @@ func HandleError(c *gin.Context, span trace.Span, err error) {
 
 // translateDomainError looks up err in domainErrors via errors.Is. Returns
 // ok=false when no sentinel matches; the caller is responsible for choosing
-// the fallback behaviour.
+// the fallback behavior.
 func translateDomainError(err error) (status int, code, message string, ok bool) {
 	for _, entry := range domainErrors {
 		if errors.Is(err, entry.err) {

@@ -166,10 +166,10 @@ func (r *AccountRepository) List(ctx context.Context, filter accountdomain.ListF
 
 	var dataQuery string
 	if filter.UseCursor() {
-		cursorConditions := append(conditions, "(created_at, id) < (:cursor_created_at, :cursor_id)")
+		conditions = append(conditions, "(created_at, id) < (:cursor_created_at, :cursor_id)")
 		args["cursor_created_at"] = *filter.CursorCreatedAt
 		args["cursor_id"] = filter.CursorID.String()
-		cursorWhere := "WHERE " + strings.Join(cursorConditions, " AND ")
+		cursorWhere := "WHERE " + strings.Join(conditions, " AND ")
 		dataQuery = fmt.Sprintf(`
 			SELECT id, user_id, name, type, description, balance, active, created_at, updated_at
 			FROM accounts

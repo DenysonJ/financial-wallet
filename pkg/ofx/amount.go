@@ -20,10 +20,11 @@ func ParseAmount(s string) (int64, error) {
 
 	// Determine sign and strip it for processing
 	negative := false
-	if s[0] == '-' {
+	switch s[0] {
+	case '-':
 		negative = true
 		s = s[1:]
-	} else if s[0] == '+' {
+	case '+':
 		s = s[1:]
 	}
 
@@ -55,10 +56,11 @@ func ParseAmount(s string) (int64, error) {
 		}
 
 		fracStr := parts[1]
-		if len(fracStr) == 0 {
+		switch {
+		case fracStr == "":
 			// "100." → 10000
 			cents = whole * 100
-		} else if len(fracStr) <= 2 {
+		case len(fracStr) <= 2:
 			// Pad to 2 digits: "7.5" → "50", "7.05" → "05"
 			for len(fracStr) < 2 {
 				fracStr += "0"
@@ -68,7 +70,7 @@ func ParseAmount(s string) (int64, error) {
 				return 0, fmt.Errorf("%w: %s", ErrInvalidAmount, fracErr.Error())
 			}
 			cents = whole*100 + frac
-		} else {
+		default:
 			// More than 2 decimal places: parse as float and round
 			f, fErr := strconv.ParseFloat(parts[0]+"."+fracStr, 64)
 			if fErr != nil {
