@@ -10,13 +10,13 @@ services:
     ports:
       - "${POSTGRES_PORT:-5433}:5432"
     environment:
-      POSTGRES_USER: ${POSTGRES_USER:-user}
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-password}
-      POSTGRES_DB: ${POSTGRES_DB:-entities}
+      POSTGRES_USER: ${DB_USER:-user}
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-password}
+      POSTGRES_DB: ${DB_NAME:-entities}
     volumes:
       - financial-wallet-db-data:/var/lib/postgresql/data
     healthcheck:
-      test: [ "CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-user} -d ${POSTGRES_DB:-entities}" ]
+      test: [ "CMD-SHELL", "pg_isready -U ${DB_USER:-user} -d ${DB_NAME:-entities}" ]
       interval: 5s
       timeout: 5s
       retries: 5
@@ -62,9 +62,9 @@ services:
     environment:
       DB_HOST: financial-wallet-db
       DB_PORT: "5432"
-      DB_USER: ${POSTGRES_USER:-user}
-      DB_PASSWORD: ${POSTGRES_PASSWORD:-password}
-      DB_NAME: ${POSTGRES_DB:-users}
+      DB_USER: ${DB_USER:-user}
+      DB_PASSWORD: ${DB_PASSWORD:-password}
+      DB_NAME: ${DB_NAME:-entities}
       DB_SSLMODE: disable
     depends_on:
       financial-wallet-db:
@@ -88,14 +88,15 @@ services:
       SERVER_PORT: "8080"
       DB_HOST: financial-wallet-db
       DB_PORT: "5432"
-      DB_USER: ${POSTGRES_USER:-user}
-      DB_PASSWORD: ${POSTGRES_PASSWORD:-password}
-      DB_NAME: ${POSTGRES_DB:-users}
+      DB_USER: ${DB_USER:-user}
+      DB_PASSWORD: ${DB_PASSWORD:-password}
+      DB_NAME: ${DB_NAME:-entities}
       DB_SSLMODE: disable
       REDIS_URL: redis://financial-wallet-redis:6379
       REDIS_ENABLED: "true"
       SWAGGER_ENABLED: "true"
       SERVICE_KEYS: ""
+      JWT_SECRET: "${JWT_SECRET:?JWT_SECRET must be set in .env — run make jwt-secret}"
       OTEL_SERVICE_NAME: financial-wallet
       OTEL_COLLECTOR_URL: otel-collector:4317
       OTEL_INSECURE: "true"

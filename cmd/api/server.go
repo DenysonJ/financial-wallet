@@ -33,6 +33,7 @@ import (
 	pkgjwt "github.com/DenysonJ/financial-wallet/pkg/jwt"
 	"github.com/DenysonJ/financial-wallet/pkg/logutil"
 	"github.com/DenysonJ/financial-wallet/pkg/ofx"
+	pkgotellog "github.com/DenysonJ/financial-wallet/pkg/otellog"
 	"github.com/DenysonJ/financial-wallet/pkg/ratelimit"
 	rlredis "github.com/DenysonJ/financial-wallet/pkg/ratelimit/redisstore"
 	pkgtelemetry "github.com/DenysonJ/financial-wallet/pkg/telemetry"
@@ -84,6 +85,22 @@ func Start(ctx context.Context, cfg *config.Config) error {
 	}
 	if tp != nil {
 		defer shutdownTelemetry(tp, logger)
+	}
+
+	// 2b. OTel Logs (OTLP log exporter + slog bridge)
+	// Same failure-policy as traces/metrics: degrade gracefully. The stdout
+	// handler set in step 1 keeps working regardless.
+	logProvider := setupOtelLogs(ctx, cfg.Otel.CollectorURL, cfg.Otel.Insecure, cfg.Otel.ServiceName)
+	defer func() {
+		if shutErr := logProvider.Shutdown(context.Background()); shutErr != nil {
+			slog.Error("failed to shutdown otel log provider", "error", shutErr)
+		}
+	}()
+	// Once the global LoggerProvider is set, rebuild the default logger so
+	// every subsequent slog call fans out to both stdout and the OTel bridge.
+	if cfg.Otel.CollectorURL != "" {
+		logger = setupLoggerWithOtel(cfg.Otel.ServiceName)
+		slog.SetDefault(logger)
 	}
 
 	// 3. Database (Writer/Reader Cluster)
@@ -173,6 +190,52 @@ func setupLogger() *slog.Logger {
 	stdout := slog.NewJSONHandler(os.Stdout, nil)
 	masked := logutil.NewMaskingHandler(logutil.NewMasker(logutil.DefaultBRConfig()), stdout)
 	return slog.New(logutil.NewFanoutHandler(masked))
+}
+
+// setupLoggerWithOtel returns a logger whose records are fanned out to two
+// handlers: stdout (primary, JSON, survives any OTel outage) and the otelslog
+// bridge (secondary). Both branches go through the PII masker so nothing
+// sensitive reaches Elasticsearch.
+func setupLoggerWithOtel(scope string) *slog.Logger {
+	masker := logutil.NewMasker(logutil.DefaultBRConfig())
+
+	stdout := slog.NewJSONHandler(os.Stdout, nil)
+	maskedStdout := logutil.NewMaskingHandler(masker, stdout)
+
+	otelHandler := pkgotellog.Handler(scope)
+	maskedOtel := logutil.NewMaskingHandler(masker, otelHandler)
+
+	return slog.New(logutil.NewFanoutHandler(maskedStdout, maskedOtel))
+}
+
+// setupOtelLogs builds the OTLP log exporter and registers a LoggerProvider
+// as the OTel global. Returns a Provider whose Shutdown is safe to call even
+// when setup failed (or was skipped).
+func setupOtelLogs(ctx context.Context, collectorURL string, insecure bool, serviceName string) *pkgotellog.Provider {
+	if collectorURL == "" {
+		return &pkgotellog.Provider{}
+	}
+
+	exp, expErr := pkgotellog.NewGRPCExporter(ctx, pkgotellog.ExporterConfig{
+		CollectorURL: collectorURL,
+		Insecure:     insecure,
+	})
+	if expErr != nil {
+		slog.Warn("OTel log exporter setup failed, continuing without log shipping", "error", expErr)
+		return &pkgotellog.Provider{}
+	}
+
+	lp, lpErr := pkgotellog.Setup(ctx, pkgotellog.Config{
+		ServiceName: serviceName,
+		Enabled:     true,
+	}, pkgotellog.WithExporter(exp))
+	if lpErr != nil {
+		slog.Warn("OTel log provider setup failed, continuing without log shipping", "error", lpErr)
+		return &pkgotellog.Provider{}
+	}
+
+	slog.Info("OTel log pipeline initialized", "service", serviceName, "collector", collectorURL)
+	return lp
 }
 
 func shutdownTelemetry(tp *pkgtelemetry.Provider, logger *slog.Logger) {
