@@ -195,7 +195,7 @@ func setupLogger() *slog.Logger {
 // setupLoggerWithOtel returns a logger whose records are fanned out to two
 // handlers: stdout (primary, JSON, survives any OTel outage) and the otelslog
 // bridge (secondary). Both branches go through the PII masker so nothing
-// sensitive reaches Elasticsearch.
+// sensitive reaches the downstream log backend.
 func setupLoggerWithOtel(scope string) *slog.Logger {
 	masker := logutil.NewMasker(logutil.DefaultBRConfig())
 

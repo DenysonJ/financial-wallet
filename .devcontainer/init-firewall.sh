@@ -79,12 +79,6 @@ REQUIRED_DOMAINS=(
     "proxy.golang.org"
     "sum.golang.org"
     "storage.googleapis.com"
-    # Bitbucket (Appmax)
-    "bitbucket.org"
-    "api.bitbucket.org"
-    "altssh.bitbucket.org"
-    # Kibana (Appmax)
-    "appmax-aws-max.kb.us-east-1.aws.found.io"
     # Docker Hub (for docker-compose: postgres, redis)
     "registry-1.docker.io"
     "auth.docker.io"
@@ -102,27 +96,6 @@ for domain in "${REQUIRED_DOMAINS[@]}"; do
         if [[ ! "$ip" =~ ^[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}$ ]]; then
             echo "ERROR: Invalid IP from DNS for $domain: $ip"
             exit 1
-        fi
-        ipset add allowed-domains "$ip" -exist
-    done < <(echo "$ips")
-done
-
-# ── Optional domains (VPN/internal) ──────────────────────────────
-OPTIONAL_DOMAINS=(
-    "financial-wallet.sandboxappmax.internal"
-)
-
-for domain in "${OPTIONAL_DOMAINS[@]}"; do
-    echo "Resolving optional domain $domain..."
-    ips=$(dig +noall +answer A "$domain" 2>/dev/null | awk '$4 == "A" {print $5}')
-    if [ -z "$ips" ]; then
-        echo "WARNING: Could not resolve $domain (VPN off?) — skipping"
-        continue
-    fi
-    while read -r ip; do
-        if [[ ! "$ip" =~ ^[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}$ ]]; then
-            echo "WARNING: Invalid IP from DNS for $domain: $ip — skipping"
-            continue
         fi
         ipset add allowed-domains "$ip" -exist
     done < <(echo "$ips")

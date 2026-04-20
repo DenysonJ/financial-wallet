@@ -105,7 +105,7 @@ func Setup(ctx context.Context, cfg Config, opts ...Option) (*Provider, error) {
 // Handler returns a slog.Handler that bridges every record into the global
 // OTel LoggerProvider under the given instrumentation scope. The bridge reads
 // trace_id/span_id from ctx automatically, producing correlated logs in the
-// backend (e.g. Kibana's "Log rate for trace" view).
+// backend (e.g. Grafana Explore's "View trace" link from a Loki log line).
 //
 // Safe to call before Setup — if the global provider is still the no-op one,
 // the handler becomes a silent sink. Pair it with a stdout handler via a

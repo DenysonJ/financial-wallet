@@ -53,7 +53,7 @@ ENV_FILE := $(if $(wildcard .env),--env-file .env,)
         test test-unit test-e2e test-fuzz test-coverage \
         load-smoke load-test load-stress load-spike load-kind load-clean \
         docker-up docker-down docker-build \
-        observability-up observability-down observability-logs \
+        observability-up observability-down observability-logs observability-status \
         kind-up kind-down kind-deploy kind-logs kind-status kind-migrate kind-setup \
         migrate-up migrate-down migrate-status migrate-reset migrate-redo migrate-create \
         sandbox sandbox-claude sandbox-shell sandbox-stop sandbox-clean sandbox-build sandbox-rebuild \
@@ -91,7 +91,7 @@ help: ## Exibe esta mensagem de ajuda
 	@echo "\033[1;33m  Kubernetes (Kind)\033[0m"
 	@grep -Eh '^kind-.*:.*?## .*$$' $(MAKEFILE_LIST) | awk 'BEGIN {FS = ":.*?## "}; {printf "    \033[36m%-20s\033[0m %s\n", $$1, $$2}'
 	@echo ""
-	@echo "\033[1;33m  Observability (ELK + OTel)\033[0m"
+	@echo "\033[1;33m  Observability (Grafana LGTM + OTel)\033[0m"
 	@grep -Eh '^observability-.*:.*?## .*$$' $(MAKEFILE_LIST) | awk 'BEGIN {FS = ":.*?## "}; {printf "    \033[36m%-20s\033[0m %s\n", $$1, $$2}'
 	@echo ""
 	@echo ""
@@ -293,13 +293,18 @@ docker-build: docker-check ## Cria a imagem de producao
 	docker build -f docker/Dockerfile -t $(IMAGE_NAME) .
 
 # ============================================
-# OBSERVABILIDADE (ELK + OpenTelemetry)
+# OBSERVABILIDADE (Grafana LGTM + OpenTelemetry)
+# Grafana + Loki (logs) + Tempo (traces) + Prometheus (metrics)
 # ============================================
 
-observability-up: docker-up ## Sobe stack de observabilidade (Elasticsearch + Kibana + OTel)
+observability-up: docker-up ## Sobe stack LGTM (Grafana + Loki + Tempo + Prometheus + OTel)
 	docker compose -f docker/observability/docker-compose.yml up -d
-	@echo "Aguarde ~30s para Elasticsearch iniciar..."
-	@echo "Kibana: http://localhost:5601"
+	@echo ""
+	@echo "Aguarde ~20s para todos os serviços ficarem healthy."
+	@echo "Grafana:        http://localhost:3000 (anonymous admin habilitado)"
+	@echo "Loki API:       http://localhost:3100"
+	@echo "Tempo API:      http://localhost:3200"
+	@echo "Prometheus UI:  http://localhost:9090"
 	@echo "OTel Collector: localhost:4317 (gRPC)"
 
 observability-down: ## Para stack de observabilidade
@@ -308,8 +313,8 @@ observability-down: ## Para stack de observabilidade
 observability-logs: ## Mostra logs do OTel Collector
 	docker compose -f docker/observability/docker-compose.yml logs -f otel-collector
 
-observability-setup: ## Importa dashboard + data views + alertas no Kibana
-	@bash docker/observability/scripts/setup_kibana.sh
+observability-status: ## Status de todos os containers da stack de observabilidade
+	@docker compose -f docker/observability/docker-compose.yml ps
 
 # ============================================
 # KIND (Kubernetes Local)
