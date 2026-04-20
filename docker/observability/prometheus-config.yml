@@ -1,0 +1,20 @@
+# Prometheus config for local dev.
+# Scrapes the OTel Collector's Prometheus exporter (app metrics)
+# and accepts remote_write from Tempo (trace-derived RED metrics + service graphs).
+
+global:
+  scrape_interval: 15s
+  evaluation_interval: 15s
+
+scrape_configs:
+  # Metrics emitted by the Go app, exported as Prometheus by the collector.
+  - job_name: 'otel-collector'
+    static_configs:
+      - targets: ['otel-collector:8889']
+        labels:
+          source: otel
+
+  # Prometheus scrapes itself (useful to debug).
+  - job_name: 'prometheus'
+    static_configs:
+      - targets: ['localhost:9090']
