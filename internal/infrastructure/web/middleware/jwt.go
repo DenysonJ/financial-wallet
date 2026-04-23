@@ -6,6 +6,7 @@ import (
 
 	"github.com/DenysonJ/financial-wallet/internal/usecases/auth/interfaces"
 	"github.com/DenysonJ/financial-wallet/pkg/httputil/httpgin"
+	"github.com/DenysonJ/financial-wallet/pkg/logutil"
 	"github.com/gin-gonic/gin"
 )
 
@@ -21,8 +22,10 @@ const ContextKeyUserID = "user_id"
 //   - Retorna 401 se o token é inválido, ausente ou expirado
 func JWTAuth(tokenValidator interfaces.TokenService) gin.HandlerFunc {
 	return func(c *gin.Context) {
+		ctx := c.Request.Context()
 		authHeader := c.GetHeader("Authorization")
 		if authHeader == "" {
+			logutil.LogWarn(ctx, "auth rejected", "reason", "missing_authorization_header")
 			httpgin.SendError(c, http.StatusUnauthorized, "unauthorized")
 			c.Abort()
 			return
@@ -30,6 +33,7 @@ func JWTAuth(tokenValidator interfaces.TokenService) gin.HandlerFunc {
 
 		parts := strings.SplitN(authHeader, " ", 2)
 		if len(parts) != 2 || !strings.EqualFold(parts[0], "Bearer") {
+			logutil.LogWarn(ctx, "auth rejected", "reason", "malformed_authorization_header")
 			httpgin.SendError(c, http.StatusUnauthorized, "unauthorized")
 			c.Abort()
 			return
@@ -39,12 +43,14 @@ func JWTAuth(tokenValidator interfaces.TokenService) gin.HandlerFunc {
 
 		claims, validateErr := tokenValidator.ValidateToken(tokenString)
 		if validateErr != nil {
+			logutil.LogWarn(ctx, "auth rejected", "reason", "invalid_token")
 			httpgin.SendError(c, http.StatusUnauthorized, "unauthorized")
 			c.Abort()
 			return
 		}
 
 		if claims.TokenType != interfaces.TokenTypeAccess {
+			logutil.LogWarn(ctx, "auth rejected", "reason", "wrong_token_type")
 			httpgin.SendError(c, http.StatusUnauthorized, "unauthorized")
 			c.Abort()
 			return

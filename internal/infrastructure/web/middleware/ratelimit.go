@@ -51,6 +51,10 @@ func RateLimit(cfg RateLimitConfig) gin.HandlerFunc {
 
 		if !result.Allowed {
 			c.Header("Retry-After", fmt.Sprintf("%d", int(time.Until(result.ResetAt).Seconds())))
+			logutil.LogWarn(c.Request.Context(), "auth rejected",
+				"reason", "rate_limit_exceeded",
+				"client_ip", clientIP,
+				"route", route)
 			httpgin.SendError(c, http.StatusTooManyRequests, "rate limit exceeded")
 			c.Abort()
 			return

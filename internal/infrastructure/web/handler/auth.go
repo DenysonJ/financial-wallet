@@ -6,9 +6,9 @@ import (
 	authuc "github.com/DenysonJ/financial-wallet/internal/usecases/auth"
 	"github.com/DenysonJ/financial-wallet/internal/usecases/auth/dto"
 	"github.com/DenysonJ/financial-wallet/pkg/httputil/httpgin"
+	"github.com/DenysonJ/financial-wallet/pkg/logutil"
 	"github.com/gin-gonic/gin"
 	"go.opentelemetry.io/otel"
-	"go.opentelemetry.io/otel/codes"
 )
 
 // AuthHandler agrupa os handlers de autenticação.
@@ -39,19 +39,19 @@ func NewAuthHandler(loginUC *authuc.LoginUseCase, refreshUC *authuc.RefreshUseCa
 // @Failure      500  {object}  ErrorResponse
 // @Router       /auth/login [post]
 func (h *AuthHandler) Login(c *gin.Context) {
-	ctx, span := otel.Tracer("http-handler").Start(c.Request.Context(), "AuthHandler.Login")
+	ctx, span := otel.Tracer(handlerTracer).Start(c.Request.Context(), "AuthHandler.Login")
 	defer span.End()
 
 	var req dto.LoginInput
 	if bindErr := c.ShouldBindJSON(&req); bindErr != nil {
-		span.SetStatus(codes.Error, "invalid request body")
+		logutil.LogWarn(ctx, "bind error", "error", bindErr.Error())
 		httpgin.SendError(c, http.StatusBadRequest, "invalid request body")
 		return
 	}
 
 	res, execErr := h.LoginUC.Execute(ctx, req)
 	if execErr != nil {
-		HandleError(c, span, execErr)
+		HandleError(c, execErr)
 		return
 	}
 
@@ -72,19 +72,19 @@ func (h *AuthHandler) Login(c *gin.Context) {
 // @Failure      500  {object}  ErrorResponse
 // @Router       /auth/refresh [post]
 func (h *AuthHandler) Refresh(c *gin.Context) {
-	ctx, span := otel.Tracer("http-handler").Start(c.Request.Context(), "AuthHandler.Refresh")
+	ctx, span := otel.Tracer(handlerTracer).Start(c.Request.Context(), "AuthHandler.Refresh")
 	defer span.End()
 
 	var req dto.RefreshInput
 	if bindErr := c.ShouldBindJSON(&req); bindErr != nil {
-		span.SetStatus(codes.Error, "invalid request body")
+		logutil.LogWarn(ctx, "bind error", "error", bindErr.Error())
 		httpgin.SendError(c, http.StatusBadRequest, "invalid request body")
 		return
 	}
 
 	res, execErr := h.RefreshUC.Execute(ctx, req)
 	if execErr != nil {
-		HandleError(c, span, execErr)
+		HandleError(c, execErr)
 		return
 	}
 

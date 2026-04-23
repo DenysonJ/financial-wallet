@@ -74,6 +74,7 @@ swag init -g cmd/api/main.go -o docs --parseDependency --parseInternal
 - **Service Key Auth**: Optional service-to-service authentication via `Service-Name` + `Service-Key` headers. See `docs/adr/005-service-key-auth.md`.
 - **Singleflight**: GetUseCase uses `golang.org/x/sync/singleflight` to prevent cache stampede on concurrent reads for the same entity.
 - **Idempotency**: Redis-backed idempotency via `pkg/idempotency.Store`, wired as optional middleware. Uses SHA-256 fingerprint + lock/unlock pattern.
+- **Telemetria de erro (spans)**: `span.SetStatus`/`RecordError` **só no use case**, nunca em handler, repositório ou domínio. Use `pkg/telemetry.FailSpan(span, err, msg)` para erro **inesperado** (timeout, 5xx de dependência, falha não classificada — entra em alerta) e `pkg/telemetry.WarnSpan(span, attrs...)` para erro **esperado** (sentinelas de domínio, 4xx, validação — span segue `Ok`, vira atributo semântico). Caminho feliz fecha com `pkg/telemetry.OkSpan(span)`. `pkg/telemetry.IsExpected(err)` classifica via `pkg/apperror.DomainSentinels` (populada no `init()` de `handler/error.go` — mesma fonte de verdade da tradução HTTP). Handler só traduz HTTP via `handler.HandleError(c, err)`; repositório converte erro técnico em `domain.Err*` e retorna.
 
 ### Conventions
 

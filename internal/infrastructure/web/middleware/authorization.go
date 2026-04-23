@@ -54,6 +54,10 @@ func RequirePermission(loader PermissionLoader, requiredPermission string) gin.H
 		}
 
 		if !slices.Contains(permissions, requiredPermission) {
+			logutil.LogWarn(c.Request.Context(), "auth rejected",
+				"reason", "missing_permission",
+				"user.id", userIDStr,
+				"required", requiredPermission)
 			httpgin.SendError(c, http.StatusForbidden, "forbidden")
 			c.Abort()
 			return

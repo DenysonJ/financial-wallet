@@ -89,6 +89,7 @@ func ServiceKeyAuth(config ServiceKeyConfig) gin.HandlerFunc {
 		// Fail-closed: auth habilitada mas sem chaves configuradas.
 		// Impede que um deploy sem SERVICE_KEYS em HML/PRD exponha o serviço.
 		if len(config.Keys) == 0 {
+			logutil.LogWarn(c.Request.Context(), "auth rejected", "reason", "service_keys_not_configured")
 			httpgin.SendError(c, http.StatusServiceUnavailable, "service authentication not configured")
 			c.Abort()
 			return
@@ -99,6 +100,7 @@ func ServiceKeyAuth(config ServiceKeyConfig) gin.HandlerFunc {
 
 		// Validate headers present
 		if serviceName == "" || serviceKey == "" {
+			logutil.LogWarn(c.Request.Context(), "auth rejected", "reason", "missing_service_headers")
 			httpgin.SendError(c, http.StatusUnauthorized, "unauthorized")
 			c.Abort()
 			return
@@ -113,12 +115,14 @@ func ServiceKeyAuth(config ServiceKeyConfig) gin.HandlerFunc {
 			// Compare against a fixed dummy of the same shape as a real key so
 			// the code path takes comparable time before we return 401.
 			_ = subtle.ConstantTimeCompare([]byte("00000000000000000000000000000000"), []byte(serviceKey))
+			logutil.LogWarn(c.Request.Context(), "auth rejected", "reason", "unknown_service", "service", serviceName)
 			httpgin.SendError(c, http.StatusUnauthorized, "unauthorized")
 			c.Abort()
 			return
 		}
 
 		if subtle.ConstantTimeCompare([]byte(expectedKey), []byte(serviceKey)) != 1 {
+			logutil.LogWarn(c.Request.Context(), "auth rejected", "reason", "invalid_service_key", "service", serviceName)
 			httpgin.SendError(c, http.StatusUnauthorized, "unauthorized")
 			c.Abort()
 			return

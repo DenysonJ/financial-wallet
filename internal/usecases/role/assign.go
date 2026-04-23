@@ -5,19 +5,18 @@ import (
 
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/attribute"
-	otelcodes "go.opentelemetry.io/otel/codes"
 
 	"github.com/DenysonJ/financial-wallet/internal/usecases/role/dto"
 	"github.com/DenysonJ/financial-wallet/internal/usecases/role/interfaces"
-	"github.com/DenysonJ/financial-wallet/pkg/cache"
 	"github.com/DenysonJ/financial-wallet/pkg/logutil"
+	"github.com/DenysonJ/financial-wallet/pkg/telemetry"
 	"github.com/DenysonJ/financial-wallet/pkg/vo"
 )
 
 // AssignRoleUseCase implementa o caso de uso de atribuir uma role a um usuário.
 type AssignRoleUseCase struct {
 	repo  interfaces.Repository
-	cache cache.Cache
+	cache interfaces.Cache
 }
 
 // NewAssignRoleUseCase cria uma nova instância do AssignRoleUseCase.
@@ -26,7 +25,7 @@ func NewAssignRoleUseCase(repo interfaces.Repository) *AssignRoleUseCase {
 }
 
 // WithCache sets an optional cache for permission invalidation (builder pattern).
-func (uc *AssignRoleUseCase) WithCache(c cache.Cache) *AssignRoleUseCase {
+func (uc *AssignRoleUseCase) WithCache(c interfaces.Cache) *AssignRoleUseCase {
 	uc.cache = c
 	return uc
 }
@@ -46,14 +45,14 @@ func (uc *AssignRoleUseCase) Execute(ctx context.Context, input dto.AssignRoleIn
 
 	userID, userParseErr := vo.ParseID(input.UserID)
 	if userParseErr != nil {
-		span.SetStatus(otelcodes.Error, userParseErr.Error())
+		telemetry.WarnSpan(span, attribute.String("app.result", "invalid_user_id"))
 		logutil.LogWarn(ctx, "role assign failed: invalid user ID", "error", userParseErr.Error())
 		return userParseErr
 	}
 
 	roleID, roleParseErr := vo.ParseID(input.RoleID)
 	if roleParseErr != nil {
-		span.SetStatus(otelcodes.Error, roleParseErr.Error())
+		telemetry.WarnSpan(span, attribute.String("app.result", "invalid_role_id"))
 		logutil.LogWarn(ctx, "role assign failed: invalid role ID", "error", roleParseErr.Error())
 		return roleParseErr
 	}
@@ -64,18 +63,14 @@ func (uc *AssignRoleUseCase) Execute(ctx context.Context, input dto.AssignRoleIn
 	)
 
 	// Verify role exists
-	_, findErr := uc.repo.FindByID(ctx, roleID)
-	if findErr != nil {
-		span.SetStatus(otelcodes.Error, findErr.Error())
-		logutil.LogWarn(ctx, "role assign failed: role not found", "error", findErr.Error())
+	if _, findErr := uc.repo.FindByID(ctx, roleID); findErr != nil {
+		telemetry.ClassifyError(ctx, span, findErr, "not_found", "role assign failed")
 		return findErr
 	}
 
 	// Assign role
-	assignErr := uc.repo.AssignRole(ctx, userID, roleID)
-	if assignErr != nil {
-		span.SetStatus(otelcodes.Error, assignErr.Error())
-		logutil.LogWarn(ctx, "role assign failed", "error", assignErr.Error())
+	if assignErr := uc.repo.AssignRole(ctx, userID, roleID); assignErr != nil {
+		telemetry.ClassifyError(ctx, span, assignErr, "domain_error", "role assign failed")
 		return assignErr
 	}
 
@@ -87,6 +82,7 @@ func (uc *AssignRoleUseCase) Execute(ctx context.Context, input dto.AssignRoleIn
 		}
 	}
 
+	telemetry.OkSpan(span)
 	logutil.LogInfo(ctx, "role assigned", "user.id", input.UserID, "role.id", input.RoleID)
 
 	return nil
