@@ -9,12 +9,12 @@ import (
 
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/attribute"
-	otelcodes "go.opentelemetry.io/otel/codes"
 
 	accountdomain "github.com/DenysonJ/financial-wallet/internal/domain/account"
 	"github.com/DenysonJ/financial-wallet/internal/usecases/account/dto"
 	"github.com/DenysonJ/financial-wallet/internal/usecases/account/interfaces"
 	"github.com/DenysonJ/financial-wallet/pkg/logutil"
+	"github.com/DenysonJ/financial-wallet/pkg/telemetry"
 	uservo "github.com/DenysonJ/financial-wallet/pkg/vo"
 )
 
@@ -35,10 +35,9 @@ func (uc *ListUseCase) Execute(ctx context.Context, input dto.ListInput) (*dto.L
 
 	ctx = injectLogContext(ctx, logutil.ActionList)
 
-	// Validar UserID
 	userID, parseErr := uservo.ParseID(input.UserID)
 	if parseErr != nil {
-		span.SetStatus(otelcodes.Error, parseErr.Error())
+		telemetry.WarnSpan(span, attribute.String("app.result", "invalid_user_id"))
 		logutil.LogWarn(ctx, "account list failed: invalid user ID", "error", parseErr.Error())
 		return nil, parseErr
 	}
@@ -63,7 +62,7 @@ func (uc *ListUseCase) Execute(ctx context.Context, input dto.ListInput) (*dto.L
 	if input.Cursor != "" {
 		cursorCreatedAt, cursorID, cursorErr := decodeAccountCursor(input.Cursor)
 		if cursorErr != nil {
-			span.SetStatus(otelcodes.Error, cursorErr.Error())
+			telemetry.WarnSpan(span, attribute.String("app.result", "invalid_cursor"))
 			logutil.LogWarn(ctx, "account list failed: invalid cursor", "error", cursorErr.Error())
 			return nil, cursorErr
 		}
@@ -71,10 +70,11 @@ func (uc *ListUseCase) Execute(ctx context.Context, input dto.ListInput) (*dto.L
 		filter.CursorID = &cursorID
 	}
 
-	// Buscar no repositório
+	// List operations return only infrastructure errors — no expected domain
+	// sentinels apply, so FailSpan is used directly without IsExpected guard.
 	result, listErr := uc.repo.List(ctx, filter)
 	if listErr != nil {
-		span.SetStatus(otelcodes.Error, listErr.Error())
+		telemetry.FailSpan(span, listErr, "account list failed")
 		logutil.LogError(ctx, "account list failed: repository error", "error", listErr.Error())
 		return nil, listErr
 	}
@@ -102,6 +102,7 @@ func (uc *ListUseCase) Execute(ctx context.Context, input dto.ListInput) (*dto.L
 	}
 
 	span.SetAttributes(attribute.Int("result.total", result.Total))
+	telemetry.OkSpan(span)
 	logutil.LogInfo(ctx, "accounts listed", "total", result.Total, "page", result.Page)
 
 	pagination := dto.PaginationOutput{

@@ -2,17 +2,16 @@ package role
 
 import (
 	"context"
-	"math"
 	"time"
 
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/attribute"
-	otelcodes "go.opentelemetry.io/otel/codes"
 
 	roledomain "github.com/DenysonJ/financial-wallet/internal/domain/role"
 	"github.com/DenysonJ/financial-wallet/internal/usecases/role/dto"
 	"github.com/DenysonJ/financial-wallet/internal/usecases/role/interfaces"
 	"github.com/DenysonJ/financial-wallet/pkg/logutil"
+	"github.com/DenysonJ/financial-wallet/pkg/telemetry"
 )
 
 // ListUseCase implementa o caso de uso de listar roles.
@@ -44,10 +43,11 @@ func (uc *ListUseCase) Execute(ctx context.Context, input dto.ListInput) (*dto.L
 		Name:  input.Name,
 	}
 
-	// Buscar no repositorio
+	// List operations return only infrastructure errors — no expected domain
+	// sentinels apply, so FailSpan is used directly without IsExpected guard.
 	result, listErr := uc.repo.List(ctx, filter)
 	if listErr != nil {
-		span.SetStatus(otelcodes.Error, listErr.Error())
+		telemetry.FailSpan(span, listErr, "role list failed")
 		logutil.LogError(ctx, "role list failed: repository error", "error", listErr.Error())
 		return nil, listErr
 	}
@@ -64,10 +64,13 @@ func (uc *ListUseCase) Execute(ctx context.Context, input dto.ListInput) (*dto.L
 		})
 	}
 
-	// Calculate total pages
-	totalPages := int(math.Ceil(float64(result.Total) / float64(result.Limit)))
+	totalPages := 0
+	if result.Limit > 0 {
+		totalPages = (result.Total + result.Limit - 1) / result.Limit
+	}
 
 	span.SetAttributes(attribute.Int("result.total", result.Total))
+	telemetry.OkSpan(span)
 	logutil.LogInfo(ctx, "roles listed", "total", result.Total, "page", result.Page)
 
 	return &dto.ListOutput{

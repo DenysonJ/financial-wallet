@@ -6,7 +6,6 @@ import (
 
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/attribute"
-	otelcodes "go.opentelemetry.io/otel/codes"
 
 	userdomain "github.com/DenysonJ/financial-wallet/internal/domain/user"
 	"github.com/DenysonJ/financial-wallet/internal/domain/user/vo"
@@ -14,6 +13,7 @@ import (
 	"github.com/DenysonJ/financial-wallet/internal/usecases/user/interfaces"
 	"github.com/DenysonJ/financial-wallet/pkg/cache"
 	"github.com/DenysonJ/financial-wallet/pkg/logutil"
+	"github.com/DenysonJ/financial-wallet/pkg/telemetry"
 )
 
 // GetUseCase implementa o caso de uso de buscar user por ID.
@@ -54,10 +54,9 @@ func (uc *GetUseCase) Execute(ctx context.Context, input dto.GetInput) (*dto.Get
 
 	ctx = injectLogContext(ctx, "get")
 
-	// Validar e converter ID
 	id, parseErr := vo.ParseID(input.ID)
 	if parseErr != nil {
-		span.SetStatus(otelcodes.Error, parseErr.Error())
+		telemetry.WarnSpan(span, attribute.String("app.result", "invalid_id"))
 		logutil.LogWarn(ctx, "user get failed: invalid ID", "error", parseErr.Error())
 		return nil, parseErr
 	}
@@ -70,6 +69,7 @@ func (uc *GetUseCase) Execute(ctx context.Context, input dto.GetInput) (*dto.Get
 		var cached dto.GetOutput
 		if cacheErr := uc.cache.Get(ctx, cacheKey, &cached); cacheErr == nil {
 			span.SetAttributes(attribute.Bool("cache.hit", true))
+			telemetry.OkSpan(span)
 			logutil.LogInfo(ctx, "cache hit", "key", cacheKey)
 			return &cached, nil
 		}
@@ -83,8 +83,7 @@ func (uc *GetUseCase) Execute(ctx context.Context, input dto.GetInput) (*dto.Get
 			return uc.repo.FindByID(ctx, id)
 		})
 		if flightErr != nil {
-			span.SetStatus(otelcodes.Error, flightErr.Error())
-			logutil.LogWarn(ctx, "user get failed", "error", flightErr.Error())
+			telemetry.ClassifyError(ctx, span, flightErr, "not_found", "user get failed")
 			return nil, flightErr
 		}
 		e = val.(*userdomain.User)
@@ -92,8 +91,7 @@ func (uc *GetUseCase) Execute(ctx context.Context, input dto.GetInput) (*dto.Get
 		var findErr error
 		e, findErr = uc.repo.FindByID(ctx, id)
 		if findErr != nil {
-			span.SetStatus(otelcodes.Error, findErr.Error())
-			logutil.LogWarn(ctx, "user get failed", "error", findErr.Error())
+			telemetry.ClassifyError(ctx, span, findErr, "not_found", "user get failed")
 			return nil, findErr
 		}
 	}
@@ -116,6 +114,7 @@ func (uc *GetUseCase) Execute(ctx context.Context, input dto.GetInput) (*dto.Get
 	}
 
 	span.SetAttributes(attribute.Bool("cache.hit", false))
+	telemetry.OkSpan(span)
 	logutil.LogInfo(ctx, "user retrieved", "user.id", e.ID.String())
 
 	return output, nil

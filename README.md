@@ -64,8 +64,7 @@ make test-coverage     # Relatório HTML de cobertura
 # Infraestrutura
 make docker-up         # Sobe PostgreSQL + Redis
 make docker-down       # Para containers
-make observability-up  # ELK + OTel Collector
-make observability-setup # Dashboard + alertas no Kibana
+make observability-up  # Grafana + Loki + Tempo + Prometheus + OTel Collector
 
 # Load Tests
 make load-smoke        # Validação básica (5 VUs)
@@ -140,12 +139,12 @@ curl -X POST http://localhost:8080/auth/refresh \
 
 #### Service Key (service-to-service)
 
-Para comunicação entre serviços, use headers `X-Service-Name` e `X-Service-Key`:
+Para comunicação entre serviços, use headers `Service-Name` e `Service-Key`:
 
 ```bash
 curl -X GET http://localhost:8080/users \
-  -H "X-Service-Name: financial-wallet" \
-  -H "X-Service-Key: sk_financial_wallet_abc123"
+  -H "Service-Name: financial-wallet" \
+  -H "Service-Key: sk_financial_wallet_abc123"
 ```
 
 #### Rotas e permissões
@@ -200,7 +199,7 @@ curl -X GET http://localhost:8080/users \
 |---------------------|------------------------------------------------|-------------------------|
 | **Docker Compose**  | DB + Redis + API tudo em Docker                | `make run`              |
 | **Hot Reload**      | Air com rebuild automático                     | `make dev`              |
-| **Observabilidade** | ELK 8.13 + OTel + dashboards + alertas         | `make observability-up` |
+| **Observabilidade** | Grafana + Loki + Tempo + Prometheus + OTel     | `make observability-up` |
 | **Load Tests**      | k6 com 4 cenários (smoke, load, stress, spike) | `make load-smoke`       |
 | **Migrations**      | Goose SQL bidirecional                         | `make migrate-up`       |
 
@@ -390,7 +389,7 @@ make sandbox-status   # Mostra status do container e volumes
 O container roda com `--cap-add=NET_ADMIN` e um script de firewall (`init-firewall.sh`) que:
 
 1. Bloqueia **todo** tráfego de saída por padrão
-2. Permite apenas domínios necessários: Anthropic (Claude), GitHub, Go modules, Docker Hub, Kibana
+2. Permite apenas domínios necessários: Anthropic (Claude), GitHub, Go modules, Docker Hub
 3. Permite tráfego local (host network, Docker network)
 
 Isso garante que o Claude Code com `--dangerously-skip-permissions` não consiga acessar serviços externos não autorizados.

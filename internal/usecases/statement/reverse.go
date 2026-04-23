@@ -5,12 +5,12 @@ import (
 
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/attribute"
-	otelcodes "go.opentelemetry.io/otel/codes"
 
 	stmtdomain "github.com/DenysonJ/financial-wallet/internal/domain/statement"
 	"github.com/DenysonJ/financial-wallet/internal/usecases/statement/dto"
 	"github.com/DenysonJ/financial-wallet/internal/usecases/statement/interfaces"
 	"github.com/DenysonJ/financial-wallet/pkg/logutil"
+	"github.com/DenysonJ/financial-wallet/pkg/telemetry"
 	pkgvo "github.com/DenysonJ/financial-wallet/pkg/vo"
 )
 
@@ -32,17 +32,16 @@ func (uc *ReverseUseCase) Execute(ctx context.Context, input dto.ReverseInput) (
 
 	ctx = injectLogContext(ctx, ActionReverse)
 
-	// Validate IDs
 	statementID, parseErr := pkgvo.ParseID(input.StatementID)
 	if parseErr != nil {
-		span.SetStatus(otelcodes.Error, parseErr.Error())
+		telemetry.WarnSpan(span, attribute.String("app.result", "invalid_statement_id"))
 		logutil.LogWarn(ctx, "statement reversal failed: invalid statement ID", "error", parseErr.Error())
 		return nil, parseErr
 	}
 
 	accountID, accountParseErr := pkgvo.ParseID(input.AccountID)
 	if accountParseErr != nil {
-		span.SetStatus(otelcodes.Error, accountParseErr.Error())
+		telemetry.WarnSpan(span, attribute.String("app.result", "invalid_account_id"))
 		logutil.LogWarn(ctx, "statement reversal failed: invalid account ID", "error", accountParseErr.Error())
 		return nil, accountParseErr
 	}
@@ -55,19 +54,18 @@ func (uc *ReverseUseCase) Execute(ctx context.Context, input dto.ReverseInput) (
 	// Find account and verify ownership
 	account, findAccountErr := uc.accountRepo.FindByID(ctx, accountID)
 	if findAccountErr != nil {
-		span.SetStatus(otelcodes.Error, findAccountErr.Error())
-		logutil.LogWarn(ctx, "statement reversal failed: account not found", "error", findAccountErr.Error())
+		telemetry.ClassifyError(ctx, span, findAccountErr, "not_found", "statement reversal failed")
 		return nil, findAccountErr
 	}
 
 	if input.RequestingUserID != "" && account.UserID.String() != input.RequestingUserID {
-		span.SetStatus(otelcodes.Error, "forbidden")
+		telemetry.WarnSpan(span, attribute.String("app.result", "forbidden"))
 		logutil.LogWarn(ctx, "statement reversal forbidden: not owner", "account.id", accountID.String())
 		return nil, stmtdomain.ErrStatementNotFound
 	}
 
 	if !account.Active {
-		span.SetStatus(otelcodes.Error, "account not active")
+		telemetry.WarnSpan(span, attribute.String("app.result", "account_not_active"))
 		logutil.LogWarn(ctx, "statement reversal failed: account not active", "account.id", accountID.String())
 		return nil, stmtdomain.ErrAccountNotActive
 	}
@@ -75,14 +73,13 @@ func (uc *ReverseUseCase) Execute(ctx context.Context, input dto.ReverseInput) (
 	// Find original statement
 	original, findErr := uc.repo.FindByID(ctx, statementID)
 	if findErr != nil {
-		span.SetStatus(otelcodes.Error, findErr.Error())
-		logutil.LogWarn(ctx, "statement reversal failed: statement not found", "error", findErr.Error())
+		telemetry.ClassifyError(ctx, span, findErr, "not_found", "statement reversal failed")
 		return nil, findErr
 	}
 
 	// Verify statement belongs to this account
 	if original.AccountID != accountID {
-		span.SetStatus(otelcodes.Error, "statement not in account")
+		telemetry.WarnSpan(span, attribute.String("app.result", "statement_not_in_account"))
 		logutil.LogWarn(ctx, "statement reversal failed: statement not in account")
 		return nil, stmtdomain.ErrStatementNotFound
 	}
@@ -90,12 +87,12 @@ func (uc *ReverseUseCase) Execute(ctx context.Context, input dto.ReverseInput) (
 	// Check if already reversed
 	hasReversal, reversalErr := uc.repo.HasReversal(ctx, statementID)
 	if reversalErr != nil {
-		span.SetStatus(otelcodes.Error, reversalErr.Error())
+		telemetry.FailSpan(span, reversalErr, "statement reversal failed")
 		logutil.LogError(ctx, "statement reversal failed: check reversal error", "error", reversalErr.Error())
 		return nil, reversalErr
 	}
 	if hasReversal {
-		span.SetStatus(otelcodes.Error, "already reversed")
+		telemetry.WarnSpan(span, attribute.String("app.result", "already_reversed"))
 		logutil.LogWarn(ctx, "statement reversal failed: already reversed", "statement.id", statementID.String())
 		return nil, stmtdomain.ErrAlreadyReversed
 	}
@@ -117,13 +114,13 @@ func (uc *ReverseUseCase) Execute(ctx context.Context, input dto.ReverseInput) (
 	// Persist (transactional)
 	balanceAfter, createErr := uc.repo.Create(ctx, reversal, accountID)
 	if createErr != nil {
-		span.SetStatus(otelcodes.Error, createErr.Error())
-		logutil.LogError(ctx, "statement reversal failed: repository error", "error", createErr.Error())
+		telemetry.ClassifyError(ctx, span, createErr, "domain_error", "statement reversal failed")
 		return nil, createErr
 	}
 	reversal.SetBalanceAfter(balanceAfter)
 
 	span.SetAttributes(attribute.String("reversal.id", reversal.ID.String()))
+	telemetry.OkSpan(span)
 	logutil.LogInfo(ctx, "statement reversed", "reversal.id", reversal.ID.String(), "original.id", statementID.String())
 
 	return toOutput(reversal), nil

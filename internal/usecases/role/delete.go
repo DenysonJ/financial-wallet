@@ -6,11 +6,11 @@ import (
 
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/attribute"
-	otelcodes "go.opentelemetry.io/otel/codes"
 
 	"github.com/DenysonJ/financial-wallet/internal/usecases/role/dto"
 	"github.com/DenysonJ/financial-wallet/internal/usecases/role/interfaces"
 	"github.com/DenysonJ/financial-wallet/pkg/logutil"
+	"github.com/DenysonJ/financial-wallet/pkg/telemetry"
 	"github.com/DenysonJ/financial-wallet/pkg/vo"
 )
 
@@ -37,10 +37,9 @@ func (uc *DeleteUseCase) Execute(ctx context.Context, input dto.DeleteInput) (*d
 
 	ctx = injectLogContext(ctx, "delete")
 
-	// Validar e converter ID
 	id, parseErr := vo.ParseID(input.ID)
 	if parseErr != nil {
-		span.SetStatus(otelcodes.Error, parseErr.Error())
+		telemetry.WarnSpan(span, attribute.String("app.result", "invalid_id"))
 		logutil.LogWarn(ctx, "role delete failed: invalid ID", "error", parseErr.Error())
 		return nil, parseErr
 	}
@@ -49,11 +48,11 @@ func (uc *DeleteUseCase) Execute(ctx context.Context, input dto.DeleteInput) (*d
 
 	// Deletar role
 	if deleteErr := uc.repo.Delete(ctx, id); deleteErr != nil {
-		span.SetStatus(otelcodes.Error, deleteErr.Error())
-		logutil.LogError(ctx, "role delete failed: repository error", "error", deleteErr.Error())
+		telemetry.ClassifyError(ctx, span, deleteErr, "domain_error", "role delete failed")
 		return nil, deleteErr
 	}
 
+	telemetry.OkSpan(span)
 	logutil.LogInfo(ctx, "role deleted", "role.id", input.ID)
 
 	return &dto.DeleteOutput{

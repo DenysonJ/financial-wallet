@@ -7,9 +7,9 @@ import (
 	useruc "github.com/DenysonJ/financial-wallet/internal/usecases/user"
 	"github.com/DenysonJ/financial-wallet/internal/usecases/user/dto"
 	"github.com/DenysonJ/financial-wallet/pkg/httputil/httpgin"
+	"github.com/DenysonJ/financial-wallet/pkg/logutil"
 	"github.com/gin-gonic/gin"
 	"go.opentelemetry.io/otel"
-	"go.opentelemetry.io/otel/codes"
 )
 
 // PasswordHandler agrupa os handlers de gerenciamento de senha.
@@ -46,19 +46,19 @@ func NewPasswordHandler(
 // @Security     ServiceKey
 // @Router       /users/password [post]
 func (h *PasswordHandler) SetPassword(c *gin.Context) {
-	ctx, span := otel.Tracer("http-handler").Start(c.Request.Context(), "PasswordHandler.SetPassword")
+	ctx, span := otel.Tracer(handlerTracer).Start(c.Request.Context(), "PasswordHandler.SetPassword")
 	defer span.End()
 
 	var req dto.SetPasswordInput
 	if bindErr := c.ShouldBindJSON(&req); bindErr != nil {
-		span.SetStatus(codes.Error, "invalid request body")
+		logutil.LogWarn(ctx, "bind error", "error", bindErr.Error())
 		httpgin.SendError(c, http.StatusBadRequest, "invalid request body")
 		return
 	}
 
 	execErr := h.SetPasswordUC.Execute(ctx, req)
 	if execErr != nil {
-		HandleError(c, span, execErr)
+		HandleError(c, execErr)
 		return
 	}
 
@@ -81,12 +81,12 @@ func (h *PasswordHandler) SetPassword(c *gin.Context) {
 // @Security     BearerAuth
 // @Router       /users/password [put]
 func (h *PasswordHandler) ChangePassword(c *gin.Context) {
-	ctx, span := otel.Tracer("http-handler").Start(c.Request.Context(), "PasswordHandler.ChangePassword")
+	ctx, span := otel.Tracer(handlerTracer).Start(c.Request.Context(), "PasswordHandler.ChangePassword")
 	defer span.End()
 
 	var req dto.ChangePasswordInput
 	if bindErr := c.ShouldBindJSON(&req); bindErr != nil {
-		span.SetStatus(codes.Error, "invalid request body")
+		logutil.LogWarn(ctx, "bind error", "error", bindErr.Error())
 		httpgin.SendError(c, http.StatusBadRequest, "invalid request body")
 		return
 	}
@@ -94,13 +94,11 @@ func (h *PasswordHandler) ChangePassword(c *gin.Context) {
 	// User ID from JWT context
 	userID, exists := c.Get(middleware.ContextKeyUserID)
 	if !exists {
-		span.SetStatus(codes.Error, "unauthorized")
 		httpgin.SendError(c, http.StatusUnauthorized, "unauthorized")
 		return
 	}
 	userIDStr, ok := userID.(string)
 	if !ok || userIDStr == "" {
-		span.SetStatus(codes.Error, "unauthorized")
 		httpgin.SendError(c, http.StatusUnauthorized, "unauthorized")
 		return
 	}
@@ -108,7 +106,7 @@ func (h *PasswordHandler) ChangePassword(c *gin.Context) {
 
 	execErr := h.ChangePasswordUC.Execute(ctx, req)
 	if execErr != nil {
-		HandleError(c, span, execErr)
+		HandleError(c, execErr)
 		return
 	}
 

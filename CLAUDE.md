@@ -71,9 +71,10 @@ swag init -g cmd/api/main.go -o docs --parseDependency --parseInternal
 - **DB Cluster**: Writer/Reader split via `pkg/database.DBCluster`. Reader is optional, falls back to writer.
 - **API Response Format**: Gin handlers use `httpgin.SendSuccess(c, status, data)` and `httpgin.SendError(c, status, message)`. Core helpers (`httputil.WriteSuccess`/`httputil.WriteError`) work with stdlib `http.ResponseWriter`. Responses wrap in `{"data": ...}` or `{"errors": {"message": ...}}`.
 - **Error Handling**: Domain defines pure errors (`user.ErrNotFound`, etc.). `pkg/apperror.AppError` provides structured errors with HTTP status. Handlers translate errors via `handler.HandleError()`. Never return HTTP concepts from domain layer.
-- **Service Key Auth**: Optional service-to-service authentication via `X-Service-Name` + `X-Service-Key` headers. See `docs/adr/005-service-key-auth.md`.
+- **Service Key Auth**: Optional service-to-service authentication via `Service-Name` + `Service-Key` headers. See `docs/adr/005-service-key-auth.md`.
 - **Singleflight**: GetUseCase uses `golang.org/x/sync/singleflight` to prevent cache stampede on concurrent reads for the same entity.
 - **Idempotency**: Redis-backed idempotency via `pkg/idempotency.Store`, wired as optional middleware. Uses SHA-256 fingerprint + lock/unlock pattern.
+- **Telemetria de erro (spans)**: `span.SetStatus`/`RecordError` **só no use case**, nunca em handler, repositório ou domínio. Use `pkg/telemetry.FailSpan(span, err, msg)` para erro **inesperado** (timeout, 5xx de dependência, falha não classificada — entra em alerta) e `pkg/telemetry.WarnSpan(span, attrs...)` para erro **esperado** (sentinelas de domínio, 4xx, validação — span segue `Ok`, vira atributo semântico). Caminho feliz fecha com `pkg/telemetry.OkSpan(span)`. `pkg/telemetry.IsExpected(err)` classifica via `pkg/apperror.DomainSentinels` (populada no `init()` de `handler/error.go` — mesma fonte de verdade da tradução HTTP). Handler só traduz HTTP via `handler.HandleError(c, err)`; repositório converte erro técnico em `domain.Err*` e retorna.
 
 ### Conventions
 

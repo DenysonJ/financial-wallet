@@ -108,8 +108,8 @@ func setupTestRouterWithAuth() *gin.Engine {
 
 // addAuthHeaders adiciona os headers de autenticação para testes
 func addAuthHeaders(req *http.Request) {
-	req.Header.Set("X-Service-Name", "test-service")
-	req.Header.Set("X-Service-Key", "sk_test_service_key_12345")
+	req.Header.Set("Service-Name", "test-service")
+	req.Header.Set("Service-Key", "sk_test_service_key_12345")
 }
 
 // extractData is a helper that parses the standard API response {"data": ...}
@@ -395,8 +395,8 @@ func TestE2E_ServiceKeyAuth_Errors(t *testing.T) {
 
 	t.Run("invalid key returns 401", func(t *testing.T) {
 		req := httptest.NewRequest("GET", "/users/018e4a2c-6b4d-7000-8000-000000000001", nil)
-		req.Header.Set("X-Service-Name", "test-service")
-		req.Header.Set("X-Service-Key", "wrong_key")
+		req.Header.Set("Service-Name", "test-service")
+		req.Header.Set("Service-Key", "wrong_key")
 		w := httptest.NewRecorder()
 		router.ServeHTTP(w, req)
 
@@ -406,8 +406,8 @@ func TestE2E_ServiceKeyAuth_Errors(t *testing.T) {
 
 	t.Run("unknown service returns 401", func(t *testing.T) {
 		req := httptest.NewRequest("GET", "/users/018e4a2c-6b4d-7000-8000-000000000001", nil)
-		req.Header.Set("X-Service-Name", "unknown-service")
-		req.Header.Set("X-Service-Key", "any_key")
+		req.Header.Set("Service-Name", "unknown-service")
+		req.Header.Set("Service-Key", "any_key")
 		w := httptest.NewRecorder()
 		router.ServeHTTP(w, req)
 

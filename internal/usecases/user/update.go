@@ -6,12 +6,12 @@ import (
 
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/attribute"
-	otelcodes "go.opentelemetry.io/otel/codes"
 
 	"github.com/DenysonJ/financial-wallet/internal/domain/user/vo"
 	"github.com/DenysonJ/financial-wallet/internal/usecases/user/dto"
 	"github.com/DenysonJ/financial-wallet/internal/usecases/user/interfaces"
 	"github.com/DenysonJ/financial-wallet/pkg/logutil"
+	"github.com/DenysonJ/financial-wallet/pkg/telemetry"
 )
 
 // UpdateUseCase implementa o caso de uso de atualização de user.
@@ -46,10 +46,9 @@ func (uc *UpdateUseCase) Execute(ctx context.Context, input dto.UpdateInput) (*d
 
 	ctx = injectLogContext(ctx, "update")
 
-	// Validar e converter ID
 	id, parseErr := vo.ParseID(input.ID)
 	if parseErr != nil {
-		span.SetStatus(otelcodes.Error, parseErr.Error())
+		telemetry.WarnSpan(span, attribute.String("app.result", "invalid_id"))
 		logutil.LogWarn(ctx, "user update failed: invalid ID", "error", parseErr.Error())
 		return nil, parseErr
 	}
@@ -59,8 +58,7 @@ func (uc *UpdateUseCase) Execute(ctx context.Context, input dto.UpdateInput) (*d
 	// 1. Buscar user existente
 	e, findErr := uc.repo.FindByID(ctx, id)
 	if findErr != nil {
-		span.SetStatus(otelcodes.Error, findErr.Error())
-		logutil.LogWarn(ctx, "user update failed", "error", findErr.Error())
+		telemetry.ClassifyError(ctx, span, findErr, "not_found", "user update failed")
 		return nil, findErr
 	}
 
@@ -72,7 +70,7 @@ func (uc *UpdateUseCase) Execute(ctx context.Context, input dto.UpdateInput) (*d
 	if input.Email != nil {
 		emailVO, emailErr := vo.NewEmail(*input.Email)
 		if emailErr != nil {
-			span.SetStatus(otelcodes.Error, emailErr.Error())
+			telemetry.WarnSpan(span, attribute.String("app.result", "invalid_email"))
 			logutil.LogWarn(ctx, "user update failed: invalid email", "error", emailErr.Error())
 			return nil, emailErr
 		}
@@ -81,8 +79,7 @@ func (uc *UpdateUseCase) Execute(ctx context.Context, input dto.UpdateInput) (*d
 
 	// 3. Persistir alterações
 	if updateErr := uc.repo.Update(ctx, e); updateErr != nil {
-		span.SetStatus(otelcodes.Error, updateErr.Error())
-		logutil.LogError(ctx, "user update failed: repository error", "error", updateErr.Error())
+		telemetry.ClassifyError(ctx, span, updateErr, "domain_error", "user update failed")
 		return nil, updateErr
 	}
 
@@ -94,6 +91,7 @@ func (uc *UpdateUseCase) Execute(ctx context.Context, input dto.UpdateInput) (*d
 		}
 	}
 
+	telemetry.OkSpan(span)
 	logutil.LogInfo(ctx, "user updated", "user.id", e.ID.String())
 
 	return &dto.UpdateOutput{

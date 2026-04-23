@@ -54,7 +54,7 @@ func TestLogger_UsesValidRequestID_FromHeader(t *testing.T) {
 
 	assert.Equal(t, http.StatusOK, w.Code)
 	assert.Equal(t, existingID, w.Header().Get(RequestIDHeader),
-		"should preserve valid X-Request-ID from header")
+		"should preserve valid Request-ID from header")
 }
 
 func TestLogger_InvalidRequestID_TooLong_GeneratesNewUUID(t *testing.T) {
@@ -128,7 +128,7 @@ func TestLogger_ResponseIncludesRequestIDHeader(t *testing.T) {
 	r.ServeHTTP(w, req)
 
 	respID := w.Header().Get(RequestIDHeader)
-	assert.NotEmpty(t, respID, "response must always include X-Request-ID header")
+	assert.NotEmpty(t, respID, "response must always include Request-ID header")
 }
 
 func TestLogger_CallerServicePropagated_FromContext(t *testing.T) {

@@ -9,13 +9,13 @@ import (
 
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/attribute"
-	otelcodes "go.opentelemetry.io/otel/codes"
 
 	stmtdomain "github.com/DenysonJ/financial-wallet/internal/domain/statement"
 	stmtvo "github.com/DenysonJ/financial-wallet/internal/domain/statement/vo"
 	"github.com/DenysonJ/financial-wallet/internal/usecases/statement/dto"
 	"github.com/DenysonJ/financial-wallet/internal/usecases/statement/interfaces"
 	"github.com/DenysonJ/financial-wallet/pkg/logutil"
+	"github.com/DenysonJ/financial-wallet/pkg/telemetry"
 	pkgvo "github.com/DenysonJ/financial-wallet/pkg/vo"
 )
 
@@ -37,10 +37,9 @@ func (uc *ListUseCase) Execute(ctx context.Context, input dto.ListInput) (*dto.L
 
 	ctx = injectLogContext(ctx, logutil.ActionList)
 
-	// Validate AccountID
 	accountID, parseErr := pkgvo.ParseID(input.AccountID)
 	if parseErr != nil {
-		span.SetStatus(otelcodes.Error, parseErr.Error())
+		telemetry.WarnSpan(span, attribute.String("app.result", "invalid_account_id"))
 		logutil.LogWarn(ctx, "statement list failed: invalid account ID", "error", parseErr.Error())
 		return nil, parseErr
 	}
@@ -50,13 +49,12 @@ func (uc *ListUseCase) Execute(ctx context.Context, input dto.ListInput) (*dto.L
 	// Find account and verify ownership
 	account, findErr := uc.accountRepo.FindByID(ctx, accountID)
 	if findErr != nil {
-		span.SetStatus(otelcodes.Error, findErr.Error())
-		logutil.LogWarn(ctx, "statement list failed: account not found", "error", findErr.Error())
+		telemetry.ClassifyError(ctx, span, findErr, "not_found", "statement list failed")
 		return nil, findErr
 	}
 
 	if input.RequestingUserID != "" && account.UserID.String() != input.RequestingUserID {
-		span.SetStatus(otelcodes.Error, "forbidden")
+		telemetry.WarnSpan(span, attribute.String("app.result", "forbidden"))
 		logutil.LogWarn(ctx, "statement list forbidden: not owner", "account.id", accountID.String())
 		return nil, stmtdomain.ErrStatementNotFound
 	}
@@ -72,7 +70,7 @@ func (uc *ListUseCase) Execute(ctx context.Context, input dto.ListInput) (*dto.L
 	if input.Cursor != "" {
 		cursorPostedAt, cursorID, cursorErr := decodeCursor(input.Cursor)
 		if cursorErr != nil {
-			span.SetStatus(otelcodes.Error, cursorErr.Error())
+			telemetry.WarnSpan(span, attribute.String("app.result", "invalid_cursor"))
 			logutil.LogWarn(ctx, "statement list failed: invalid cursor", "error", cursorErr.Error())
 			return nil, cursorErr
 		}
@@ -84,7 +82,7 @@ func (uc *ListUseCase) Execute(ctx context.Context, input dto.ListInput) (*dto.L
 	if input.Type != "" {
 		stmtType, typeErr := stmtvo.NewStatementType(input.Type)
 		if typeErr != nil {
-			span.SetStatus(otelcodes.Error, typeErr.Error())
+			telemetry.WarnSpan(span, attribute.String("app.result", "invalid_type"))
 			logutil.LogWarn(ctx, "statement list failed: invalid type filter", "error", typeErr.Error())
 			return nil, typeErr
 		}
@@ -95,7 +93,7 @@ func (uc *ListUseCase) Execute(ctx context.Context, input dto.ListInput) (*dto.L
 	if input.DateFrom != "" {
 		dateFrom, dateFromErr := time.Parse(time.RFC3339, input.DateFrom)
 		if dateFromErr != nil {
-			span.SetStatus(otelcodes.Error, dateFromErr.Error())
+			telemetry.WarnSpan(span, attribute.String("app.result", "invalid_date_from"))
 			logutil.LogWarn(ctx, "statement list failed: invalid date_from", "error", dateFromErr.Error())
 			return nil, dateFromErr
 		}
@@ -104,7 +102,7 @@ func (uc *ListUseCase) Execute(ctx context.Context, input dto.ListInput) (*dto.L
 	if input.DateTo != "" {
 		dateTo, dateToErr := time.Parse(time.RFC3339, input.DateTo)
 		if dateToErr != nil {
-			span.SetStatus(otelcodes.Error, dateToErr.Error())
+			telemetry.WarnSpan(span, attribute.String("app.result", "invalid_date_to"))
 			logutil.LogWarn(ctx, "statement list failed: invalid date_to", "error", dateToErr.Error())
 			return nil, dateToErr
 		}
@@ -113,10 +111,11 @@ func (uc *ListUseCase) Execute(ctx context.Context, input dto.ListInput) (*dto.L
 
 	filter.Normalize()
 
-	// List statements
+	// List operations return only infrastructure errors — no expected domain
+	// sentinels apply, so FailSpan is used directly without IsExpected guard.
 	result, listErr := uc.repo.List(ctx, filter)
 	if listErr != nil {
-		span.SetStatus(otelcodes.Error, listErr.Error())
+		telemetry.FailSpan(span, listErr, "statement list failed")
 		logutil.LogError(ctx, "statement list failed: repository error", "error", listErr.Error())
 		return nil, listErr
 	}
@@ -132,6 +131,7 @@ func (uc *ListUseCase) Execute(ctx context.Context, input dto.ListInput) (*dto.L
 		totalPages = (result.Total + result.Limit - 1) / result.Limit
 	}
 
+	telemetry.OkSpan(span)
 	logutil.LogInfo(ctx, "statements listed", "account.id", accountID.String(), "count", len(data))
 
 	pagination := dto.PaginationOutput{

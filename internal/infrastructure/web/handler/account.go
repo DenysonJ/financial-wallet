@@ -6,10 +6,10 @@ import (
 	accountuc "github.com/DenysonJ/financial-wallet/internal/usecases/account"
 	"github.com/DenysonJ/financial-wallet/internal/usecases/account/dto"
 	"github.com/DenysonJ/financial-wallet/pkg/httputil/httpgin"
+	"github.com/DenysonJ/financial-wallet/pkg/logutil"
 	"github.com/gin-gonic/gin"
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/attribute"
-	"go.opentelemetry.io/otel/codes"
 )
 
 // AccountHandler agrupa todos os handlers relacionados a Account.
@@ -54,12 +54,12 @@ func NewAccountHandler(
 // @Security     ServiceKey
 // @Router       /accounts [post]
 func (h *AccountHandler) Create(c *gin.Context) {
-	ctx, span := otel.Tracer("http-handler").Start(c.Request.Context(), "AccountHandler.Create")
+	ctx, span := otel.Tracer(handlerTracer).Start(c.Request.Context(), "AccountHandler.Create")
 	defer span.End()
 
 	var req dto.CreateInput
 	if bindErr := c.ShouldBindJSON(&req); bindErr != nil {
-		span.SetStatus(codes.Error, "invalid request body")
+		logutil.LogWarn(ctx, "bind error", "error", bindErr.Error())
 		httpgin.SendError(c, http.StatusBadRequest, "invalid request body")
 		return
 	}
@@ -67,7 +67,6 @@ func (h *AccountHandler) Create(c *gin.Context) {
 	// Set UserID from JWT context (required — accounts must have an owner)
 	userID, ok := getRequiredJWTUserID(c)
 	if !ok {
-		span.SetStatus(codes.Error, "authentication required")
 		httpgin.SendError(c, http.StatusUnauthorized, "authentication required")
 		return
 	}
@@ -77,7 +76,7 @@ func (h *AccountHandler) Create(c *gin.Context) {
 
 	res, execErr := h.createUC.Execute(ctx, req)
 	if execErr != nil {
-		HandleError(c, span, execErr)
+		HandleError(c, execErr)
 		return
 	}
 
@@ -99,7 +98,7 @@ func (h *AccountHandler) Create(c *gin.Context) {
 // @Security     ServiceKey
 // @Router       /accounts/{id} [get]
 func (h *AccountHandler) GetByID(c *gin.Context) {
-	ctx, span := otel.Tracer("http-handler").Start(c.Request.Context(), "AccountHandler.GetByID")
+	ctx, span := otel.Tracer(handlerTracer).Start(c.Request.Context(), "AccountHandler.GetByID")
 	defer span.End()
 
 	id := c.Param("id")
@@ -111,7 +110,7 @@ func (h *AccountHandler) GetByID(c *gin.Context) {
 		RequestingUserID: ownershipUserID(c),
 	})
 	if execErr != nil {
-		HandleError(c, span, execErr)
+		HandleError(c, execErr)
 		return
 	}
 
@@ -136,12 +135,12 @@ func (h *AccountHandler) GetByID(c *gin.Context) {
 // @Security     ServiceKey
 // @Router       /accounts [get]
 func (h *AccountHandler) List(c *gin.Context) {
-	ctx, span := otel.Tracer("http-handler").Start(c.Request.Context(), "AccountHandler.List")
+	ctx, span := otel.Tracer(handlerTracer).Start(c.Request.Context(), "AccountHandler.List")
 	defer span.End()
 
 	var req dto.ListInput
 	if bindErr := c.ShouldBindQuery(&req); bindErr != nil {
-		span.SetStatus(codes.Error, "invalid query parameters")
+		logutil.LogWarn(ctx, "bind error", "error", bindErr.Error())
 		httpgin.SendError(c, http.StatusBadRequest, "invalid query parameters")
 		return
 	}
@@ -149,7 +148,6 @@ func (h *AccountHandler) List(c *gin.Context) {
 	// Scope to authenticated user's accounts (required)
 	userID, ok := getRequiredJWTUserID(c)
 	if !ok {
-		span.SetStatus(codes.Error, "authentication required")
 		httpgin.SendError(c, http.StatusUnauthorized, "authentication required")
 		return
 	}
@@ -162,7 +160,7 @@ func (h *AccountHandler) List(c *gin.Context) {
 
 	res, execErr := h.listUC.Execute(ctx, req)
 	if execErr != nil {
-		HandleError(c, span, execErr)
+		HandleError(c, execErr)
 		return
 	}
 
@@ -187,7 +185,7 @@ func (h *AccountHandler) List(c *gin.Context) {
 // @Security     ServiceKey
 // @Router       /accounts/{id} [put]
 func (h *AccountHandler) Update(c *gin.Context) {
-	ctx, span := otel.Tracer("http-handler").Start(c.Request.Context(), "AccountHandler.Update")
+	ctx, span := otel.Tracer(handlerTracer).Start(c.Request.Context(), "AccountHandler.Update")
 	defer span.End()
 
 	id := c.Param("id")
@@ -195,7 +193,7 @@ func (h *AccountHandler) Update(c *gin.Context) {
 
 	var req dto.UpdateInput
 	if bindErr := c.ShouldBindJSON(&req); bindErr != nil {
-		span.SetStatus(codes.Error, "invalid request body")
+		logutil.LogWarn(ctx, "bind error", "error", bindErr.Error())
 		httpgin.SendError(c, http.StatusBadRequest, "invalid request body")
 		return
 	}
@@ -204,7 +202,7 @@ func (h *AccountHandler) Update(c *gin.Context) {
 
 	res, execErr := h.updateUC.Execute(ctx, req)
 	if execErr != nil {
-		HandleError(c, span, execErr)
+		HandleError(c, execErr)
 		return
 	}
 
@@ -225,7 +223,7 @@ func (h *AccountHandler) Update(c *gin.Context) {
 // @Security     ServiceKey
 // @Router       /accounts/{id} [delete]
 func (h *AccountHandler) Delete(c *gin.Context) {
-	ctx, span := otel.Tracer("http-handler").Start(c.Request.Context(), "AccountHandler.Delete")
+	ctx, span := otel.Tracer(handlerTracer).Start(c.Request.Context(), "AccountHandler.Delete")
 	defer span.End()
 
 	id := c.Param("id")
@@ -236,7 +234,7 @@ func (h *AccountHandler) Delete(c *gin.Context) {
 		RequestingUserID: ownershipUserID(c),
 	})
 	if execErr != nil {
-		HandleError(c, span, execErr)
+		HandleError(c, execErr)
 		return
 	}
 

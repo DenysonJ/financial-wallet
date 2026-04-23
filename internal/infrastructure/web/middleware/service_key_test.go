@@ -95,8 +95,8 @@ func TestServiceKeyAuth_EnabledButNoKeys_FailClosed(t *testing.T) {
 
 	w := httptest.NewRecorder()
 	req, _ := http.NewRequest("GET", "/test", nil)
-	req.Header.Set("X-Service-Name", "any-service")
-	req.Header.Set("X-Service-Key", "any-key")
+	req.Header.Set("Service-Name", "any-service")
+	req.Header.Set("Service-Key", "any-key")
 	r.ServeHTTP(w, req)
 
 	assert.Equal(t, http.StatusServiceUnavailable, w.Code)
@@ -120,8 +120,8 @@ func TestServiceKeyAuth_ValidKey(t *testing.T) {
 
 	w := httptest.NewRecorder()
 	req, _ := http.NewRequest("GET", "/test", nil)
-	req.Header.Set("X-Service-Name", "banking-router")
-	req.Header.Set("X-Service-Key", "sk_banking_abc123")
+	req.Header.Set("Service-Name", "banking-router")
+	req.Header.Set("Service-Key", "sk_banking_abc123")
 	r.ServeHTTP(w, req)
 
 	assert.Equal(t, http.StatusOK, w.Code)
@@ -144,8 +144,8 @@ func TestServiceKeyAuth_InvalidKey(t *testing.T) {
 
 	w := httptest.NewRecorder()
 	req, _ := http.NewRequest("GET", "/test", nil)
-	req.Header.Set("X-Service-Name", "banking-router")
-	req.Header.Set("X-Service-Key", "wrong_key")
+	req.Header.Set("Service-Name", "banking-router")
+	req.Header.Set("Service-Key", "wrong_key")
 	r.ServeHTTP(w, req)
 
 	assert.Equal(t, http.StatusUnauthorized, w.Code)
@@ -191,8 +191,8 @@ func TestServiceKeyAuth_UnknownService(t *testing.T) {
 
 	w := httptest.NewRecorder()
 	req, _ := http.NewRequest("GET", "/test", nil)
-	req.Header.Set("X-Service-Name", "unknown-service")
-	req.Header.Set("X-Service-Key", "some_key")
+	req.Header.Set("Service-Name", "unknown-service")
+	req.Header.Set("Service-Key", "some_key")
 	r.ServeHTTP(w, req)
 
 	assert.Equal(t, http.StatusUnauthorized, w.Code)

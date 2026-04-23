@@ -7,12 +7,12 @@ import (
 
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/attribute"
-	otelcodes "go.opentelemetry.io/otel/codes"
 
 	roledomain "github.com/DenysonJ/financial-wallet/internal/domain/role"
 	"github.com/DenysonJ/financial-wallet/internal/usecases/role/dto"
 	"github.com/DenysonJ/financial-wallet/internal/usecases/role/interfaces"
 	"github.com/DenysonJ/financial-wallet/pkg/logutil"
+	"github.com/DenysonJ/financial-wallet/pkg/telemetry"
 )
 
 // CreateUseCase implementa o caso de uso de criacao de role.
@@ -41,12 +41,12 @@ func (uc *CreateUseCase) Execute(ctx context.Context, input dto.CreateInput) (*d
 	// PASSO 1: Verificar duplicidade de nome
 	existingRole, findErr := uc.repo.FindByName(ctx, input.Name)
 	if findErr != nil && !errors.Is(findErr, roledomain.ErrRoleNotFound) {
-		span.SetStatus(otelcodes.Error, findErr.Error())
+		telemetry.FailSpan(span, findErr, "role creation failed")
 		logutil.LogError(ctx, "role creation failed: repository error", "error", findErr.Error())
 		return nil, findErr
 	}
 	if existingRole != nil {
-		span.SetStatus(otelcodes.Error, roledomain.ErrDuplicateRoleName.Error())
+		telemetry.WarnSpan(span, attribute.String("app.result", "duplicate_name"))
 		logutil.LogWarn(ctx, "role creation failed: duplicate name", "role.name", input.Name)
 		return nil, roledomain.ErrDuplicateRoleName
 	}
@@ -56,13 +56,13 @@ func (uc *CreateUseCase) Execute(ctx context.Context, input dto.CreateInput) (*d
 
 	// PASSO 3: Persistir no banco via Repository
 	if createErr := uc.repo.Create(ctx, r); createErr != nil {
-		span.SetStatus(otelcodes.Error, createErr.Error())
-		logutil.LogError(ctx, "role creation failed: repository error", "error", createErr.Error())
+		telemetry.ClassifyError(ctx, span, createErr, "domain_error", "role creation failed")
 		return nil, createErr
 	}
 
 	// PASSO 4: Retornar Output DTO
 	span.SetAttributes(attribute.String("role.id", r.ID.String()))
+	telemetry.OkSpan(span)
 	logutil.LogInfo(ctx, "role created", "role.id", r.ID.String())
 
 	return &dto.CreateOutput{

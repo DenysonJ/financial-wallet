@@ -16,8 +16,6 @@ import (
 	"github.com/DenysonJ/financial-wallet/pkg/ofx"
 	"github.com/DenysonJ/financial-wallet/pkg/vo"
 	"github.com/gin-gonic/gin"
-	"go.opentelemetry.io/otel/codes"
-	"go.opentelemetry.io/otel/trace"
 )
 
 // ErrorResponse represents the standard error response for Swagger documentation.
@@ -84,6 +82,17 @@ var domainErrors = []struct {
 	{ofx.ErrInvalidDate, domainErrorMapping{http.StatusBadRequest, apperror.CodeInvalidRequest, "invalid date in OFX file"}},
 }
 
+// init publishes every sentinel listed in domainErrors to
+// apperror.DomainSentinels so pkg/telemetry.IsExpected can classify span
+// errors using the same source of truth as the HTTP translation.
+func init() {
+	sentinels := make([]error, 0, len(domainErrors))
+	for _, entry := range domainErrors {
+		sentinels = append(sentinels, entry.err)
+	}
+	apperror.Register(sentinels...)
+}
+
 // HandleError handles errors in a centralized and consistent way.
 //
 // Precedence is intentional: a domain-sentinel match (via errors.Is, which
@@ -91,13 +100,13 @@ var domainErrors = []struct {
 // client-facing messages confined to the static strings in domainErrors —
 // even if an AppError further up the chain carries verbose text from an
 // external parser (e.g. OFX/XML decoder). See security review SEC-H-3.
-func HandleError(c *gin.Context, span trace.Span, err error) {
+//
+// Span manipulation (RecordError/SetStatus) happens in the use case layer via
+// pkg/telemetry.FailSpan / WarnSpan — this function only translates the error
+// to an HTTP response.
+func HandleError(c *gin.Context, err error) {
 	// 1. Domain sentinel match — safe static message wins.
-	if status, code, message, ok := translateDomainError(err); ok {
-		span.SetStatus(codes.Error, code)
-		if status >= 500 {
-			span.RecordError(err)
-		}
+	if status, _, message, ok := translateDomainError(err); ok {
 		httpgin.SendError(c, status, message)
 		return
 	}
@@ -108,17 +117,11 @@ func HandleError(c *gin.Context, span trace.Span, err error) {
 		if !ok {
 			status = http.StatusInternalServerError
 		}
-		span.SetStatus(codes.Error, appErr.Code)
-		if status >= 500 {
-			span.RecordError(err)
-		}
 		httpgin.SendError(c, status, appErr.Message)
 		return
 	}
 
 	// 3. Unknown error — default to 500 with a generic message.
-	span.SetStatus(codes.Error, apperror.CodeInternalError)
-	span.RecordError(err)
 	httpgin.SendError(c, http.StatusInternalServerError, "internal server error")
 }
 

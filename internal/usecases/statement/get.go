@@ -5,12 +5,12 @@ import (
 
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/attribute"
-	otelcodes "go.opentelemetry.io/otel/codes"
 
 	stmtdomain "github.com/DenysonJ/financial-wallet/internal/domain/statement"
 	"github.com/DenysonJ/financial-wallet/internal/usecases/statement/dto"
 	"github.com/DenysonJ/financial-wallet/internal/usecases/statement/interfaces"
 	"github.com/DenysonJ/financial-wallet/pkg/logutil"
+	"github.com/DenysonJ/financial-wallet/pkg/telemetry"
 	pkgvo "github.com/DenysonJ/financial-wallet/pkg/vo"
 )
 
@@ -32,17 +32,16 @@ func (uc *GetUseCase) Execute(ctx context.Context, input dto.GetInput) (*dto.Sta
 
 	ctx = injectLogContext(ctx, logutil.ActionGet)
 
-	// Validate IDs
 	statementID, parseErr := pkgvo.ParseID(input.ID)
 	if parseErr != nil {
-		span.SetStatus(otelcodes.Error, parseErr.Error())
+		telemetry.WarnSpan(span, attribute.String("app.result", "invalid_statement_id"))
 		logutil.LogWarn(ctx, "statement get failed: invalid statement ID", "error", parseErr.Error())
 		return nil, parseErr
 	}
 
 	accountID, accountParseErr := pkgvo.ParseID(input.AccountID)
 	if accountParseErr != nil {
-		span.SetStatus(otelcodes.Error, accountParseErr.Error())
+		telemetry.WarnSpan(span, attribute.String("app.result", "invalid_account_id"))
 		logutil.LogWarn(ctx, "statement get failed: invalid account ID", "error", accountParseErr.Error())
 		return nil, accountParseErr
 	}
@@ -55,13 +54,12 @@ func (uc *GetUseCase) Execute(ctx context.Context, input dto.GetInput) (*dto.Sta
 	// Find account and verify ownership
 	account, findAccountErr := uc.accountRepo.FindByID(ctx, accountID)
 	if findAccountErr != nil {
-		span.SetStatus(otelcodes.Error, findAccountErr.Error())
-		logutil.LogWarn(ctx, "statement get failed: account not found", "error", findAccountErr.Error())
+		telemetry.ClassifyError(ctx, span, findAccountErr, "not_found", "statement get failed")
 		return nil, findAccountErr
 	}
 
 	if input.RequestingUserID != "" && account.UserID.String() != input.RequestingUserID {
-		span.SetStatus(otelcodes.Error, "forbidden")
+		telemetry.WarnSpan(span, attribute.String("app.result", "forbidden"))
 		logutil.LogWarn(ctx, "statement get forbidden: not owner", "account.id", accountID.String())
 		return nil, stmtdomain.ErrStatementNotFound
 	}
@@ -69,18 +67,18 @@ func (uc *GetUseCase) Execute(ctx context.Context, input dto.GetInput) (*dto.Sta
 	// Find statement
 	stmt, findErr := uc.repo.FindByID(ctx, statementID)
 	if findErr != nil {
-		span.SetStatus(otelcodes.Error, findErr.Error())
-		logutil.LogWarn(ctx, "statement get failed: not found", "error", findErr.Error())
+		telemetry.ClassifyError(ctx, span, findErr, "not_found", "statement get failed")
 		return nil, findErr
 	}
 
 	// Verify statement belongs to the account
 	if stmt.AccountID != accountID {
-		span.SetStatus(otelcodes.Error, "statement not in account")
+		telemetry.WarnSpan(span, attribute.String("app.result", "statement_not_in_account"))
 		logutil.LogWarn(ctx, "statement get failed: statement not in account")
 		return nil, stmtdomain.ErrStatementNotFound
 	}
 
+	telemetry.OkSpan(span)
 	logutil.LogInfo(ctx, "statement retrieved", "statement.id", statementID.String())
 
 	return toOutput(stmt), nil

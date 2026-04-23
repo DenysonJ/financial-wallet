@@ -1,0 +1,662 @@
+{
+  "info": {
+    "_postman_id": "f1a2c9d0-0000-4a1a-9b7e-financial-wallet",
+    "name": "Financial Wallet API",
+    "description": "Postman collection covering all routes currently implemented in the financial-wallet microservice. Routes are grouped by domain (Health, Auth, Users, Roles, Accounts, Statements). Uses {{base_url}}, service key headers, JWT, randomized email/name, and post-response scripts to propagate IDs/tokens across requests.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    { "key": "base_url", "value": "http://localhost:8080", "type": "string" },
+    { "key": "service_name", "value": "postman", "type": "string" },
+    { "key": "service_key", "value": "change-me", "type": "string" },
+    { "key": "access_token", "value": "", "type": "string" },
+    { "key": "refresh_token", "value": "", "type": "string" },
+    { "key": "user_id", "value": "", "type": "string" },
+    { "key": "role_id", "value": "", "type": "string" },
+    { "key": "account_id", "value": "", "type": "string" },
+    { "key": "statement_id", "value": "", "type": "string" },
+    { "key": "user_email", "value": "", "type": "string" },
+    { "key": "user_password", "value": "Str0ngP@ssw0rd!", "type": "string" }
+  ],
+  "auth": {
+    "type": "bearer",
+    "bearer": [{ "key": "token", "value": "{{access_token}}", "type": "string" }]
+  },
+  "event": [
+    {
+      "listen": "prerequest",
+      "script": {
+        "type": "text/javascript",
+        "exec": [
+          "// Generates a fresh random email/name per request, stored in collection variables.",
+          "const rand = Math.random().toString(36).slice(2, 10);",
+          "const firstNames = ['Alice','Bob','Carol','Diego','Elena','Felipe','Gabi','Hugo','Isa','Joao'];",
+          "const lastNames  = ['Silva','Souza','Costa','Pereira','Almeida','Lima','Rocha','Martins'];",
+          "const fn = firstNames[Math.floor(Math.random()*firstNames.length)];",
+          "const ln = lastNames[Math.floor(Math.random()*lastNames.length)];",
+          "pm.variables.set('random_name', `${fn} ${ln}`);",
+          "pm.variables.set('random_email', `${fn.toLowerCase()}.${ln.toLowerCase()}.${rand}@example.com`);",
+          "pm.variables.set('idempotency_key', pm.variables.replaceIn('{{$guid}}'));"
+        ]
+      }
+    }
+  ],
+  "item": [
+    {
+      "name": "Health",
+      "item": [
+        {
+          "name": "Liveness",
+          "request": {
+            "method": "GET",
+            "auth": { "type": "noauth" },
+            "header": [],
+            "url": { "raw": "{{base_url}}/health", "host": ["{{base_url}}"], "path": ["health"] }
+          }
+        },
+        {
+          "name": "Readiness",
+          "request": {
+            "method": "GET",
+            "auth": { "type": "noauth" },
+            "header": [],
+            "url": { "raw": "{{base_url}}/ready", "host": ["{{base_url}}"], "path": ["ready"] }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Auth",
+      "item": [
+        {
+          "name": "Login",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const json = pm.response.json();",
+                  "const data = json.data || json;",
+                  "if (data && data.access_token) {",
+                  "  pm.collectionVariables.set('access_token', data.access_token);",
+                  "}",
+                  "if (data && data.refresh_token) {",
+                  "  pm.collectionVariables.set('refresh_token', data.refresh_token);",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "auth": { "type": "noauth" },
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"{{user_email}}\",\n  \"password\": \"{{user_password}}\"\n}"
+            },
+            "url": { "raw": "{{base_url}}/auth/login", "host": ["{{base_url}}"], "path": ["auth", "login"] }
+          }
+        },
+        {
+          "name": "Refresh",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const json = pm.response.json();",
+                  "const data = json.data || json;",
+                  "if (data && data.access_token) {",
+                  "  pm.collectionVariables.set('access_token', data.access_token);",
+                  "}",
+                  "if (data && data.refresh_token) {",
+                  "  pm.collectionVariables.set('refresh_token', data.refresh_token);",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "auth": { "type": "noauth" },
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"refresh_token\": \"{{refresh_token}}\"\n}"
+            },
+            "url": { "raw": "{{base_url}}/auth/refresh", "host": ["{{base_url}}"], "path": ["auth", "refresh"] }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Users",
+      "item": [
+        {
+          "name": "Create User",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const json = pm.response.json();",
+                  "const data = json.data || json;",
+                  "if (data && data.id) {",
+                  "  pm.collectionVariables.set('user_id', data.id);",
+                  "}",
+                  "const reqBody = JSON.parse(pm.request.body.raw || '{}');",
+                  "if (reqBody.email) {",
+                  "  pm.collectionVariables.set('user_email', reqBody.email);",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Service-Name", "value": "{{service_name}}" },
+              { "key": "Service-Key", "value": "{{service_key}}" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"{{random_name}}\",\n  \"email\": \"{{random_email}}\"\n}"
+            },
+            "url": { "raw": "{{base_url}}/users", "host": ["{{base_url}}"], "path": ["users"] }
+          }
+        },
+        {
+          "name": "List Users",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Service-Name", "value": "{{service_name}}" },
+              { "key": "Service-Key", "value": "{{service_key}}" }
+            ],
+            "url": {
+              "raw": "{{base_url}}/users?page=1&limit=20&active_only=true",
+              "host": ["{{base_url}}"],
+              "path": ["users"],
+              "query": [
+                { "key": "page", "value": "1" },
+                { "key": "limit", "value": "20" },
+                { "key": "name", "value": "", "disabled": true },
+                { "key": "email", "value": "", "disabled": true },
+                { "key": "active_only", "value": "true" }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Get User by ID",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Service-Name", "value": "{{service_name}}" },
+              { "key": "Service-Key", "value": "{{service_key}}" }
+            ],
+            "url": {
+              "raw": "{{base_url}}/users/{{user_id}}",
+              "host": ["{{base_url}}"],
+              "path": ["users", "{{user_id}}"]
+            }
+          }
+        },
+        {
+          "name": "Update User",
+          "request": {
+            "method": "PUT",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Service-Name", "value": "{{service_name}}" },
+              { "key": "Service-Key", "value": "{{service_key}}" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"{{random_name}}\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/users/{{user_id}}",
+              "host": ["{{base_url}}"],
+              "path": ["users", "{{user_id}}"]
+            }
+          }
+        },
+        {
+          "name": "Delete User",
+          "request": {
+            "method": "DELETE",
+            "header": [
+              { "key": "Service-Name", "value": "{{service_name}}" },
+              { "key": "Service-Key", "value": "{{service_key}}" }
+            ],
+            "url": {
+              "raw": "{{base_url}}/users/{{user_id}}",
+              "host": ["{{base_url}}"],
+              "path": ["users", "{{user_id}}"]
+            }
+          }
+        },
+        {
+          "name": "Set Password (Service Key only)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const reqBody = JSON.parse(pm.request.body.raw || '{}');",
+                  "if (reqBody.password) {",
+                  "  pm.collectionVariables.set('user_password', reqBody.password);",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "auth": { "type": "noauth" },
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Service-Name", "value": "{{service_name}}" },
+              { "key": "Service-Key", "value": "{{service_key}}" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"user_id\": \"{{user_id}}\",\n  \"password\": \"{{user_password}}\",\n  \"password_confirmation\": \"{{user_password}}\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/users/password",
+              "host": ["{{base_url}}"],
+              "path": ["users", "password"]
+            }
+          }
+        },
+        {
+          "name": "Change Password (JWT)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const reqBody = JSON.parse(pm.request.body.raw || '{}');",
+                  "if (reqBody.new_password) {",
+                  "  pm.collectionVariables.set('user_password', reqBody.new_password);",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "PUT",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Service-Name", "value": "{{service_name}}" },
+              { "key": "Service-Key", "value": "{{service_key}}" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"current_password\": \"{{user_password}}\",\n  \"new_password\": \"N3wStr0ng!Pass\",\n  \"new_password_confirmation\": \"N3wStr0ng!Pass\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/users/password",
+              "host": ["{{base_url}}"],
+              "path": ["users", "password"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Roles",
+      "item": [
+        {
+          "name": "Create Role",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const json = pm.response.json();",
+                  "const data = json.data || json;",
+                  "if (data && data.id) {",
+                  "  pm.collectionVariables.set('role_id', data.id);",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Service-Name", "value": "{{service_name}}" },
+              { "key": "Service-Key", "value": "{{service_key}}" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"role_{{$randomWord}}\",\n  \"description\": \"Auto-generated role for {{random_name}}\"\n}"
+            },
+            "url": { "raw": "{{base_url}}/roles", "host": ["{{base_url}}"], "path": ["roles"] }
+          }
+        },
+        {
+          "name": "List Roles",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Service-Name", "value": "{{service_name}}" },
+              { "key": "Service-Key", "value": "{{service_key}}" }
+            ],
+            "url": {
+              "raw": "{{base_url}}/roles?page=1&limit=20",
+              "host": ["{{base_url}}"],
+              "path": ["roles"],
+              "query": [
+                { "key": "page", "value": "1" },
+                { "key": "limit", "value": "20" },
+                { "key": "name", "value": "", "disabled": true }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Assign Role to User",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Service-Name", "value": "{{service_name}}" },
+              { "key": "Service-Key", "value": "{{service_key}}" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"user_id\": \"{{user_id}}\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/roles/{{role_id}}/assign",
+              "host": ["{{base_url}}"],
+              "path": ["roles", "{{role_id}}", "assign"]
+            }
+          }
+        },
+        {
+          "name": "Revoke Role from User",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Service-Name", "value": "{{service_name}}" },
+              { "key": "Service-Key", "value": "{{service_key}}" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"user_id\": \"{{user_id}}\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/roles/{{role_id}}/revoke",
+              "host": ["{{base_url}}"],
+              "path": ["roles", "{{role_id}}", "revoke"]
+            }
+          }
+        },
+        {
+          "name": "Delete Role",
+          "request": {
+            "method": "DELETE",
+            "header": [
+              { "key": "Service-Name", "value": "{{service_name}}" },
+              { "key": "Service-Key", "value": "{{service_key}}" }
+            ],
+            "url": {
+              "raw": "{{base_url}}/roles/{{role_id}}",
+              "host": ["{{base_url}}"],
+              "path": ["roles", "{{role_id}}"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Accounts",
+      "item": [
+        {
+          "name": "Create Account",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const json = pm.response.json();",
+                  "const data = json.data || json;",
+                  "if (data && data.id) {",
+                  "  pm.collectionVariables.set('account_id', data.id);",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Service-Name", "value": "{{service_name}}" },
+              { "key": "Service-Key", "value": "{{service_key}}" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Wallet of {{random_name}}\",\n  \"type\": \"bank_account\",\n  \"description\": \"Auto-generated via Postman\"\n}"
+            },
+            "url": { "raw": "{{base_url}}/accounts", "host": ["{{base_url}}"], "path": ["accounts"] }
+          }
+        },
+        {
+          "name": "List Accounts",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Service-Name", "value": "{{service_name}}" },
+              { "key": "Service-Key", "value": "{{service_key}}" }
+            ],
+            "url": {
+              "raw": "{{base_url}}/accounts?page=1&limit=20&active_only=true",
+              "host": ["{{base_url}}"],
+              "path": ["accounts"],
+              "query": [
+                { "key": "page", "value": "1" },
+                { "key": "limit", "value": "20" },
+                { "key": "name", "value": "", "disabled": true },
+                { "key": "type", "value": "", "disabled": true },
+                { "key": "active_only", "value": "true" },
+                { "key": "cursor", "value": "", "disabled": true }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Get Account by ID",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Service-Name", "value": "{{service_name}}" },
+              { "key": "Service-Key", "value": "{{service_key}}" }
+            ],
+            "url": {
+              "raw": "{{base_url}}/accounts/{{account_id}}",
+              "host": ["{{base_url}}"],
+              "path": ["accounts", "{{account_id}}"]
+            }
+          }
+        },
+        {
+          "name": "Update Account",
+          "request": {
+            "method": "PUT",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Service-Name", "value": "{{service_name}}" },
+              { "key": "Service-Key", "value": "{{service_key}}" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Updated Wallet of {{random_name}}\",\n  \"description\": \"Updated via Postman\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/accounts/{{account_id}}",
+              "host": ["{{base_url}}"],
+              "path": ["accounts", "{{account_id}}"]
+            }
+          }
+        },
+        {
+          "name": "Delete Account",
+          "request": {
+            "method": "DELETE",
+            "header": [
+              { "key": "Service-Name", "value": "{{service_name}}" },
+              { "key": "Service-Key", "value": "{{service_key}}" }
+            ],
+            "url": {
+              "raw": "{{base_url}}/accounts/{{account_id}}",
+              "host": ["{{base_url}}"],
+              "path": ["accounts", "{{account_id}}"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Statements",
+      "item": [
+        {
+          "name": "Create Statement",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const json = pm.response.json();",
+                  "const data = json.data || json;",
+                  "if (data && data.id) {",
+                  "  pm.collectionVariables.set('statement_id', data.id);",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Service-Name", "value": "{{service_name}}" },
+              { "key": "Service-Key", "value": "{{service_key}}" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"type\": \"credit\",\n  \"amount\": 12500,\n  \"description\": \"Salary deposit for {{random_name}}\",\n  \"posted_at\": \"{{$isoTimestamp}}\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/accounts/{{account_id}}/statements",
+              "host": ["{{base_url}}"],
+              "path": ["accounts", "{{account_id}}", "statements"]
+            }
+          }
+        },
+        {
+          "name": "Import Statements (OFX)",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Service-Name", "value": "{{service_name}}" },
+              { "key": "Service-Key", "value": "{{service_key}}" },
+              { "key": "Idempotency-Key", "value": "{{idempotency_key}}" }
+            ],
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                {
+                  "key": "file",
+                  "type": "file",
+                  "src": [],
+                  "description": "OFX file (max 5MB). Replace with a local .ofx file in Postman before sending."
+                }
+              ]
+            },
+            "url": {
+              "raw": "{{base_url}}/accounts/{{account_id}}/statements/import",
+              "host": ["{{base_url}}"],
+              "path": ["accounts", "{{account_id}}", "statements", "import"]
+            }
+          }
+        },
+        {
+          "name": "List Statements",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Service-Name", "value": "{{service_name}}" },
+              { "key": "Service-Key", "value": "{{service_key}}" }
+            ],
+            "url": {
+              "raw": "{{base_url}}/accounts/{{account_id}}/statements?page=1&limit=20",
+              "host": ["{{base_url}}"],
+              "path": ["accounts", "{{account_id}}", "statements"],
+              "query": [
+                { "key": "page", "value": "1" },
+                { "key": "limit", "value": "20" },
+                { "key": "type", "value": "", "disabled": true },
+                { "key": "date_from", "value": "", "disabled": true },
+                { "key": "date_to", "value": "", "disabled": true },
+                { "key": "cursor", "value": "", "disabled": true }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Get Statement by ID",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Service-Name", "value": "{{service_name}}" },
+              { "key": "Service-Key", "value": "{{service_key}}" }
+            ],
+            "url": {
+              "raw": "{{base_url}}/accounts/{{account_id}}/statements/{{statement_id}}",
+              "host": ["{{base_url}}"],
+              "path": ["accounts", "{{account_id}}", "statements", "{{statement_id}}"]
+            }
+          }
+        },
+        {
+          "name": "Reverse Statement",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Service-Name", "value": "{{service_name}}" },
+              { "key": "Service-Key", "value": "{{service_key}}" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"description\": \"Reversal requested via Postman\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/accounts/{{account_id}}/statements/{{statement_id}}/reverse",
+              "host": ["{{base_url}}"],
+              "path": ["accounts", "{{account_id}}", "statements", "{{statement_id}}", "reverse"]
+            }
+          }
+        }
+      ]
+    }
+  ]
+}

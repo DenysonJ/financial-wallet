@@ -6,12 +6,12 @@ import (
 
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/attribute"
-	otelcodes "go.opentelemetry.io/otel/codes"
 
 	"github.com/DenysonJ/financial-wallet/internal/domain/user/vo"
 	"github.com/DenysonJ/financial-wallet/internal/usecases/user/dto"
 	"github.com/DenysonJ/financial-wallet/internal/usecases/user/interfaces"
 	"github.com/DenysonJ/financial-wallet/pkg/logutil"
+	"github.com/DenysonJ/financial-wallet/pkg/telemetry"
 )
 
 // DeleteUseCase implementa o caso de uso de deleção (soft delete) de user.
@@ -45,10 +45,9 @@ func (uc *DeleteUseCase) Execute(ctx context.Context, input dto.DeleteInput) (*d
 
 	ctx = injectLogContext(ctx, "delete")
 
-	// Validar e converter ID
 	id, parseErr := vo.ParseID(input.ID)
 	if parseErr != nil {
-		span.SetStatus(otelcodes.Error, parseErr.Error())
+		telemetry.WarnSpan(span, attribute.String("app.result", "invalid_id"))
 		logutil.LogWarn(ctx, "user delete failed: invalid ID", "error", parseErr.Error())
 		return nil, parseErr
 	}
@@ -57,8 +56,7 @@ func (uc *DeleteUseCase) Execute(ctx context.Context, input dto.DeleteInput) (*d
 
 	// 2. Realizar soft delete
 	if deleteErr := uc.repo.Delete(ctx, id); deleteErr != nil {
-		span.SetStatus(otelcodes.Error, deleteErr.Error())
-		logutil.LogError(ctx, "user delete failed: repository error", "error", deleteErr.Error())
+		telemetry.ClassifyError(ctx, span, deleteErr, "domain_error", "user delete failed")
 		return nil, deleteErr
 	}
 
@@ -70,6 +68,7 @@ func (uc *DeleteUseCase) Execute(ctx context.Context, input dto.DeleteInput) (*d
 		}
 	}
 
+	telemetry.OkSpan(span)
 	logutil.LogInfo(ctx, "user deleted", "user.id", input.ID)
 
 	return &dto.DeleteOutput{

@@ -5,13 +5,13 @@ import (
 
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/attribute"
-	otelcodes "go.opentelemetry.io/otel/codes"
 
 	userdomain "github.com/DenysonJ/financial-wallet/internal/domain/user"
 	"github.com/DenysonJ/financial-wallet/internal/domain/user/vo"
 	"github.com/DenysonJ/financial-wallet/internal/usecases/user/dto"
 	"github.com/DenysonJ/financial-wallet/internal/usecases/user/interfaces"
 	"github.com/DenysonJ/financial-wallet/pkg/logutil"
+	"github.com/DenysonJ/financial-wallet/pkg/telemetry"
 )
 
 // ChangePasswordUseCase implementa o caso de uso de alteração de senha.
@@ -50,7 +50,7 @@ func (uc *ChangePasswordUseCase) Execute(ctx context.Context, input dto.ChangePa
 
 	id, parseErr := vo.ParseID(input.UserID)
 	if parseErr != nil {
-		span.SetStatus(otelcodes.Error, parseErr.Error())
+		telemetry.WarnSpan(span, attribute.String("app.result", "invalid_id"))
 		logutil.LogWarn(ctx, "change password failed: invalid ID", "error", parseErr.Error())
 		return parseErr
 	}
@@ -59,38 +59,36 @@ func (uc *ChangePasswordUseCase) Execute(ctx context.Context, input dto.ChangePa
 
 	e, findErr := uc.repo.FindByID(ctx, id)
 	if findErr != nil {
-		span.SetStatus(otelcodes.Error, findErr.Error())
-		logutil.LogWarn(ctx, "change password failed", "error", findErr.Error())
+		telemetry.ClassifyError(ctx, span, findErr, "not_found", "change password failed")
 		return findErr
 	}
 
 	checkErr := vo.CheckPassword(e.PasswordHash, input.CurrentPassword)
 	if checkErr != nil {
-		span.SetStatus(otelcodes.Error, userdomain.ErrInvalidCredentials.Error())
+		telemetry.WarnSpan(span, attribute.String("app.result", "invalid_credentials"))
 		logutil.LogWarn(ctx, "change password failed: invalid current password")
 		return userdomain.ErrInvalidCredentials
 	}
 
 	if input.NewPassword != input.NewPasswordConfirmation {
-		span.SetStatus(otelcodes.Error, userdomain.ErrPasswordMismatch.Error())
+		telemetry.WarnSpan(span, attribute.String("app.result", "password_mismatch"))
 		logutil.LogWarn(ctx, "change password failed: password mismatch")
 		return userdomain.ErrPasswordMismatch
 	}
 
 	passwordVO, hashErr := vo.NewPassword(input.NewPassword, uc.bcryptCost)
 	if hashErr != nil {
-		span.SetStatus(otelcodes.Error, hashErr.Error())
-		logutil.LogWarn(ctx, "change password failed: validation error", "error", hashErr.Error())
+		telemetry.ClassifyError(ctx, span, hashErr, "invalid_password", "change password failed")
 		return hashErr
 	}
 
 	updateErr := uc.repo.UpdatePassword(ctx, id, passwordVO.String())
 	if updateErr != nil {
-		span.SetStatus(otelcodes.Error, updateErr.Error())
-		logutil.LogError(ctx, "change password failed: repository error", "error", updateErr.Error())
+		telemetry.ClassifyError(ctx, span, updateErr, "domain_error", "change password failed")
 		return updateErr
 	}
 
+	telemetry.OkSpan(span)
 	logutil.LogInfo(ctx, "password changed", "user.id", input.UserID)
 
 	return nil

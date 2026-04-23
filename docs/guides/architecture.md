@@ -147,9 +147,9 @@ sequenceDiagram
     participant R as Repository
     participant DB as PostgreSQL
 
-    Client->>+MW: POST /users<br/>X-Idempotency-Key: abc123<br/>{name, email}
+    Client->>+MW: POST /users<br/>Idempotency-Key: abc123<br/>{name, email}
     
-    Note over MW: Logger: gera X-Request-ID
+    Note over MW: Logger: gera Request-ID
     Note over MW: OTEL: inicia span
     Note over MW: Idempotency: verifica cache
     
