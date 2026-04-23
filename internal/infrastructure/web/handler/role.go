@@ -6,10 +6,10 @@ import (
 	roleuc "github.com/DenysonJ/financial-wallet/internal/usecases/role"
 	"github.com/DenysonJ/financial-wallet/internal/usecases/role/dto"
 	"github.com/DenysonJ/financial-wallet/pkg/httputil/httpgin"
+	"github.com/DenysonJ/financial-wallet/pkg/logutil"
 	"github.com/gin-gonic/gin"
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/attribute"
-	"go.opentelemetry.io/otel/codes"
 )
 
 // RoleHandler agrupa todos os handlers relacionados a Role.
@@ -55,12 +55,12 @@ func NewRoleHandler(
 // @Security     ServiceKey
 // @Router       /roles [post]
 func (h *RoleHandler) Create(c *gin.Context) {
-	ctx, span := otel.Tracer("http-handler").Start(c.Request.Context(), "RoleHandler.Create")
+	ctx, span := otel.Tracer(handlerTracer).Start(c.Request.Context(), "RoleHandler.Create")
 	defer span.End()
 
 	var req dto.CreateInput
 	if bindErr := c.ShouldBindJSON(&req); bindErr != nil {
-		span.SetStatus(codes.Error, "invalid request body")
+		logutil.LogWarn(ctx, "bind error", "error", bindErr.Error())
 		httpgin.SendError(c, http.StatusBadRequest, "invalid request body")
 		return
 	}
@@ -71,7 +71,7 @@ func (h *RoleHandler) Create(c *gin.Context) {
 
 	res, execErr := h.CreateUC.Execute(ctx, req)
 	if execErr != nil {
-		HandleError(c, span, execErr)
+		HandleError(c, execErr)
 		return
 	}
 
@@ -97,12 +97,12 @@ func (h *RoleHandler) Create(c *gin.Context) {
 // @Security     ServiceKey
 // @Router       /roles [get]
 func (h *RoleHandler) List(c *gin.Context) {
-	ctx, span := otel.Tracer("http-handler").Start(c.Request.Context(), "RoleHandler.List")
+	ctx, span := otel.Tracer(handlerTracer).Start(c.Request.Context(), "RoleHandler.List")
 	defer span.End()
 
 	var req dto.ListInput
 	if bindErr := c.ShouldBindQuery(&req); bindErr != nil {
-		span.SetStatus(codes.Error, "invalid query parameters")
+		logutil.LogWarn(ctx, "bind error", "error", bindErr.Error())
 		httpgin.SendError(c, http.StatusBadRequest, "invalid query parameters")
 		return
 	}
@@ -114,7 +114,7 @@ func (h *RoleHandler) List(c *gin.Context) {
 
 	res, execErr := h.ListUC.Execute(ctx, req)
 	if execErr != nil {
-		HandleError(c, span, execErr)
+		HandleError(c, execErr)
 		return
 	}
 
@@ -137,7 +137,7 @@ func (h *RoleHandler) List(c *gin.Context) {
 // @Security     ServiceKey
 // @Router       /roles/{id} [delete]
 func (h *RoleHandler) Delete(c *gin.Context) {
-	ctx, span := otel.Tracer("http-handler").Start(c.Request.Context(), "RoleHandler.Delete")
+	ctx, span := otel.Tracer(handlerTracer).Start(c.Request.Context(), "RoleHandler.Delete")
 	defer span.End()
 
 	id := c.Param("id")
@@ -145,7 +145,7 @@ func (h *RoleHandler) Delete(c *gin.Context) {
 
 	res, execErr := h.DeleteUC.Execute(ctx, dto.DeleteInput{ID: id})
 	if execErr != nil {
-		HandleError(c, span, execErr)
+		HandleError(c, execErr)
 		return
 	}
 
@@ -170,7 +170,7 @@ func (h *RoleHandler) Delete(c *gin.Context) {
 // @Security     ServiceKey
 // @Router       /roles/{id}/assign [post]
 func (h *RoleHandler) AssignRole(c *gin.Context) {
-	ctx, span := otel.Tracer("http-handler").Start(c.Request.Context(), "RoleHandler.AssignRole")
+	ctx, span := otel.Tracer(handlerTracer).Start(c.Request.Context(), "RoleHandler.AssignRole")
 	defer span.End()
 
 	roleID := c.Param("id")
@@ -178,7 +178,7 @@ func (h *RoleHandler) AssignRole(c *gin.Context) {
 
 	var req dto.AssignRoleInput
 	if bindErr := c.ShouldBindJSON(&req); bindErr != nil {
-		span.SetStatus(codes.Error, "invalid request body")
+		logutil.LogWarn(ctx, "bind error", "error", bindErr.Error())
 		httpgin.SendError(c, http.StatusBadRequest, "invalid request body")
 		return
 	}
@@ -188,7 +188,7 @@ func (h *RoleHandler) AssignRole(c *gin.Context) {
 
 	execErr := h.AssignUC.Execute(ctx, req)
 	if execErr != nil {
-		HandleError(c, span, execErr)
+		HandleError(c, execErr)
 		return
 	}
 
@@ -212,7 +212,7 @@ func (h *RoleHandler) AssignRole(c *gin.Context) {
 // @Security     ServiceKey
 // @Router       /roles/{id}/revoke [post]
 func (h *RoleHandler) RevokeRole(c *gin.Context) {
-	ctx, span := otel.Tracer("http-handler").Start(c.Request.Context(), "RoleHandler.RevokeRole")
+	ctx, span := otel.Tracer(handlerTracer).Start(c.Request.Context(), "RoleHandler.RevokeRole")
 	defer span.End()
 
 	roleID := c.Param("id")
@@ -220,7 +220,7 @@ func (h *RoleHandler) RevokeRole(c *gin.Context) {
 
 	var req dto.RevokeRoleInput
 	if bindErr := c.ShouldBindJSON(&req); bindErr != nil {
-		span.SetStatus(codes.Error, "invalid request body")
+		logutil.LogWarn(ctx, "bind error", "error", bindErr.Error())
 		httpgin.SendError(c, http.StatusBadRequest, "invalid request body")
 		return
 	}
@@ -230,7 +230,7 @@ func (h *RoleHandler) RevokeRole(c *gin.Context) {
 
 	execErr := h.RevokeUC.Execute(ctx, req)
 	if execErr != nil {
-		HandleError(c, span, execErr)
+		HandleError(c, execErr)
 		return
 	}
 

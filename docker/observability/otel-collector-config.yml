@@ -1,5 +1,8 @@
-# OpenTelemetry Collector Configuration
-# Recebe traces/metrics da API e exporta para Elasticsearch
+# OpenTelemetry Collector configuration.
+# Receives OTLP from the Go app (traces + metrics + logs) and fans out:
+#   traces   → Tempo     (OTLP gRPC)
+#   logs     → Loki      (OTLP HTTP /otlp/v1/logs)
+#   metrics  → Prometheus (scraped from this collector's :8889 exporter)
 
 receivers:
   otlp:
@@ -24,59 +27,59 @@ processors:
       - key: environment
         value: development
         action: insert
+      - key: deployment.environment
+        value: development
+        action: insert
 
 exporters:
-  # Elasticsearch para traces e logs (ECS mapping)
-  elasticsearch:
-    endpoints: ["http://elasticsearch:9200"]
-    traces_index: otel-traces
-    logs_index: otel-logs
-    mapping:
-      mode: ecs
+  # Traces → Tempo (OTLP gRPC inside the docker network).
+  otlp/tempo:
+    endpoint: "tempo:4317"
+    tls:
+      insecure: true
 
-  # Elasticsearch para métricas (mode: none — ECS não suporta métricas, OTel requer data streams)
-  elasticsearch/metrics:
-    endpoints: ["http://elasticsearch:9200"]
-    metrics_index: otel-metrics
-    mapping:
-      mode: none
+  # Logs → Loki via native OTLP ingestion (Loki 3.x exposes /otlp/v1/logs).
+  otlphttp/loki:
+    endpoint: "http://loki:3100/otlp"
+    tls:
+      insecure: true
 
-  # Debug/logging local
-  debug:
-    verbosity: detailed
-    sampling_initial: 5
-    sampling_thereafter: 200
-
-  # Prometheus metrics (opcional)
+  # Metrics → exposed on :8889 and scraped by Prometheus.
   prometheus:
     endpoint: "0.0.0.0:8889"
     namespace: financial_service
 
+  # Debug/local troubleshooting — sampled output to the collector stdout.
+  debug:
+    verbosity: basic
+    sampling_initial: 5
+    sampling_thereafter: 200
+
 extensions:
   health_check:
     endpoint: 0.0.0.0:13133
-  
+
   zpages:
     endpoint: 0.0.0.0:55679
 
 service:
   extensions: [health_check, zpages]
-  
+
   pipelines:
     traces:
       receivers: [otlp]
       processors: [memory_limiter, batch, resource]
-      exporters: [elasticsearch, debug]
+      exporters: [otlp/tempo, debug]
 
     metrics:
       receivers: [otlp]
-      processors: [memory_limiter, batch]
-      exporters: [elasticsearch/metrics, prometheus, debug]
+      processors: [memory_limiter, batch, resource]
+      exporters: [prometheus, debug]
 
     logs:
       receivers: [otlp]
-      processors: [memory_limiter, batch]
-      exporters: [elasticsearch, debug]
+      processors: [memory_limiter, batch, resource]
+      exporters: [otlphttp/loki, debug]
 
   telemetry:
     logs:

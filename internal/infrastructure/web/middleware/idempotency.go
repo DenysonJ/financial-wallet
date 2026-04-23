@@ -71,7 +71,7 @@ func Idempotency(store idempotency.Store) gin.HandlerFunc {
 		fingerprint := bodyFingerprint(reqBody)
 
 		// 4. Build Redis key with optional service namespace
-		serviceName := c.GetHeader("X-Service-Name")
+		serviceName := c.GetHeader("Service-Name")
 		fullKey := buildIdempotencyKey(serviceName, key)
 
 		ctx := c.Request.Context()

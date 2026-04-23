@@ -232,8 +232,8 @@ import (
 slackSvc := slack.New("webhook-url")
 slackSvc.AddReceivers("#alerts")
 
-emailSvc := mail.New("noreply@appmax.com.br", "smtp.host:587")
-emailSvc.AddReceivers("oncall@appmax.com.br")
+emailSvc := mail.New("noreply@example.com.br", "smtp.host:587")
+emailSvc.AddReceivers("oncall@example.com.br")
 
 notifier := notify.New()
 notifier.UseServices(slackSvc, emailSvc)

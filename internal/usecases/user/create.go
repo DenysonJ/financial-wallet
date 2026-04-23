@@ -6,13 +6,13 @@ import (
 
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/attribute"
-	otelcodes "go.opentelemetry.io/otel/codes"
 
 	userdomain "github.com/DenysonJ/financial-wallet/internal/domain/user"
 	"github.com/DenysonJ/financial-wallet/internal/domain/user/vo"
 	"github.com/DenysonJ/financial-wallet/internal/usecases/user/dto"
 	"github.com/DenysonJ/financial-wallet/internal/usecases/user/interfaces"
 	"github.com/DenysonJ/financial-wallet/pkg/logutil"
+	"github.com/DenysonJ/financial-wallet/pkg/telemetry"
 )
 
 // CreateUseCase implementa o caso de uso de criação de user.
@@ -41,7 +41,7 @@ func (uc *CreateUseCase) Execute(ctx context.Context, input dto.CreateInput) (*d
 	// PASSO 1: Converter primitivos para Value Objects
 	emailVO, emailErr := vo.NewEmail(input.Email)
 	if emailErr != nil {
-		span.SetStatus(otelcodes.Error, emailErr.Error())
+		telemetry.WarnSpan(span, attribute.String("app.result", "invalid_email"))
 		logutil.LogWarn(ctx, "user creation failed: invalid email", "error", emailErr.Error())
 		return nil, emailErr
 	}
@@ -51,13 +51,13 @@ func (uc *CreateUseCase) Execute(ctx context.Context, input dto.CreateInput) (*d
 
 	// PASSO 3: Persistir no banco via Repository
 	if createErr := uc.repo.Create(ctx, e); createErr != nil {
-		span.SetStatus(otelcodes.Error, createErr.Error())
-		logutil.LogError(ctx, "user creation failed: repository error", "error", createErr.Error())
+		telemetry.ClassifyError(ctx, span, createErr, "domain_error", "user creation failed")
 		return nil, createErr
 	}
 
 	// PASSO 4: Retornar Output DTO
 	span.SetAttributes(attribute.String("user.id", e.ID.String()))
+	telemetry.OkSpan(span)
 	logutil.LogInfo(ctx, "user created", "user.id", e.ID.String())
 
 	return &dto.CreateOutput{

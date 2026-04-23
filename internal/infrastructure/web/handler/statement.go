@@ -13,7 +13,6 @@ import (
 	"github.com/gin-gonic/gin"
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/attribute"
-	"go.opentelemetry.io/otel/codes"
 )
 
 // StatementHandler groups all handlers related to Statement.
@@ -62,7 +61,7 @@ func NewStatementHandler(
 // @Security     ServiceKey
 // @Router       /accounts/{id}/statements [post]
 func (h *StatementHandler) Create(c *gin.Context) {
-	ctx, span := otel.Tracer("http-handler").Start(c.Request.Context(), "StatementHandler.Create")
+	ctx, span := otel.Tracer(handlerTracer).Start(c.Request.Context(), "StatementHandler.Create")
 	defer span.End()
 
 	accountID := c.Param("id")
@@ -70,7 +69,7 @@ func (h *StatementHandler) Create(c *gin.Context) {
 
 	var req dto.CreateInput
 	if bindErr := c.ShouldBindJSON(&req); bindErr != nil {
-		span.SetStatus(codes.Error, "invalid request body")
+		logutil.LogWarn(ctx, "bind error", "error", bindErr.Error())
 		httpgin.SendError(c, http.StatusBadRequest, "invalid request body")
 		return
 	}
@@ -80,7 +79,7 @@ func (h *StatementHandler) Create(c *gin.Context) {
 
 	res, execErr := h.createUC.Execute(ctx, req)
 	if execErr != nil {
-		HandleError(c, span, execErr)
+		HandleError(c, execErr)
 		return
 	}
 
@@ -108,7 +107,7 @@ func (h *StatementHandler) Create(c *gin.Context) {
 // @Security     ServiceKey
 // @Router       /accounts/{id}/statements/{statement_id}/reverse [post]
 func (h *StatementHandler) Reverse(c *gin.Context) {
-	ctx, span := otel.Tracer("http-handler").Start(c.Request.Context(), "StatementHandler.Reverse")
+	ctx, span := otel.Tracer(handlerTracer).Start(c.Request.Context(), "StatementHandler.Reverse")
 	defer span.End()
 
 	accountID := c.Param("id")
@@ -121,6 +120,7 @@ func (h *StatementHandler) Reverse(c *gin.Context) {
 	var req dto.ReverseInput
 	// Body is optional (only description), so ignore bind errors for empty body
 	if bindErr := c.ShouldBindJSON(&req); bindErr != nil && !errors.Is(bindErr, io.EOF) {
+		logutil.LogWarn(ctx, "bind error", "error", bindErr.Error())
 		httpgin.SendError(c, http.StatusBadRequest, "invalid request body")
 		return
 	}
@@ -131,7 +131,7 @@ func (h *StatementHandler) Reverse(c *gin.Context) {
 
 	res, execErr := h.reverseUC.Execute(ctx, req)
 	if execErr != nil {
-		HandleError(c, span, execErr)
+		HandleError(c, execErr)
 		return
 	}
 
@@ -160,7 +160,7 @@ func (h *StatementHandler) Reverse(c *gin.Context) {
 // @Security     ServiceKey
 // @Router       /accounts/{id}/statements [get]
 func (h *StatementHandler) List(c *gin.Context) {
-	ctx, span := otel.Tracer("http-handler").Start(c.Request.Context(), "StatementHandler.List")
+	ctx, span := otel.Tracer(handlerTracer).Start(c.Request.Context(), "StatementHandler.List")
 	defer span.End()
 
 	accountID := c.Param("id")
@@ -168,7 +168,7 @@ func (h *StatementHandler) List(c *gin.Context) {
 
 	var req dto.ListInput
 	if bindErr := c.ShouldBindQuery(&req); bindErr != nil {
-		span.SetStatus(codes.Error, "invalid query parameters")
+		logutil.LogWarn(ctx, "bind error", "error", bindErr.Error())
 		httpgin.SendError(c, http.StatusBadRequest, "invalid query parameters")
 		return
 	}
@@ -178,7 +178,7 @@ func (h *StatementHandler) List(c *gin.Context) {
 
 	res, execErr := h.listUC.Execute(ctx, req)
 	if execErr != nil {
-		HandleError(c, span, execErr)
+		HandleError(c, execErr)
 		return
 	}
 
@@ -201,7 +201,7 @@ func (h *StatementHandler) List(c *gin.Context) {
 // @Security     ServiceKey
 // @Router       /accounts/{id}/statements/{statement_id} [get]
 func (h *StatementHandler) GetByID(c *gin.Context) {
-	ctx, span := otel.Tracer("http-handler").Start(c.Request.Context(), "StatementHandler.GetByID")
+	ctx, span := otel.Tracer(handlerTracer).Start(c.Request.Context(), "StatementHandler.GetByID")
 	defer span.End()
 
 	accountID := c.Param("id")
@@ -217,7 +217,7 @@ func (h *StatementHandler) GetByID(c *gin.Context) {
 		RequestingUserID: ownershipUserID(c),
 	})
 	if execErr != nil {
-		HandleError(c, span, execErr)
+		HandleError(c, execErr)
 		return
 	}
 
@@ -243,7 +243,7 @@ func (h *StatementHandler) GetByID(c *gin.Context) {
 // @Security     ServiceKey
 // @Router       /accounts/{id}/statements/import [post]
 func (h *StatementHandler) Import(c *gin.Context) {
-	ctx, span := otel.Tracer("http-handler").Start(c.Request.Context(), "StatementHandler.Import")
+	ctx, span := otel.Tracer(handlerTracer).Start(c.Request.Context(), "StatementHandler.Import")
 	defer span.End()
 
 	accountID := c.Param("id")
@@ -255,7 +255,6 @@ func (h *StatementHandler) Import(c *gin.Context) {
 
 	fileHeader, formErr := c.FormFile("file")
 	if formErr != nil {
-		span.SetStatus(codes.Error, "file upload failed")
 		var maxBytesErr *http.MaxBytesError
 		if errors.As(formErr, &maxBytesErr) {
 			httpgin.SendError(c, http.StatusBadRequest, "file too large (max 5MB)")
@@ -267,13 +266,11 @@ func (h *StatementHandler) Import(c *gin.Context) {
 
 	file, openErr := fileHeader.Open()
 	if openErr != nil {
-		span.SetStatus(codes.Error, "failed to open file")
 		httpgin.SendError(c, http.StatusBadRequest, "failed to read uploaded file")
 		return
 	}
 	defer func(file multipart.File) {
 		if closeErr := file.Close(); closeErr != nil {
-			span.SetStatus(codes.Error, "failed to close file")
 			logutil.LogWarn(ctx, "ofx import: failed to close uploaded file", "error", closeErr.Error())
 		}
 	}(file)
@@ -284,7 +281,7 @@ func (h *StatementHandler) Import(c *gin.Context) {
 		FileContent:      file,
 	})
 	if execErr != nil {
-		HandleError(c, span, execErr)
+		HandleError(c, execErr)
 		return
 	}
 

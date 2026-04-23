@@ -74,13 +74,6 @@ go-auditlog/
 - `esstore/`: elastic client (futuro)
 - Middleware: `github.com/gin-gonic/gin`
 
-## Por que na Appmax
-
-- Operações financeiras (pagamentos, estornos, alteração de limites) exigem rastreabilidade completa
-- Compliance (PCI DSS, LGPD) requer registro de quem acessou/alterou dados sensíveis
-- Investigação de incidentes fica viável quando todo serviço registra ações no mesmo formato
-- Audit trail padronizado simplifica auditorias externas
-
 ## Referências
 
 - [OWASP — Logging Cheat Sheet](https://cheatsheetseries.owasp.org/cheatsheets/Logging_Cheat_Sheet.html)

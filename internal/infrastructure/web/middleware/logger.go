@@ -1,7 +1,6 @@
 package middleware
 
 import (
-	"log/slog"
 	"regexp"
 	"time"
 
@@ -19,7 +18,11 @@ var validRequestID = regexp.MustCompile(`^[a-zA-Z0-9-]+$`)
 
 const (
 	// RequestIDHeader é o header usado para o Request ID
-	RequestIDHeader = "X-Request-ID"
+	RequestIDHeader = "Request-ID"
+	// legacyRequestIDHeader is accepted as input for backward compatibility
+	// with clients still sending the X-prefixed variant. Response continues to
+	// use RequestIDHeader only.
+	legacyRequestIDHeader = "X-Request-ID"
 )
 
 // Logger retorna um middleware de logging estruturado
@@ -27,8 +30,13 @@ func Logger() gin.HandlerFunc {
 	return func(c *gin.Context) {
 		start := time.Now()
 
-		// Gerar ou usar Request ID existente (sanitized)
+		// Gerar ou usar Request ID existente (sanitized).
+		// Fall back to the legacy X-Request-ID header so clients that have not
+		// migrated yet still get trace-continuity.
 		requestID := c.GetHeader(RequestIDHeader)
+		if requestID == "" {
+			requestID = c.GetHeader(legacyRequestIDHeader)
+		}
 		if requestID == "" || len(requestID) > requestIDMaxLen || !validRequestID.MatchString(requestID) {
 			requestID = uuid.New().String()
 		}
@@ -51,11 +59,9 @@ func Logger() gin.HandlerFunc {
 		c.Request = c.Request.WithContext(ctx)
 
 		// Log de entrada
-		slog.Info("request started",
+		logutil.LogInfo(ctx, "request started",
 			"method", c.Request.Method,
 			"path", c.Request.URL.Path,
-			"request_id", requestID,
-			"trace_id", traceID,
 			"client_ip", c.ClientIP(),
 		)
 
@@ -66,20 +72,20 @@ func Logger() gin.HandlerFunc {
 		duration := time.Since(start)
 		status := c.Writer.Status()
 
-		logLevel := slog.LevelInfo
-		if status >= 500 {
-			logLevel = slog.LevelError
-		} else if status >= 400 {
-			logLevel = slog.LevelWarn
-		}
-
-		slog.Log(c.Request.Context(), logLevel, "request completed",
+		fields := []any{
 			"method", c.Request.Method,
 			"path", c.Request.URL.Path,
 			"status", status,
 			"duration_ms", duration.Milliseconds(),
-			"request_id", requestID,
-			"trace_id", traceID,
-		)
+		}
+
+		switch {
+		case status >= 500:
+			logutil.LogError(ctx, "request completed", fields...)
+		case status >= 400:
+			logutil.LogWarn(ctx, "request completed", fields...)
+		default:
+			logutil.LogInfo(ctx, "request completed", fields...)
+		}
 	}
 }

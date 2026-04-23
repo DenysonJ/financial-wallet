@@ -71,13 +71,6 @@ go-pagination/
 - Core: zero (stdlib only)
 - `gin/`: `github.com/gin-gonic/gin`
 
-## Por que na Appmax
-
-- Literalmente todo serviço com CRUD precisa — é o módulo com maior reuso potencial
-- Padroniza o contrato de paginação para consumidores (front-end, mobile, outros serviços)
-- Cursor pagination é essencial para listagens grandes (transações, logs, eventos)
-- Baixa complexidade de implementação, alto impacto
-
 ## Referências
 
 - [Slack API — Pagination](https://api.slack.com/docs/pagination) — referência de cursor pagination

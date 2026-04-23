@@ -8,10 +8,10 @@ import (
 	useruc "github.com/DenysonJ/financial-wallet/internal/usecases/user"
 	"github.com/DenysonJ/financial-wallet/internal/usecases/user/dto"
 	"github.com/DenysonJ/financial-wallet/pkg/httputil/httpgin"
+	"github.com/DenysonJ/financial-wallet/pkg/logutil"
 	"github.com/gin-gonic/gin"
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/attribute"
-	"go.opentelemetry.io/otel/codes"
 )
 
 // UserHandler agrupa todos os handlers relacionados a User.
@@ -65,12 +65,12 @@ func NewUserHandler(
 // @Security     ServiceKey
 // @Router       /users [post]
 func (h *UserHandler) Create(c *gin.Context) {
-	ctx, span := otel.Tracer("http-handler").Start(c.Request.Context(), "UserHandler.Create")
+	ctx, span := otel.Tracer(handlerTracer).Start(c.Request.Context(), "UserHandler.Create")
 	defer span.End()
 
 	var req dto.CreateInput
 	if bindErr := c.ShouldBindJSON(&req); bindErr != nil {
-		span.SetStatus(codes.Error, "invalid request body")
+		logutil.LogWarn(ctx, "bind error", "error", bindErr.Error())
 		httpgin.SendError(c, http.StatusBadRequest, "invalid request body")
 		return
 	}
@@ -81,7 +81,7 @@ func (h *UserHandler) Create(c *gin.Context) {
 
 	res, execErr := h.CreateUC.Execute(ctx, req)
 	if execErr != nil {
-		HandleError(c, span, execErr)
+		HandleError(c, execErr)
 		return
 	}
 
@@ -110,21 +110,20 @@ func (h *UserHandler) Create(c *gin.Context) {
 // @Security     ServiceKey
 // @Router       /users/{id} [get]
 func (h *UserHandler) GetByID(c *gin.Context) {
-	ctx, span := otel.Tracer("http-handler").Start(c.Request.Context(), "UserHandler.GetByID")
+	ctx, span := otel.Tracer(handlerTracer).Start(c.Request.Context(), "UserHandler.GetByID")
 	defer span.End()
 
 	id := c.Param("id")
 	span.SetAttributes(attribute.String("user.id", id))
 
 	if !isAdminOrOwner(c, id) {
-		span.SetStatus(codes.Error, "forbidden")
 		httpgin.SendError(c, http.StatusForbidden, "forbidden")
 		return
 	}
 
 	res, execErr := h.GetUC.Execute(ctx, dto.GetInput{ID: id})
 	if execErr != nil {
-		HandleError(c, span, execErr)
+		HandleError(c, execErr)
 		return
 	}
 
@@ -149,12 +148,12 @@ func (h *UserHandler) GetByID(c *gin.Context) {
 // @Security     ServiceKey
 // @Router       /users [get]
 func (h *UserHandler) List(c *gin.Context) {
-	ctx, span := otel.Tracer("http-handler").Start(c.Request.Context(), "UserHandler.List")
+	ctx, span := otel.Tracer(handlerTracer).Start(c.Request.Context(), "UserHandler.List")
 	defer span.End()
 
 	var req dto.ListInput
 	if bindErr := c.ShouldBindQuery(&req); bindErr != nil {
-		span.SetStatus(codes.Error, "invalid query parameters")
+		logutil.LogWarn(ctx, "bind error", "error", bindErr.Error())
 		httpgin.SendError(c, http.StatusBadRequest, "invalid query parameters")
 		return
 	}
@@ -168,7 +167,7 @@ func (h *UserHandler) List(c *gin.Context) {
 
 		getRes, getErr := h.GetUC.Execute(ctx, dto.GetInput{ID: jwtUserIDStr})
 		if getErr != nil {
-			HandleError(c, span, getErr)
+			HandleError(c, getErr)
 			return
 		}
 
@@ -185,7 +184,7 @@ func (h *UserHandler) List(c *gin.Context) {
 
 	res, execErr := h.ListUC.Execute(ctx, req)
 	if execErr != nil {
-		HandleError(c, span, execErr)
+		HandleError(c, execErr)
 		return
 	}
 
@@ -211,21 +210,20 @@ func (h *UserHandler) List(c *gin.Context) {
 // @Security     ServiceKey
 // @Router       /users/{id} [put]
 func (h *UserHandler) Update(c *gin.Context) {
-	ctx, span := otel.Tracer("http-handler").Start(c.Request.Context(), "UserHandler.Update")
+	ctx, span := otel.Tracer(handlerTracer).Start(c.Request.Context(), "UserHandler.Update")
 	defer span.End()
 
 	id := c.Param("id")
 	span.SetAttributes(attribute.String("user.id", id))
 
 	if !isAdminOrOwner(c, id) {
-		span.SetStatus(codes.Error, "forbidden")
 		httpgin.SendError(c, http.StatusForbidden, "forbidden")
 		return
 	}
 
 	var req dto.UpdateInput
 	if bindErr := c.ShouldBindJSON(&req); bindErr != nil {
-		span.SetStatus(codes.Error, "invalid request body")
+		logutil.LogWarn(ctx, "bind error", "error", bindErr.Error())
 		httpgin.SendError(c, http.StatusBadRequest, "invalid request body")
 		return
 	}
@@ -233,7 +231,7 @@ func (h *UserHandler) Update(c *gin.Context) {
 
 	res, execErr := h.UpdateUC.Execute(ctx, req)
 	if execErr != nil {
-		HandleError(c, span, execErr)
+		HandleError(c, execErr)
 		return
 	}
 
@@ -260,21 +258,20 @@ func (h *UserHandler) Update(c *gin.Context) {
 // @Security     ServiceKey
 // @Router       /users/{id} [delete]
 func (h *UserHandler) Delete(c *gin.Context) {
-	ctx, span := otel.Tracer("http-handler").Start(c.Request.Context(), "UserHandler.Delete")
+	ctx, span := otel.Tracer(handlerTracer).Start(c.Request.Context(), "UserHandler.Delete")
 	defer span.End()
 
 	id := c.Param("id")
 	span.SetAttributes(attribute.String("user.id", id))
 
 	if !isAdminOrOwner(c, id) {
-		span.SetStatus(codes.Error, "forbidden")
 		httpgin.SendError(c, http.StatusForbidden, "forbidden")
 		return
 	}
 
 	_, execErr := h.DeleteUC.Execute(ctx, dto.DeleteInput{ID: id})
 	if execErr != nil {
-		HandleError(c, span, execErr)
+		HandleError(c, execErr)
 		return
 	}
 

@@ -6,12 +6,12 @@ import (
 
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/attribute"
-	otelcodes "go.opentelemetry.io/otel/codes"
 
 	accountdomain "github.com/DenysonJ/financial-wallet/internal/domain/account"
 	"github.com/DenysonJ/financial-wallet/internal/usecases/account/dto"
 	"github.com/DenysonJ/financial-wallet/internal/usecases/account/interfaces"
 	"github.com/DenysonJ/financial-wallet/pkg/logutil"
+	"github.com/DenysonJ/financial-wallet/pkg/telemetry"
 	uservo "github.com/DenysonJ/financial-wallet/pkg/vo"
 )
 
@@ -32,10 +32,9 @@ func (uc *UpdateUseCase) Execute(ctx context.Context, input dto.UpdateInput) (*d
 
 	ctx = injectLogContext(ctx, logutil.ActionUpdate)
 
-	// Validar ID
 	id, parseErr := uservo.ParseID(input.ID)
 	if parseErr != nil {
-		span.SetStatus(otelcodes.Error, parseErr.Error())
+		telemetry.WarnSpan(span, attribute.String("app.result", "invalid_id"))
 		logutil.LogWarn(ctx, "account update failed: invalid ID", "error", parseErr.Error())
 		return nil, parseErr
 	}
@@ -45,14 +44,13 @@ func (uc *UpdateUseCase) Execute(ctx context.Context, input dto.UpdateInput) (*d
 	// Buscar account existente
 	a, findErr := uc.repo.FindByID(ctx, id)
 	if findErr != nil {
-		span.SetStatus(otelcodes.Error, findErr.Error())
-		logutil.LogWarn(ctx, "account update failed", "error", findErr.Error())
+		telemetry.ClassifyError(ctx, span, findErr, "not_found", "account update failed")
 		return nil, findErr
 	}
 
 	// Ownership check
 	if input.RequestingUserID != "" && a.UserID.String() != input.RequestingUserID {
-		span.SetStatus(otelcodes.Error, "forbidden")
+		telemetry.WarnSpan(span, attribute.String("app.result", "forbidden"))
 		logutil.LogWarn(ctx, "account update forbidden: not owner", "account.id", a.ID.String())
 		return nil, accountdomain.ErrAccountNotFound
 	}
@@ -67,11 +65,11 @@ func (uc *UpdateUseCase) Execute(ctx context.Context, input dto.UpdateInput) (*d
 
 	// Persistir
 	if updateErr := uc.repo.Update(ctx, a); updateErr != nil {
-		span.SetStatus(otelcodes.Error, updateErr.Error())
-		logutil.LogError(ctx, "account update failed: repository error", "error", updateErr.Error())
+		telemetry.ClassifyError(ctx, span, updateErr, "domain_error", "account update failed")
 		return nil, updateErr
 	}
 
+	telemetry.OkSpan(span)
 	logutil.LogInfo(ctx, "account updated", "account.id", a.ID.String())
 
 	return &dto.UpdateOutput{

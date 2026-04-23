@@ -5,19 +5,18 @@ import (
 
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/attribute"
-	otelcodes "go.opentelemetry.io/otel/codes"
 
 	"github.com/DenysonJ/financial-wallet/internal/usecases/role/dto"
 	"github.com/DenysonJ/financial-wallet/internal/usecases/role/interfaces"
-	"github.com/DenysonJ/financial-wallet/pkg/cache"
 	"github.com/DenysonJ/financial-wallet/pkg/logutil"
+	"github.com/DenysonJ/financial-wallet/pkg/telemetry"
 	"github.com/DenysonJ/financial-wallet/pkg/vo"
 )
 
 // RevokeRoleUseCase implementa o caso de uso de revogar uma role de um usuário.
 type RevokeRoleUseCase struct {
 	repo  interfaces.Repository
-	cache cache.Cache
+	cache interfaces.Cache
 }
 
 // NewRevokeRoleUseCase cria uma nova instância do RevokeRoleUseCase.
@@ -26,7 +25,7 @@ func NewRevokeRoleUseCase(repo interfaces.Repository) *RevokeRoleUseCase {
 }
 
 // WithCache sets an optional cache for permission invalidation (builder pattern).
-func (uc *RevokeRoleUseCase) WithCache(c cache.Cache) *RevokeRoleUseCase {
+func (uc *RevokeRoleUseCase) WithCache(c interfaces.Cache) *RevokeRoleUseCase {
 	uc.cache = c
 	return uc
 }
@@ -45,14 +44,14 @@ func (uc *RevokeRoleUseCase) Execute(ctx context.Context, input dto.RevokeRoleIn
 
 	userID, userParseErr := vo.ParseID(input.UserID)
 	if userParseErr != nil {
-		span.SetStatus(otelcodes.Error, userParseErr.Error())
+		telemetry.WarnSpan(span, attribute.String("app.result", "invalid_user_id"))
 		logutil.LogWarn(ctx, "role revoke failed: invalid user ID", "error", userParseErr.Error())
 		return userParseErr
 	}
 
 	roleID, roleParseErr := vo.ParseID(input.RoleID)
 	if roleParseErr != nil {
-		span.SetStatus(otelcodes.Error, roleParseErr.Error())
+		telemetry.WarnSpan(span, attribute.String("app.result", "invalid_role_id"))
 		logutil.LogWarn(ctx, "role revoke failed: invalid role ID", "error", roleParseErr.Error())
 		return roleParseErr
 	}
@@ -63,18 +62,14 @@ func (uc *RevokeRoleUseCase) Execute(ctx context.Context, input dto.RevokeRoleIn
 	)
 
 	// Verify role exists
-	_, findErr := uc.repo.FindByID(ctx, roleID)
-	if findErr != nil {
-		span.SetStatus(otelcodes.Error, findErr.Error())
-		logutil.LogWarn(ctx, "role revoke failed: role not found", "error", findErr.Error())
+	if _, findErr := uc.repo.FindByID(ctx, roleID); findErr != nil {
+		telemetry.ClassifyError(ctx, span, findErr, "not_found", "role revoke failed")
 		return findErr
 	}
 
 	// Revoke role
-	revokeErr := uc.repo.RevokeRole(ctx, userID, roleID)
-	if revokeErr != nil {
-		span.SetStatus(otelcodes.Error, revokeErr.Error())
-		logutil.LogWarn(ctx, "role revoke failed", "error", revokeErr.Error())
+	if revokeErr := uc.repo.RevokeRole(ctx, userID, roleID); revokeErr != nil {
+		telemetry.ClassifyError(ctx, span, revokeErr, "domain_error", "role revoke failed")
 		return revokeErr
 	}
 
@@ -86,6 +81,7 @@ func (uc *RevokeRoleUseCase) Execute(ctx context.Context, input dto.RevokeRoleIn
 		}
 	}
 
+	telemetry.OkSpan(span)
 	logutil.LogInfo(ctx, "role revoked", "user.id", input.UserID, "role.id", input.RoleID)
 
 	return nil

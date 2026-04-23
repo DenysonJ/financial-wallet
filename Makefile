@@ -1,6 +1,10 @@
 # Force bash on all platforms (Windows cmd.exe breaks Unix syntax used throughout)
 ifeq ($(OS),Windows_NT)
   SHELL := C:/Program Files/Git/usr/bin/bash.exe
+  # Ensure Git-for-Windows Unix utilities (tr, head, base64, openssl, mktemp, ...)
+  # are visible to recipes launched by make. Without this, bash.exe starts with
+  # the Windows PATH only and can't find its own coreutils.
+  export PATH := C:\Program Files\Git\usr\bin;$(PATH)
 else
   SHELL := /bin/bash
 endif
@@ -44,12 +48,12 @@ COMPOSE := docker compose -f docker/docker-compose.yml
 ENV_FILE := $(if $(wildcard .env),--env-file .env,)
 
 # Declara todos os targets que não são arquivos
-.PHONY: help setup tools go-tools-check docker-check k6-check kind-check \
+.PHONY: help setup tools jwt-secret go-tools-check docker-check k6-check kind-check \
         dev run run-stop build clean lint security vulncheck swagger mocks \
         test test-unit test-e2e test-fuzz test-coverage \
         load-smoke load-test load-stress load-spike load-kind load-clean \
         docker-up docker-down docker-build \
-        observability-up observability-down observability-logs \
+        observability-up observability-down observability-logs observability-status \
         kind-up kind-down kind-deploy kind-logs kind-status kind-migrate kind-setup \
         migrate-up migrate-down migrate-status migrate-reset migrate-redo migrate-create \
         sandbox sandbox-claude sandbox-shell sandbox-stop sandbox-clean sandbox-build sandbox-rebuild \
@@ -67,7 +71,7 @@ help: ## Exibe esta mensagem de ajuda
 	@echo "\033[1m$(APP_NAME)\033[0m"
 	@echo ""
 	@echo "\033[1;33m  Setup\033[0m"
-	@grep -Eh '^(setup|tools):.*?## .*$$' $(MAKEFILE_LIST) | awk 'BEGIN {FS = ":.*?## "}; {printf "    \033[36m%-20s\033[0m %s\n", $$1, $$2}'
+	@grep -Eh '^(setup|tools|jwt-secret):.*?## .*$$' $(MAKEFILE_LIST) | awk 'BEGIN {FS = ":.*?## "}; {printf "    \033[36m%-20s\033[0m %s\n", $$1, $$2}'
 	@echo ""
 	@echo "\033[1;33m  Development\033[0m"
 	@grep -Eh '^(dev|run|run-stop|build|clean|changelog):.*?## .*$$' $(MAKEFILE_LIST) | awk 'BEGIN {FS = ":.*?## "}; {printf "    \033[36m%-20s\033[0m %s\n", $$1, $$2}'
@@ -87,7 +91,7 @@ help: ## Exibe esta mensagem de ajuda
 	@echo "\033[1;33m  Kubernetes (Kind)\033[0m"
 	@grep -Eh '^kind-.*:.*?## .*$$' $(MAKEFILE_LIST) | awk 'BEGIN {FS = ":.*?## "}; {printf "    \033[36m%-20s\033[0m %s\n", $$1, $$2}'
 	@echo ""
-	@echo "\033[1;33m  Observability (ELK + OTel)\033[0m"
+	@echo "\033[1;33m  Observability (Grafana LGTM + OTel)\033[0m"
 	@grep -Eh '^observability-.*:.*?## .*$$' $(MAKEFILE_LIST) | awk 'BEGIN {FS = ":.*?## "}; {printf "    \033[36m%-20s\033[0m %s\n", $$1, $$2}'
 	@echo ""
 	@echo ""
@@ -137,6 +141,22 @@ tools: ## Instala ferramentas de desenvolvimento
 	@go install golang.org/x/vuln/cmd/govulncheck@latest
 	@go install golang.org/x/tools/cmd/goimports@latest
 	@echo "Tools installed in $(GOBIN)"
+
+jwt-secret: ## Gera JWT_SECRET aleatorio e grava em .env (use FORCE=1 para sobrescrever)
+	@secret=$$(openssl rand -base64 48 2>/dev/null | tr -d '\n' || head -c 48 /dev/urandom | base64 | tr -d '\n'); \
+	if [ -z "$$secret" ]; then echo "Falha ao gerar JWT_SECRET (openssl/urandom indisponivel)"; exit 1; fi; \
+	if [ ! -f .env ]; then \
+		if [ -f .env.example ]; then cp .env.example .env; echo ".env criado a partir de .env.example"; \
+		else touch .env; echo ".env criado (vazio)"; fi; \
+	fi; \
+	if grep -q '^JWT_SECRET=' .env; then \
+		if [ "$(FORCE)" != "1" ]; then \
+			echo "JWT_SECRET ja existe em .env. Use 'make jwt-secret FORCE=1' para sobrescrever."; exit 1; \
+		fi; \
+		tmp=$$(mktemp) && grep -v '^JWT_SECRET=' .env > $$tmp && mv $$tmp .env; \
+	fi; \
+	printf 'JWT_SECRET=%s\n' "$$secret" >> .env; \
+	echo "JWT_SECRET gravado em .env (48 bytes, base64)"
 
 # ============================================
 # DESENVOLVIMENTO
@@ -273,13 +293,18 @@ docker-build: docker-check ## Cria a imagem de producao
 	docker build -f docker/Dockerfile -t $(IMAGE_NAME) .
 
 # ============================================
-# OBSERVABILIDADE (ELK + OpenTelemetry)
+# OBSERVABILIDADE (Grafana LGTM + OpenTelemetry)
+# Grafana + Loki (logs) + Tempo (traces) + Prometheus (metrics)
 # ============================================
 
-observability-up: docker-up ## Sobe stack de observabilidade (Elasticsearch + Kibana + OTel)
+observability-up: docker-up ## Sobe stack LGTM (Grafana + Loki + Tempo + Prometheus + OTel)
 	docker compose -f docker/observability/docker-compose.yml up -d
-	@echo "Aguarde ~30s para Elasticsearch iniciar..."
-	@echo "Kibana: http://localhost:5601"
+	@echo ""
+	@echo "Aguarde ~20s para todos os serviços ficarem healthy."
+	@echo "Grafana:        http://localhost:3000 (anonymous admin habilitado)"
+	@echo "Loki API:       http://localhost:3100"
+	@echo "Tempo API:      http://localhost:3200"
+	@echo "Prometheus UI:  http://localhost:9090"
 	@echo "OTel Collector: localhost:4317 (gRPC)"
 
 observability-down: ## Para stack de observabilidade
@@ -288,8 +313,8 @@ observability-down: ## Para stack de observabilidade
 observability-logs: ## Mostra logs do OTel Collector
 	docker compose -f docker/observability/docker-compose.yml logs -f otel-collector
 
-observability-setup: ## Importa dashboard + data views + alertas no Kibana
-	@bash docker/observability/scripts/setup_kibana.sh
+observability-status: ## Status de todos os containers da stack de observabilidade
+	@docker compose -f docker/observability/docker-compose.yml ps
 
 # ============================================
 # KIND (Kubernetes Local)
