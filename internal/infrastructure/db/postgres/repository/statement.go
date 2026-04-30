@@ -290,9 +290,11 @@ func (r *StatementRepository) List(ctx context.Context, filter stmtdomain.ListFi
 }
 
 // HasReversal checks if the given statement has already been reversed.
+// Runs on the writer to avoid replication-lag races where two concurrent
+// reverse requests both observe no existing reversal.
 func (r *StatementRepository) HasReversal(ctx context.Context, statementID pkgvo.ID) (bool, error) {
 	var exists bool
-	queryErr := r.reader.GetContext(ctx, &exists,
+	queryErr := r.writer.GetContext(ctx, &exists,
 		"SELECT EXISTS(SELECT 1 FROM statements WHERE reference_id = $1)",
 		statementID.String(),
 	)

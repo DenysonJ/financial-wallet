@@ -104,7 +104,7 @@ func (r *RoleRepository) List(ctx context.Context, filter roledomain.ListFilter)
 	whereClause := ""
 	if filter.Name != "" {
 		whereClause = "WHERE name ILIKE :name"
-		args["name"] = "%" + filter.Name + "%"
+		args["name"] = "%" + escapeILIKE(filter.Name) + "%"
 	}
 
 	// Wrap COUNT + SELECT in a read-only transaction for consistent pagination.

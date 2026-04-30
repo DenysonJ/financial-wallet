@@ -252,9 +252,20 @@ func Load() (*Config, error) {
 // Validate checks for invalid configuration states at startup.
 // Returns an error if a critical misconfiguration is detected.
 func (c *Config) Validate() error {
-	// DB: sslmode=disable in non-dev environments
-	if c.Server.Env != "development" && c.DB.SSLMode == "disable" {
-		fmt.Println("WARNING: DB_SSLMODE=disable in non-development environment")
+	// DB: reject insecure defaults outside development.
+	if c.Server.Env != "development" {
+		if c.DB.SSLMode == "disable" {
+			return fmt.Errorf("DB_SSLMODE=disable is not allowed when APP_ENV=%q", c.Server.Env)
+		}
+		if c.DB.User == "user" {
+			return fmt.Errorf("DB_USER must not use the default value %q when APP_ENV=%q", c.DB.User, c.Server.Env)
+		}
+		if c.DB.Password == "password" {
+			return fmt.Errorf("DB_PASSWORD must not use the default value when APP_ENV=%q", c.Server.Env)
+		}
+		if c.DB.ReplicaEnabled && c.DB.ReplicaPassword == "" {
+			return fmt.Errorf("DB_REPLICA_PASSWORD is required when DB_REPLICA_ENABLED=true and APP_ENV=%q", c.Server.Env)
+		}
 	}
 
 	// Idempotency: enabled but Redis disabled
@@ -275,6 +286,10 @@ func (c *Config) Validate() error {
 	// JWT: enabled but no secret
 	if c.JWT.Secret == "" {
 		return fmt.Errorf("JWT_SECRET can't be empty")
+	}
+	// JWT: enforce minimum length for HMAC-SHA256 (>=32 bytes prevents offline brute-force).
+	if len(c.JWT.Secret) < 32 {
+		return fmt.Errorf("JWT_SECRET must be at least 32 bytes, got %d", len(c.JWT.Secret))
 	}
 
 	// JWT: validate TTL strings are parseable
