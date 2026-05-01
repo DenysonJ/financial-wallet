@@ -62,13 +62,16 @@ func IsExpected(err error) bool {
 	if err == nil {
 		return false
 	}
-	for _, sentinel := range apperror.DomainSentinels {
+	for _, sentinel := range apperror.Sentinels() {
 		if errors.Is(err, sentinel) {
 			return true
 		}
 	}
 	return false
 }
+
+// ResultAttrKey is the canonical attribute key for semantic outcome on spans
+const ResultAttrKey = "app.result"
 
 // ClassifyError records err on span+logs splitting expected vs unexpected.
 //
@@ -80,8 +83,17 @@ func IsExpected(err error) bool {
 // the span stays Ok. Unexpected errors (everything else) produce FailSpan and
 // LogError, marking the span as Error for alerting.
 func ClassifyError(ctx context.Context, span trace.Span, err error, resultAttr, baseMsg string) {
+	ClassifyErrorWithKey(ctx, span, err, ResultAttrKey, resultAttr, baseMsg)
+}
+
+// ClassifyErrorWithKey is the explicit form of ClassifyError that lets the
+// caller override the span/log attribute key (default: "app.result")
+func ClassifyErrorWithKey(ctx context.Context, span trace.Span, err error, key, resultAttr, baseMsg string) {
+	if key == "" {
+		key = ResultAttrKey
+	}
 	if IsExpected(err) {
-		WarnSpan(span, attribute.String("app.result", resultAttr))
+		WarnSpan(span, attribute.String(key, resultAttr))
 		logutil.LogWarn(ctx, baseMsg, "result", resultAttr, "error", err.Error())
 		return
 	}

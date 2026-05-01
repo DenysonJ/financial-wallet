@@ -55,7 +55,7 @@ func (l *CachedPermissionLoader) GetPermissions(ctx context.Context, userID stri
 
 // GetRoles returns the user's role names, checking cache first.
 func (l *CachedPermissionLoader) GetRoles(ctx context.Context, userID string) ([]string, error) {
-	cacheKey := "roles:user:" + userID
+	cacheKey := interfaces.RoleCacheKeyPrefix + userID
 
 	// 1. Try cache
 	if l.cache != nil {

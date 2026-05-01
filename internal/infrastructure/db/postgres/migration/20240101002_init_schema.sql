@@ -10,7 +10,8 @@ CREATE TABLE users (
     updated_at TIMESTAMP WITH TIME ZONE NOT NULL
 );
 
-CREATE INDEX idx_users_active_created ON users(created_at DESC) WHERE active = true;
+CREATE INDEX idx_users_created_at ON users(created_at DESC);
+CREATE INDEX idx_users_lower_name ON users(lower(name));
 
 -- Roles
 CREATE TABLE roles (

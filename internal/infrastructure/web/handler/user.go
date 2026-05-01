@@ -23,12 +23,12 @@ import (
 // tests with mocked use cases. Teams needing handler-level unit tests should define
 // interfaces (e.g., Creator, Getter) and accept them here instead.
 type UserHandler struct {
-	CreateUC *useruc.CreateUseCase
-	GetUC    *useruc.GetUseCase
-	ListUC   *useruc.ListUseCase
-	UpdateUC *useruc.UpdateUseCase
-	DeleteUC *useruc.DeleteUseCase
-	Metrics  *telemetry.Metrics
+	createUC *useruc.CreateUseCase
+	getUC    *useruc.GetUseCase
+	listUC   *useruc.ListUseCase
+	updateUC *useruc.UpdateUseCase
+	deleteUC *useruc.DeleteUseCase
+	metrics  *telemetry.Metrics
 }
 
 // NewUserHandler cria um novo UserHandler com todos os use cases.
@@ -41,12 +41,12 @@ func NewUserHandler(
 	metrics *telemetry.Metrics,
 ) *UserHandler {
 	return &UserHandler{
-		CreateUC: createUC,
-		GetUC:    getUC,
-		ListUC:   listUC,
-		UpdateUC: updateUC,
-		DeleteUC: deleteUC,
-		Metrics:  metrics,
+		createUC: createUC,
+		getUC:    getUC,
+		listUC:   listUC,
+		updateUC: updateUC,
+		deleteUC: deleteUC,
+		metrics:  metrics,
 	}
 }
 
@@ -79,7 +79,7 @@ func (h *UserHandler) Create(c *gin.Context) {
 		attribute.String("user.name", req.Name),
 	)
 
-	res, execErr := h.CreateUC.Execute(ctx, req)
+	res, execErr := h.createUC.Execute(ctx, req)
 	if execErr != nil {
 		HandleError(c, execErr)
 		return
@@ -88,8 +88,8 @@ func (h *UserHandler) Create(c *gin.Context) {
 	span.SetAttributes(attribute.String("user.id", res.ID))
 
 	// Record metric
-	if h.Metrics != nil {
-		h.Metrics.RecordCreate(ctx)
+	if h.metrics != nil {
+		h.metrics.RecordCreate(ctx)
 	}
 
 	httpgin.SendSuccess(c, http.StatusCreated, res)
@@ -121,7 +121,7 @@ func (h *UserHandler) GetByID(c *gin.Context) {
 		return
 	}
 
-	res, execErr := h.GetUC.Execute(ctx, dto.GetInput{ID: id})
+	res, execErr := h.getUC.Execute(ctx, dto.GetInput{ID: id})
 	if execErr != nil {
 		HandleError(c, execErr)
 		return
@@ -165,7 +165,7 @@ func (h *UserHandler) List(c *gin.Context) {
 
 		span.SetAttributes(attribute.String("user.id", jwtUserIDStr))
 
-		getRes, getErr := h.GetUC.Execute(ctx, dto.GetInput{ID: jwtUserIDStr})
+		getRes, getErr := h.getUC.Execute(ctx, dto.GetInput{ID: jwtUserIDStr})
 		if getErr != nil {
 			HandleError(c, getErr)
 			return
@@ -182,7 +182,7 @@ func (h *UserHandler) List(c *gin.Context) {
 		attribute.Int("filter.limit", req.Limit),
 	)
 
-	res, execErr := h.ListUC.Execute(ctx, req)
+	res, execErr := h.listUC.Execute(ctx, req)
 	if execErr != nil {
 		HandleError(c, execErr)
 		return
@@ -229,15 +229,15 @@ func (h *UserHandler) Update(c *gin.Context) {
 	}
 	req.ID = id // ID vem da URL
 
-	res, execErr := h.UpdateUC.Execute(ctx, req)
+	res, execErr := h.updateUC.Execute(ctx, req)
 	if execErr != nil {
 		HandleError(c, execErr)
 		return
 	}
 
 	// Record metric
-	if h.Metrics != nil {
-		h.Metrics.RecordUpdate(ctx)
+	if h.metrics != nil {
+		h.metrics.RecordUpdate(ctx)
 	}
 
 	httpgin.SendSuccess(c, http.StatusOK, res)
@@ -269,15 +269,15 @@ func (h *UserHandler) Delete(c *gin.Context) {
 		return
 	}
 
-	_, execErr := h.DeleteUC.Execute(ctx, dto.DeleteInput{ID: id})
+	_, execErr := h.deleteUC.Execute(ctx, dto.DeleteInput{ID: id})
 	if execErr != nil {
 		HandleError(c, execErr)
 		return
 	}
 
 	// Record metric
-	if h.Metrics != nil {
-		h.Metrics.RecordDelete(ctx)
+	if h.metrics != nil {
+		h.metrics.RecordDelete(ctx)
 	}
 
 	c.Status(http.StatusNoContent)

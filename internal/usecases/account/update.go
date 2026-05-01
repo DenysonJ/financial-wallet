@@ -48,10 +48,10 @@ func (uc *UpdateUseCase) Execute(ctx context.Context, input dto.UpdateInput) (*d
 		return nil, findErr
 	}
 
-	// Ownership check
+	// Ownership denial intentionally surfaces as 404 (no existence oracle);
 	if input.RequestingUserID != "" && a.UserID.String() != input.RequestingUserID {
-		telemetry.WarnSpan(span, attribute.String("app.result", "forbidden"))
-		logutil.LogWarn(ctx, "account update forbidden: not owner", "account.id", a.ID.String())
+		telemetry.WarnSpan(span, attribute.String("app.result", "not_found"))
+		logutil.LogWarn(ctx, "account update: access denied", "account.id", a.ID.String())
 		return nil, accountdomain.ErrAccountNotFound
 	}
 

@@ -1,6 +1,7 @@
 package middleware
 
 import (
+	"crypto/sha256"
 	"crypto/subtle"
 	"net/http"
 	"strings"
@@ -10,6 +11,13 @@ import (
 	"github.com/DenysonJ/financial-wallet/pkg/httputil/httpgin"
 	"github.com/DenysonJ/financial-wallet/pkg/logutil"
 )
+
+// hashKey hashes the input so ConstantTimeCompare always operates on equal-
+// length buffers, removing key length as a timing side channel.
+func hashKey(key string) []byte {
+	sum := sha256.Sum256([]byte(key))
+	return sum[:]
+}
 
 const ContextKeyServiceKey = "serviceKey"
 
@@ -106,22 +114,18 @@ func ServiceKeyAuth(config ServiceKeyConfig) gin.HandlerFunc {
 			return
 		}
 
-		// Validate service key — always run ConstantTimeCompare, even when the
-		// service name is unknown, so the response time does not reveal whether
-		// a given service name is configured. Without the dummy compare, an
-		// attacker can enumerate valid service names via timing.
+		// Always run a constant-time compare even on unknown service so the
+		// response time can't be used to enumerate configured services.
 		expectedKey, exists := config.Keys[serviceName]
 		if !exists {
-			// Compare against a fixed dummy of the same shape as a real key so
-			// the code path takes comparable time before we return 401.
-			_ = subtle.ConstantTimeCompare([]byte("00000000000000000000000000000000"), []byte(serviceKey))
+			_ = subtle.ConstantTimeCompare(hashKey("unknown-service-dummy"), hashKey(serviceKey))
 			logutil.LogWarn(c.Request.Context(), "auth rejected", "reason", "unknown_service", "service", serviceName)
 			httpgin.SendError(c, http.StatusUnauthorized, "unauthorized")
 			c.Abort()
 			return
 		}
 
-		if subtle.ConstantTimeCompare([]byte(expectedKey), []byte(serviceKey)) != 1 {
+		if subtle.ConstantTimeCompare(hashKey(expectedKey), hashKey(serviceKey)) != 1 {
 			logutil.LogWarn(c.Request.Context(), "auth rejected", "reason", "invalid_service_key", "service", serviceName)
 			httpgin.SendError(c, http.StatusUnauthorized, "unauthorized")
 			c.Abort()

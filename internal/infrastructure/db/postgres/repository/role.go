@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
+	"sort"
 	"time"
 
 	roledomain "github.com/DenysonJ/financial-wallet/internal/domain/role"
@@ -104,7 +105,7 @@ func (r *RoleRepository) List(ctx context.Context, filter roledomain.ListFilter)
 	whereClause := ""
 	if filter.Name != "" {
 		whereClause = "WHERE name ILIKE :name"
-		args["name"] = "%" + filter.Name + "%"
+		args["name"] = "%" + escapeILIKE(filter.Name) + "%"
 	}
 
 	// Wrap COUNT + SELECT in a read-only transaction for consistent pagination.
@@ -281,6 +282,59 @@ func (r *RoleRepository) GetUserRoles(ctx context.Context, userID vo.ID) ([]stri
 	}
 
 	return roles, nil
+}
+
+// userPermsRolesRow models a row from the combined GetUserPermissionsAndRoles
+// query: kind is 'p' for permission, 'r' for role.
+type userPermsRolesRow struct {
+	Kind string `db:"kind"`
+	Name string `db:"name"`
+}
+
+// GetUserPermissionsAndRoles returns permissions + roles in a single UNION ALL
+// query, saving one RTT on cache-miss vs the two-query path.
+func (r *RoleRepository) GetUserPermissionsAndRoles(ctx context.Context, userID vo.ID) (perms, roles []string, err error) {
+	query := `
+		SELECT 'p' AS kind, p.name AS name
+		FROM user_roles ur
+		JOIN role_permissions rp ON ur.role_id = rp.role_id
+		JOIN permissions p ON rp.permission_id = p.id
+		WHERE ur.user_id = $1
+		UNION ALL
+		SELECT 'r' AS kind, rl.name AS name
+		FROM user_roles ur
+		JOIN roles rl ON ur.role_id = rl.id
+		WHERE ur.user_id = $1
+	`
+
+	var rows []userPermsRolesRow
+	selectErr := r.reader.SelectContext(ctx, &rows, query, userID.String())
+	if selectErr != nil {
+		return nil, nil, selectErr
+	}
+
+	permsSet := make(map[string]struct{})
+	rolesSet := make(map[string]struct{})
+	for _, row := range rows {
+		switch row.Kind {
+		case "p":
+			permsSet[row.Name] = struct{}{}
+		case "r":
+			rolesSet[row.Name] = struct{}{}
+		}
+	}
+
+	perms = make([]string, 0, len(permsSet))
+	for name := range permsSet {
+		perms = append(perms, name)
+	}
+	roles = make([]string, 0, len(rolesSet))
+	for name := range rolesSet {
+		roles = append(roles, name)
+	}
+	sort.Strings(perms)
+	sort.Strings(roles)
+	return perms, roles, nil
 }
 
 func (r *RoleRepository) Delete(ctx context.Context, id vo.ID) error {

@@ -90,8 +90,8 @@ func TestPasswordHandler_SetPassword(t *testing.T) {
 			name: "success",
 			body: map[string]string{
 				"user_id":               userIDStr,
-				"password":              "P@ssw0rd!",
-				"password_confirmation": "P@ssw0rd!",
+				"password":              "P@ssw0rd!Long",
+				"password_confirmation": "P@ssw0rd!Long",
 			},
 			setupMock: func(m *useruci.MockRepository) {
 				m.On("FindByID", mock.Anything, userIDVal).Return(userWithNoPassword, nil)
@@ -119,8 +119,8 @@ func TestPasswordHandler_SetPassword(t *testing.T) {
 			name: "user not found",
 			body: map[string]string{
 				"user_id":               userIDStr,
-				"password":              "P@ssw0rd!",
-				"password_confirmation": "P@ssw0rd!",
+				"password":              "P@ssw0rd!Long",
+				"password_confirmation": "P@ssw0rd!Long",
 			},
 			setupMock: func(m *useruci.MockRepository) {
 				m.On("FindByID", mock.Anything, userIDVal).Return(nil, userdomain.ErrUserNotFound)
@@ -132,8 +132,8 @@ func TestPasswordHandler_SetPassword(t *testing.T) {
 			name: "password already set returns 409",
 			body: map[string]string{
 				"user_id":               userIDStr,
-				"password":              "P@ssw0rd!",
-				"password_confirmation": "P@ssw0rd!",
+				"password":              "P@ssw0rd!Long",
+				"password_confirmation": "P@ssw0rd!Long",
 			},
 			setupMock: func(m *useruci.MockRepository) {
 				userWithPassword := *userWithNoPassword
@@ -172,7 +172,7 @@ func TestPasswordHandler_ChangePassword(t *testing.T) {
 	userIDStr := userIDVal.String()
 
 	email, _ := uservo.NewEmail("test@example.com")
-	pw, _ := uservo.NewPassword("OldP@ss1!", 4) // low cost for tests
+	pw, _ := uservo.NewPassword("OldP@sswOrd1!", 4) // low cost for tests
 	passwordHash := pw.String()
 	userWithPassword := &userdomain.User{
 		ID:           userIDVal,
@@ -196,9 +196,9 @@ func TestPasswordHandler_ChangePassword(t *testing.T) {
 		{
 			name: "success",
 			body: map[string]string{
-				"current_password":          "OldP@ss1!",
-				"new_password":              "NewP@ss2!",
-				"new_password_confirmation": "NewP@ss2!",
+				"current_password":          "OldP@sswOrd1!",
+				"new_password":              "NewP@sswOrd2!",
+				"new_password_confirmation": "NewP@sswOrd2!",
 			},
 			authUserID: userIDStr,
 			setupMock: func(m *useruci.MockRepository) {
@@ -218,9 +218,9 @@ func TestPasswordHandler_ChangePassword(t *testing.T) {
 		{
 			name: "no auth returns 401",
 			body: map[string]string{
-				"current_password":          "OldP@ss1!",
-				"new_password":              "NewP@ss2!",
-				"new_password_confirmation": "NewP@ss2!",
+				"current_password":          "OldP@sswOrd1!",
+				"new_password":              "NewP@sswOrd2!",
+				"new_password_confirmation": "NewP@sswOrd2!",
 			},
 			noAuth:     true,
 			setupMock:  func(m *useruci.MockRepository) {},

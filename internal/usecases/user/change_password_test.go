@@ -15,7 +15,7 @@ import (
 
 func newUserWithPassword(t *testing.T) (*userdomain.User, string) {
 	t.Helper()
-	plain := "OldPass1!"
+	plain := "OldPassword1!"
 	pw, hashErr := vo.NewPassword(plain, 4)
 	assert.NoError(t, hashErr)
 	return &userdomain.User{
@@ -59,7 +59,7 @@ func TestChangePasswordUseCase_Execute_WrongCurrentPassword(t *testing.T) {
 	uc := NewChangePasswordUseCase(mockRepo).WithBcryptCost(4)
 	input := dto.ChangePasswordInput{
 		UserID:                  existingUser.ID.String(),
-		CurrentPassword:         "WrongPass1!",
+		CurrentPassword:         "WrongPassword1!",
 		NewPassword:             "NewStr0ng!Pass",
 		NewPasswordConfirmation: "NewStr0ng!Pass",
 	}
@@ -81,7 +81,7 @@ func TestChangePasswordUseCase_Execute_NewPasswordMismatch(t *testing.T) {
 		UserID:                  existingUser.ID.String(),
 		CurrentPassword:         oldPlain,
 		NewPassword:             "NewStr0ng!Pass",
-		NewPasswordConfirmation: "Different1!",
+		NewPasswordConfirmation: "Different1!Diff",
 	}
 
 	execErr := uc.Execute(context.Background(), input)

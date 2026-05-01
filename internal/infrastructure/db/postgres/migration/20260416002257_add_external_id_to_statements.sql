@@ -13,14 +13,10 @@ CREATE INDEX CONCURRENTLY idx_statements_account_posted_at ON statements(account
 
 -- +goose Down
 -- WARNING: Dropping these columns is destructive if OFX data has been imported.
-DROP INDEX IF EXISTS idx_statements_account_posted_at;
-DROP INDEX IF EXISTS idx_statements_unique_reversal;
-DROP INDEX IF EXISTS idx_statements_account_external_id;
-ALTER TABLE statements DROP COLUMN IF EXISTS posted_at;
-ALTER TABLE statements DROP COLUMN IF EXISTS external_id;
--- Non-destructive rollback: relax posted_at back to nullable instead of
--- dropping the column, so OFX-imported data is preserved across rollbacks.
--- external_id is only dropped when empty (it may contain imported FITIDs).
+-- CONCURRENTLY matches the Up section and avoids AccessExclusiveLock on a
+-- populated statements table.
 DROP INDEX CONCURRENTLY IF EXISTS idx_statements_account_posted_at;
 DROP INDEX CONCURRENTLY IF EXISTS idx_statements_unique_reversal;
 DROP INDEX CONCURRENTLY IF EXISTS idx_statements_account_external_id;
+ALTER TABLE statements DROP COLUMN IF EXISTS posted_at;
+ALTER TABLE statements DROP COLUMN IF EXISTS external_id;

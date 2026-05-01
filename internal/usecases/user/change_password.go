@@ -66,13 +66,20 @@ func (uc *ChangePasswordUseCase) Execute(ctx context.Context, input dto.ChangePa
 	checkErr := vo.CheckPassword(e.PasswordHash, input.CurrentPassword)
 	if checkErr != nil {
 		telemetry.WarnSpan(span, attribute.String("app.result", "invalid_credentials"))
-		logutil.LogWarn(ctx, "change password failed: invalid current password")
+		// audit=password_change_failed lets ops alert on brute-force attempts
+		logutil.LogWarn(ctx, "change password failed: invalid current password",
+			"audit", "password_change_failed",
+			"reason", "invalid_credentials",
+			"user.id", input.UserID)
 		return userdomain.ErrInvalidCredentials
 	}
 
 	if input.NewPassword != input.NewPasswordConfirmation {
 		telemetry.WarnSpan(span, attribute.String("app.result", "password_mismatch"))
-		logutil.LogWarn(ctx, "change password failed: password mismatch")
+		logutil.LogWarn(ctx, "change password failed: password mismatch",
+			"audit", "password_change_failed",
+			"reason", "password_mismatch",
+			"user.id", input.UserID)
 		return userdomain.ErrPasswordMismatch
 	}
 
@@ -89,7 +96,9 @@ func (uc *ChangePasswordUseCase) Execute(ctx context.Context, input dto.ChangePa
 	}
 
 	telemetry.OkSpan(span)
-	logutil.LogInfo(ctx, "password changed", "user.id", input.UserID)
+	logutil.LogInfo(ctx, "password changed",
+		"audit", "password_change",
+		"user.id", input.UserID)
 
 	return nil
 }
