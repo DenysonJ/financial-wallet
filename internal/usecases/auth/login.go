@@ -2,9 +2,11 @@ package auth
 
 import (
 	"context"
+	"crypto/rand"
 
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/attribute"
+	"golang.org/x/crypto/bcrypt"
 
 	userdomain "github.com/DenysonJ/financial-wallet/internal/domain/user"
 	"github.com/DenysonJ/financial-wallet/internal/domain/user/vo"
@@ -16,16 +18,47 @@ import (
 
 // LoginUseCase implementa o caso de uso de login.
 type LoginUseCase struct {
-	repo  interfaces.UserRepository
-	token interfaces.TokenService
+	repo       interfaces.UserRepository
+	token      interfaces.TokenService
+	bcryptCost int
+	// dummyHash equalizes bcrypt CPU cost on failure branches to prevent
+	// timing-based email enumeration.
+	dummyHash []byte
 }
 
 // NewLoginUseCase cria uma nova instância do LoginUseCase.
 func NewLoginUseCase(repo interfaces.UserRepository, token interfaces.TokenService) *LoginUseCase {
-	return &LoginUseCase{
-		repo:  repo,
-		token: token,
+	uc := &LoginUseCase{
+		repo:       repo,
+		token:      token,
+		bcryptCost: vo.DefaultBcryptCost,
 	}
+	uc.dummyHash = generateDummyHash(uc.bcryptCost)
+	return uc
+}
+
+// WithBcryptCost sets the bcrypt cost (builder pattern). Must match the cost
+// used to hash real passwords or the dummy compare won't equalize timing.
+func (uc *LoginUseCase) WithBcryptCost(cost int) *LoginUseCase {
+	uc.bcryptCost = cost
+	uc.dummyHash = generateDummyHash(cost)
+	return uc
+}
+
+// generateDummyHash builds a bcrypt hash over an unrecoverable random secret.
+func generateDummyHash(cost int) []byte {
+	if cost < bcrypt.MinCost || cost > bcrypt.MaxCost {
+		cost = vo.DefaultBcryptCost
+	}
+	secret := make([]byte, 32)
+	if _, randErr := rand.Read(secret); randErr != nil {
+		secret = []byte("login-dummy-secret-fallback-32by")
+	}
+	hash, hashErr := bcrypt.GenerateFromPassword(secret, cost)
+	if hashErr != nil {
+		hash, _ = bcrypt.GenerateFromPassword(secret, vo.DefaultBcryptCost)
+	}
+	return hash
 }
 
 // Execute autentica um usuário por email e senha, retornando tokens JWT.
@@ -46,17 +79,17 @@ func (uc *LoginUseCase) Execute(ctx context.Context, input dto.LoginInput) (*dto
 
 	emailVO, emailErr := vo.NewEmail(input.Email)
 	if emailErr != nil {
+		uc.equalizeTiming(input.Password)
 		telemetry.WarnSpan(span, attribute.String("app.result", "invalid_credentials"))
 		logutil.LogWarn(ctx, "login failed")
 		return nil, userdomain.ErrInvalidCredentials
 	}
 
-	// Login keeps an explicit IsExpected branch (instead of ClassifyError) so the
-	// expected arm logs without error details — preventing a credential oracle
-	// via logs. The unexpected arm uses a specific span msg so alert rules can
-	// distinguish a real DB/dep failure from a "user not found" outcome.
+	// Explicit IsExpected branch (not ClassifyError): the expected arm must
+	// not log error details to avoid a credential oracle via logs.
 	e, findErr := uc.repo.FindByEmail(ctx, emailVO)
 	if findErr != nil {
+		uc.equalizeTiming(input.Password)
 		if telemetry.IsExpected(findErr) {
 			telemetry.WarnSpan(span, attribute.String("app.result", "invalid_credentials"))
 			logutil.LogWarn(ctx, "login failed")
@@ -68,12 +101,14 @@ func (uc *LoginUseCase) Execute(ctx context.Context, input dto.LoginInput) (*dto
 	}
 
 	if !e.Active {
+		uc.equalizeTiming(input.Password)
 		telemetry.WarnSpan(span, attribute.String("app.result", "invalid_credentials"))
 		logutil.LogWarn(ctx, "login failed")
 		return nil, userdomain.ErrInvalidCredentials
 	}
 
 	if e.PasswordHash == "" {
+		uc.equalizeTiming(input.Password)
 		telemetry.WarnSpan(span, attribute.String("app.result", "invalid_credentials"))
 		logutil.LogWarn(ctx, "login failed")
 		return nil, userdomain.ErrInvalidCredentials
@@ -107,4 +142,10 @@ func (uc *LoginUseCase) Execute(ctx context.Context, input dto.LoginInput) (*dto
 		AccessToken:  accessToken,
 		RefreshToken: refreshToken,
 	}, nil
+}
+
+// equalizeTiming runs a bcrypt compare against the dummy hash so login failure
+// branches consume CPU comparable to a real password verification
+func (uc *LoginUseCase) equalizeTiming(password string) {
+	_ = bcrypt.CompareHashAndPassword(uc.dummyHash, []byte(password))
 }

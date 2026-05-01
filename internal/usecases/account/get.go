@@ -48,10 +48,10 @@ func (uc *GetUseCase) Execute(ctx context.Context, input dto.GetInput) (*dto.Get
 		return nil, findErr
 	}
 
-	// Ownership check (when RequestingUserID is set, enforce it)
+	// Ownership denial intentionally surfaces as 404 (no existence oracle);
 	if input.RequestingUserID != "" && a.UserID.String() != input.RequestingUserID {
-		telemetry.WarnSpan(span, attribute.String("app.result", "forbidden"))
-		logutil.LogWarn(ctx, "account get forbidden: not owner", "account.id", a.ID.String())
+		telemetry.WarnSpan(span, attribute.String("app.result", "not_found"))
+		logutil.LogWarn(ctx, "account get: access denied", "account.id", a.ID.String())
 		return nil, accountdomain.ErrAccountNotFound
 	}
 

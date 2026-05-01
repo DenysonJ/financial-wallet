@@ -125,6 +125,31 @@ func TestRateLimit_FailOpen_StoreError(t *testing.T) {
 	assert.Empty(t, w.Header().Get("RateLimit-Limit"))
 }
 
+func TestRateLimit_FailClosed_StoreError(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	store := &mockRateLimitStore{
+		err: errors.New("redis connection refused"),
+	}
+	r := gin.New()
+	r.Use(RateLimit(RateLimitConfig{
+		Store:      store,
+		Limit:      100,
+		Window:     1 * time.Minute,
+		FailClosed: true,
+	}))
+	r.POST("/auth/login", func(c *gin.Context) {
+		c.JSON(http.StatusOK, gin.H{"status": "ok"})
+	})
+
+	req := httptest.NewRequest(http.MethodPost, "/auth/login", nil)
+	w := httptest.NewRecorder()
+	r.ServeHTTP(w, req)
+
+	// Brute-force-sensitive route must reject when the store is unavailable.
+	assert.Equal(t, http.StatusServiceUnavailable, w.Code)
+	assert.Contains(t, w.Body.String(), "service temporarily unavailable")
+}
+
 func TestRateLimit_MultipleRequests_CountsDown(t *testing.T) {
 	store := &mockRateLimitStore{
 		results: []*ratelimit.Result{

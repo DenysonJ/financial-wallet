@@ -49,8 +49,8 @@ func (uc *DeleteUseCase) Execute(ctx context.Context, input dto.DeleteInput) (*d
 			return nil, findErr
 		}
 		if a.UserID.String() != input.RequestingUserID {
-			telemetry.WarnSpan(span, attribute.String("app.result", "forbidden"))
-			logutil.LogWarn(ctx, "account delete forbidden: not owner", "account.id", input.ID)
+			telemetry.WarnSpan(span, attribute.String("app.result", "not_found"))
+			logutil.LogWarn(ctx, "account delete: access denied", "account.id", input.ID)
 			return nil, accountdomain.ErrAccountNotFound
 		}
 	}

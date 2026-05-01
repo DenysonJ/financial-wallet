@@ -62,6 +62,8 @@ type ServerConfig struct {
 	Env         string
 	GinMode     string // "release", "debug", "test" — default: "" (debug)
 	MaxBodySize int64  // Max request body size in bytes (0 = default 1MB)
+	// TrustedProxies is a comma-separated list of CIDR ranges trusted to set X-Forwarded-For
+	TrustedProxies string
 }
 
 type IdempotencyConfig struct {
@@ -173,10 +175,11 @@ func Load() (*Config, error) {
 
 	return &Config{
 		Server: ServerConfig{
-			Port:        getEnv("SERVER_PORT", "8080"),
-			Env:         getEnv("APP_ENV", "development"),
-			GinMode:     getEnv("GIN_MODE", ""),
-			MaxBodySize: int64(getEnvInt("HTTP_MAX_BODY_SIZE", 1<<20)), // default 1MB
+			Port:           getEnv("SERVER_PORT", "8080"),
+			Env:            getEnv("APP_ENV", "development"),
+			GinMode:        getEnv("GIN_MODE", ""),
+			MaxBodySize:    int64(getEnvInt("HTTP_MAX_BODY_SIZE", 1<<20)), // default 1MB
+			TrustedProxies: getEnv("HTTP_TRUSTED_PROXIES", ""),
 		},
 		DB: DBConfig{
 			Host:     getEnv("DB_HOST", "localhost"),
@@ -252,9 +255,20 @@ func Load() (*Config, error) {
 // Validate checks for invalid configuration states at startup.
 // Returns an error if a critical misconfiguration is detected.
 func (c *Config) Validate() error {
-	// DB: sslmode=disable in non-dev environments
-	if c.Server.Env != "development" && c.DB.SSLMode == "disable" {
-		fmt.Println("WARNING: DB_SSLMODE=disable in non-development environment")
+	// DB: reject insecure defaults outside development.
+	if c.Server.Env != "development" {
+		if c.DB.SSLMode == "disable" {
+			return fmt.Errorf("DB_SSLMODE=disable is not allowed when APP_ENV=%q", c.Server.Env)
+		}
+		if c.DB.User == "user" {
+			return fmt.Errorf("DB_USER must not use the default value %q when APP_ENV=%q", c.DB.User, c.Server.Env)
+		}
+		if c.DB.Password == "password" {
+			return fmt.Errorf("DB_PASSWORD must not use the default value when APP_ENV=%q", c.Server.Env)
+		}
+		if c.DB.ReplicaEnabled && c.DB.ReplicaPassword == "" {
+			return fmt.Errorf("DB_REPLICA_PASSWORD is required when DB_REPLICA_ENABLED=true and APP_ENV=%q", c.Server.Env)
+		}
 	}
 
 	// Idempotency: enabled but Redis disabled
@@ -275,6 +289,10 @@ func (c *Config) Validate() error {
 	// JWT: enabled but no secret
 	if c.JWT.Secret == "" {
 		return fmt.Errorf("JWT_SECRET can't be empty")
+	}
+	// JWT: enforce minimum length for HMAC-SHA256 (>=32 bytes prevents offline brute-force).
+	if len(c.JWT.Secret) < 32 {
+		return fmt.Errorf("JWT_SECRET must be at least 32 bytes, got %d", len(c.JWT.Secret))
 	}
 
 	// JWT: validate TTL strings are parseable
@@ -307,6 +325,18 @@ func (c *Config) Validate() error {
 	// MaxBodySize: must be positive if set
 	if c.Server.MaxBodySize < 0 {
 		return fmt.Errorf("HTTP_MAX_BODY_SIZE must be >= 0, got %d", c.Server.MaxBodySize)
+	}
+
+	// Permissions cache TTL: cap so role revocation can't lag for hours.
+	const maxPermissionsTTL = 15 * time.Minute
+	if c.Redis.PermissionsTTL != "" {
+		permTTL, parseErr := time.ParseDuration(c.Redis.PermissionsTTL)
+		if parseErr != nil {
+			return fmt.Errorf("REDIS_PERMISSIONS_TTL=%q is not a valid duration: %w", c.Redis.PermissionsTTL, parseErr)
+		}
+		if permTTL > maxPermissionsTTL {
+			return fmt.Errorf("REDIS_PERMISSIONS_TTL=%s exceeds the safe upper bound (%s); role revocation would lag too long", permTTL, maxPermissionsTTL)
+		}
 	}
 
 	return nil

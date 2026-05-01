@@ -23,7 +23,7 @@ func newRecorder(t *testing.T) (*tracetest.SpanRecorder, *sdktrace.TracerProvide
 	return sr, tp
 }
 
-func TestFailSpan_RecordsErrorAndSetsErrorStatus(t *testing.T) {
+func TestFailSpan_GivenError_WhenInvoked_ThenRecordsAndMarksError(t *testing.T) {
 	sr, tp := newRecorder(t)
 	_, span := tp.Tracer("test").Start(context.Background(), "op")
 
@@ -61,7 +61,7 @@ func TestFailSpan_RecordsErrorAndSetsErrorStatus(t *testing.T) {
 	}
 }
 
-func TestWarnSpan_AddsAttributes_KeepsStatusUnset(t *testing.T) {
+func TestWarnSpan_GivenAttributes_WhenInvoked_ThenAddsThemAndKeepsStatusUnset(t *testing.T) {
 	sr, tp := newRecorder(t)
 	_, span := tp.Tracer("test").Start(context.Background(), "op")
 
@@ -89,7 +89,7 @@ func TestWarnSpan_AddsAttributes_KeepsStatusUnset(t *testing.T) {
 	}
 }
 
-func TestOkSpan_SetsOkStatus(t *testing.T) {
+func TestOkSpan_GivenSpan_WhenInvoked_ThenSetsOkStatus(t *testing.T) {
 	sr, tp := newRecorder(t)
 	_, span := tp.Tracer("test").Start(context.Background(), "op")
 
@@ -102,7 +102,7 @@ func TestOkSpan_SetsOkStatus(t *testing.T) {
 	}
 }
 
-func TestIsExpected(t *testing.T) {
+func TestIsExpected_GivenError_WhenChecked_ThenReportsRegistration(t *testing.T) {
 	before := len(apperror.DomainSentinels)
 	t.Cleanup(func() { apperror.DomainSentinels = apperror.DomainSentinels[:before] })
 
@@ -130,7 +130,7 @@ func TestIsExpected(t *testing.T) {
 	}
 }
 
-func TestHelpers_NilSpanIsNoop(t *testing.T) {
+func TestHelpers_GivenNilSpan_WhenInvoked_ThenAreNoop(t *testing.T) {
 	// Must not panic.
 	telemetry.FailSpan(nil, errors.New("x"), "msg")
 	telemetry.WarnSpan(nil, attribute.String("k", "v"))

@@ -69,7 +69,7 @@ func FuzzEmailScan(f *testing.F) {
 }
 
 func FuzzValidatePasswordStrength(f *testing.F) {
-	f.Add("Str0ng!Pass")               // valid: letter + digit + special
+	f.Add("Str0ng!Passw")              // valid: letter + digit + special
 	f.Add("abcdefgh")                  // only letters, 8 chars
 	f.Add("12345678")                  // only digits
 	f.Add("!@#$%^&*")                  // only special
@@ -88,8 +88,8 @@ func FuzzValidatePasswordStrength(f *testing.F) {
 
 		// Must never panic
 		if validateErr == nil {
-			// If valid, must be at least 8 chars with letter+digit+special
-			assert.GreaterOrEqual(t, len(input), 8)
+			// If valid, must satisfy MinPasswordLength + letter+digit+special
+			assert.GreaterOrEqual(t, len(input), MinPasswordLength)
 			return
 		}
 
@@ -112,7 +112,7 @@ func FuzzValidatePasswordStrength(f *testing.F) {
 }
 
 func FuzzNewPassword(f *testing.F) {
-	f.Add("Str0ng!Pass")  // valid
+	f.Add("Str0ng!Passw") // valid
 	f.Add("short1!")      // too short
 	f.Add("")             // empty
 	f.Add("пароль1!abcd") // cyrillic
@@ -136,10 +136,10 @@ func FuzzNewPassword(f *testing.F) {
 
 func FuzzCheckPassword(f *testing.F) {
 	// Pre-generate a valid hash for seeding
-	f.Add("$2a$04$abcdefghijklmnopqrstuuABCDEFGHIJKLMNOPQRSTUVWXYZ012", "Str0ng!Pass") // fake bcrypt format
-	f.Add("not-a-hash", "password")                                                    // invalid hash
-	f.Add("", "")                                                                      // both empty
-	f.Add("$2a$04$", "test")                                                           // truncated hash
+	f.Add("$2a$04$abcdefghijklmnopqrstuuABCDEFGHIJKLMNOPQRSTUVWXYZ012", "Str0ng!Passw") // fake bcrypt format
+	f.Add("not-a-hash", "password")                                                     // invalid hash
+	f.Add("", "")                                                                       // both empty
+	f.Add("$2a$04$", "test")                                                            // truncated hash
 	f.Add("$2a$20000000000000000000000000000000000000000000000000000000", "0")
 	f.Add("$2a$30$00000000000000000000000000000000000000000000000000000", "0")
 

@@ -73,13 +73,7 @@ func (uc *RevokeRoleUseCase) Execute(ctx context.Context, input dto.RevokeRoleIn
 		return revokeErr
 	}
 
-	// Invalidate permissions cache
-	if uc.cache != nil {
-		cacheKey := interfaces.PermissionCacheKeyPrefix + input.UserID
-		if cacheErr := uc.cache.Delete(ctx, cacheKey); cacheErr != nil {
-			logutil.LogWarn(ctx, "failed to invalidate permissions cache", "key", cacheKey, "error", cacheErr.Error())
-		}
-	}
+	invalidateUserAuthCache(ctx, uc.cache, input.UserID)
 
 	telemetry.OkSpan(span)
 	logutil.LogInfo(ctx, "role revoked", "user.id", input.UserID, "role.id", input.RoleID)
