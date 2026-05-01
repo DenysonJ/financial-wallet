@@ -6,6 +6,8 @@ import (
 	"testing"
 	"time"
 
+	"golang.org/x/crypto/bcrypt"
+
 	userdomain "github.com/DenysonJ/financial-wallet/internal/domain/user"
 	"github.com/DenysonJ/financial-wallet/internal/domain/user/vo"
 	"github.com/DenysonJ/financial-wallet/internal/mocks/authuci"
@@ -132,7 +134,7 @@ func TestLoginUseCase_Execute(t *testing.T) {
 			}
 			tt.setupMock(mockRepo, mockToken, user)
 
-			uc := NewLoginUseCase(mockRepo, mockToken)
+			uc := NewLoginUseCase(mockRepo, mockToken).WithBcryptCost(bcrypt.MinCost)
 			output, execErr := uc.Execute(context.Background(), dto.LoginInput{
 				Email:    tt.email,
 				Password: tt.password,

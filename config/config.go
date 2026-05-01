@@ -62,6 +62,8 @@ type ServerConfig struct {
 	Env         string
 	GinMode     string // "release", "debug", "test" — default: "" (debug)
 	MaxBodySize int64  // Max request body size in bytes (0 = default 1MB)
+	// TrustedProxies is a comma-separated list of CIDR ranges trusted to set X-Forwarded-For
+	TrustedProxies string
 }
 
 type IdempotencyConfig struct {
@@ -173,10 +175,11 @@ func Load() (*Config, error) {
 
 	return &Config{
 		Server: ServerConfig{
-			Port:        getEnv("SERVER_PORT", "8080"),
-			Env:         getEnv("APP_ENV", "development"),
-			GinMode:     getEnv("GIN_MODE", ""),
-			MaxBodySize: int64(getEnvInt("HTTP_MAX_BODY_SIZE", 1<<20)), // default 1MB
+			Port:           getEnv("SERVER_PORT", "8080"),
+			Env:            getEnv("APP_ENV", "development"),
+			GinMode:        getEnv("GIN_MODE", ""),
+			MaxBodySize:    int64(getEnvInt("HTTP_MAX_BODY_SIZE", 1<<20)), // default 1MB
+			TrustedProxies: getEnv("HTTP_TRUSTED_PROXIES", ""),
 		},
 		DB: DBConfig{
 			Host:     getEnv("DB_HOST", "localhost"),

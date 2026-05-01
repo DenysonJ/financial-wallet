@@ -107,6 +107,25 @@ func (r *UserRepository) FindByID(ctx context.Context, id vo.ID) (*userdomain.Us
 	return dbModel.toUser()
 }
 
+func (r *UserRepository) FindActiveByID(ctx context.Context, id vo.ID) (*userdomain.User, error) {
+	query := `
+		SELECT id, name, email, password_hash, active, created_at, updated_at
+		FROM users
+		WHERE id = $1 AND active = true
+	`
+
+	var dbModel userDB
+	selectErr := r.reader.GetContext(ctx, &dbModel, query, id.String())
+	if selectErr != nil {
+		if errors.Is(selectErr, sql.ErrNoRows) {
+			return nil, userdomain.ErrUserNotFound
+		}
+		return nil, selectErr
+	}
+
+	return dbModel.toUser()
+}
+
 func (r *UserRepository) FindByEmail(ctx context.Context, email vo.Email) (*userdomain.User, error) {
 	query := `
 		SELECT id, name, email, password_hash, active, created_at, updated_at

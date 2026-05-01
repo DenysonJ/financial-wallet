@@ -1,7 +1,9 @@
 package router
 
 import (
+	"log/slog"
 	"net/http"
+	"strings"
 	"time"
 
 	"github.com/gin-gonic/gin"
@@ -30,6 +32,9 @@ type Config struct {
 	RateLimitWindow    time.Duration
 	RateLimitAuthReqs  int
 	RateLimitAuthWin   time.Duration
+	// TrustedProxies is a comma-separated list of CIDR ranges trusted to set
+	// X-Forwarded-For (e.g. "10.0.0.0/8,192.168.0.0/16"). Empty = trust none
+	TrustedProxies string
 }
 
 // Dependencies agrupa todas as dependências necessárias para o router
@@ -52,6 +57,11 @@ type Dependencies struct {
 // Setup configura e retorna o router Gin com todos os middlewares e rotas
 func Setup(deps Dependencies) *gin.Engine {
 	r := gin.New()
+
+	// Trusted proxies: by default Gin trusts every CIDR (0.0.0.0/0), which
+	// makes c.ClientIP() honor X-Forwarded-For from anyone — letting an
+	// attacker spoof per-IP rate-limit keys and idempotency namespaces.
+	configureTrustedProxies(r, deps.Config.TrustedProxies)
 
 	// Recovery middleware (panic recovery)
 	r.Use(gin.Recovery())
@@ -90,12 +100,13 @@ func Setup(deps Dependencies) *gin.Engine {
 		authGroup := r.Group("/auth")
 		if deps.Config.RateLimitEnabled && deps.RateLimitStore != nil {
 			authGroup.Use(middleware.RateLimit(middleware.RateLimitConfig{
-				Store:  deps.RateLimitStore,
-				Limit:  deps.Config.RateLimitAuthReqs,
-				Window: deps.Config.RateLimitAuthWin,
+				Store:      deps.RateLimitStore,
+				Limit:      deps.Config.RateLimitAuthReqs,
+				Window:     deps.Config.RateLimitAuthWin,
+				FailClosed: true,
 			}))
 		}
-		RegisterAuthRoutes(r, deps.AuthHandler)
+		RegisterAuthRoutes(authGroup, deps.AuthHandler)
 	}
 
 	// Protected routes (auth required if SERVICE_KEYS is configured)
@@ -139,6 +150,33 @@ func Setup(deps Dependencies) *gin.Engine {
 	RegisterRoleRoutes(roleGroup, deps.RoleHandler, deps.PermissionLoader)
 
 	return r
+}
+
+// configureTrustedProxies parses the comma-separated CIDR list and applies it
+// to the engine. An empty list trusts no proxies. A parse error logs a warning
+// and falls back to trusting nothing — safer than the wide-open default.
+func configureTrustedProxies(r *gin.Engine, raw string) {
+	cidrs := splitAndTrim(raw)
+	if setErr := r.SetTrustedProxies(cidrs); setErr != nil {
+		slog.Warn("invalid HTTP_TRUSTED_PROXIES, falling back to no trusted proxies",
+			"error", setErr.Error(), "value", raw)
+		_ = r.SetTrustedProxies(nil)
+	}
+}
+
+// splitAndTrim splits raw by comma and drops empty entries.
+func splitAndTrim(raw string) []string {
+	if raw == "" {
+		return nil
+	}
+	parts := strings.Split(raw, ",")
+	out := make([]string, 0, len(parts))
+	for _, p := range parts {
+		if trimmed := strings.TrimSpace(p); trimmed != "" {
+			out = append(out, trimmed)
+		}
+	}
+	return out
 }
 
 // registerSwaggerRoutes registra rotas do Swagger

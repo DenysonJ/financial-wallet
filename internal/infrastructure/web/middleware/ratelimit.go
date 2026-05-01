@@ -16,6 +16,11 @@ type RateLimitConfig struct {
 	Store  ratelimit.Store
 	Limit  int
 	Window time.Duration
+	// FailClosed makes the middleware reject requests with 503 when the store
+	// is unreachable. Use it on brute-force-sensitive routes (e.g. /auth/*)
+	FailClosed bool
+	// UnmatchedKey is used for requests where Gin couldn't match a route
+	UnmatchedKey string
 }
 
 // RateLimit returns a middleware that enforces rate limiting per IP+method+route.
@@ -25,19 +30,30 @@ type RateLimitConfig struct {
 //   - Checks rate limit via Store.Allow (Redis-backed)
 //   - Sets RateLimit-Limit, RateLimit-Remaining, RateLimit-Reset headers
 //   - Returns 429 Too Many Requests if limit exceeded
-//   - Fail-open: if store returns error, logs warning and allows request
+//   - On store error: 503 if FailClosed, else logs warning and allows the request
 func RateLimit(cfg RateLimitConfig) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		clientIP := c.ClientIP()
 		route := c.FullPath()
 		if route == "" {
-			route = c.Request.URL.Path
+			unmatched := cfg.UnmatchedKey
+			if unmatched == "" {
+				unmatched = "unmatched"
+			}
+			route = unmatched
 		}
 
 		key := fmt.Sprintf("ratelimit:%s:%s:%s", clientIP, c.Request.Method, route)
 
 		result, allowErr := cfg.Store.Allow(c.Request.Context(), key, cfg.Limit, cfg.Window)
 		if allowErr != nil {
+			if cfg.FailClosed {
+				logutil.LogError(c.Request.Context(), "rate limit store unavailable, failing closed",
+					"error", allowErr.Error(), "client_ip", clientIP, "route", route)
+				httpgin.SendError(c, http.StatusServiceUnavailable, "service temporarily unavailable")
+				c.Abort()
+				return
+			}
 			logutil.LogWarn(c.Request.Context(), "rate limit store unavailable, proceeding without",
 				"error", allowErr.Error(), "client_ip", clientIP)
 			c.Next()

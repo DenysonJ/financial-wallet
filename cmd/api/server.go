@@ -348,7 +348,7 @@ func buildDependencies(cluster *database.DBCluster, sqlxWriter, sqlxReader *sqlx
 	// --- Auth Use Cases ---
 	var authHandler *handler.AuthHandler
 	tokenAdapter := infraauth.NewJWTTokenAdapter(jwtService)
-	loginUC := authuc.NewLoginUseCase(repo, tokenAdapter)
+	loginUC := authuc.NewLoginUseCase(repo, tokenAdapter).WithBcryptCost(cfg.JWT.BcryptCost)
 	refreshUC := authuc.NewRefreshUseCase(tokenAdapter)
 	authHandler = handler.NewAuthHandler(loginUC, refreshUC)
 
@@ -396,6 +396,7 @@ func buildDependencies(cluster *database.DBCluster, sqlxWriter, sqlxReader *sqlx
 			RateLimitWindow:    rlWindow,
 			RateLimitAuthReqs:  cfg.RateLimit.AuthRequests,
 			RateLimitAuthWin:   rlAuthWin,
+			TrustedProxies:     cfg.Server.TrustedProxies,
 		},
 	}
 }

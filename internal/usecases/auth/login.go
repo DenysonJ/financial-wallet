@@ -2,9 +2,11 @@ package auth
 
 import (
 	"context"
+	"crypto/rand"
 
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/attribute"
+	"golang.org/x/crypto/bcrypt"
 
 	userdomain "github.com/DenysonJ/financial-wallet/internal/domain/user"
 	"github.com/DenysonJ/financial-wallet/internal/domain/user/vo"
@@ -16,16 +18,51 @@ import (
 
 // LoginUseCase implementa o caso de uso de login.
 type LoginUseCase struct {
-	repo  interfaces.UserRepository
-	token interfaces.TokenService
+	repo       interfaces.UserRepository
+	token      interfaces.TokenService
+	bcryptCost int
+	// dummyHash is compared against in failure branches (user-not-found,
+	// inactive, no password) so the request's CPU profile matches the success
+	// path's bcrypt verification — preventing a timing oracle for email
+	// enumeration. The plaintext is random and discarded; no real password
+	// matches it.
+	dummyHash []byte
 }
 
 // NewLoginUseCase cria uma nova instância do LoginUseCase.
 func NewLoginUseCase(repo interfaces.UserRepository, token interfaces.TokenService) *LoginUseCase {
-	return &LoginUseCase{
-		repo:  repo,
-		token: token,
+	uc := &LoginUseCase{
+		repo:       repo,
+		token:      token,
+		bcryptCost: vo.DefaultBcryptCost,
 	}
+	uc.dummyHash = generateDummyHash(uc.bcryptCost)
+	return uc
+}
+
+// WithBcryptCost sets a custom bcrypt cost (builder pattern). Must match the
+// cost used to hash real passwords; otherwise the dummy comparison would not
+// equalize the timing profile.
+func (uc *LoginUseCase) WithBcryptCost(cost int) *LoginUseCase {
+	uc.bcryptCost = cost
+	uc.dummyHash = generateDummyHash(cost)
+	return uc
+}
+
+// generateDummyHash builds a bcrypt hash over an unrecoverable random secret.
+func generateDummyHash(cost int) []byte {
+	if cost < bcrypt.MinCost || cost > bcrypt.MaxCost {
+		cost = vo.DefaultBcryptCost
+	}
+	secret := make([]byte, 32)
+	if _, randErr := rand.Read(secret); randErr != nil {
+		secret = []byte("login-dummy-secret-fallback-32by")
+	}
+	hash, hashErr := bcrypt.GenerateFromPassword(secret, cost)
+	if hashErr != nil {
+		hash, _ = bcrypt.GenerateFromPassword(secret, vo.DefaultBcryptCost)
+	}
+	return hash
 }
 
 // Execute autentica um usuário por email e senha, retornando tokens JWT.
@@ -46,6 +83,7 @@ func (uc *LoginUseCase) Execute(ctx context.Context, input dto.LoginInput) (*dto
 
 	emailVO, emailErr := vo.NewEmail(input.Email)
 	if emailErr != nil {
+		uc.equalizeTiming(input.Password)
 		telemetry.WarnSpan(span, attribute.String("app.result", "invalid_credentials"))
 		logutil.LogWarn(ctx, "login failed")
 		return nil, userdomain.ErrInvalidCredentials
@@ -57,6 +95,7 @@ func (uc *LoginUseCase) Execute(ctx context.Context, input dto.LoginInput) (*dto
 	// distinguish a real DB/dep failure from a "user not found" outcome.
 	e, findErr := uc.repo.FindByEmail(ctx, emailVO)
 	if findErr != nil {
+		uc.equalizeTiming(input.Password)
 		if telemetry.IsExpected(findErr) {
 			telemetry.WarnSpan(span, attribute.String("app.result", "invalid_credentials"))
 			logutil.LogWarn(ctx, "login failed")
@@ -68,12 +107,14 @@ func (uc *LoginUseCase) Execute(ctx context.Context, input dto.LoginInput) (*dto
 	}
 
 	if !e.Active {
+		uc.equalizeTiming(input.Password)
 		telemetry.WarnSpan(span, attribute.String("app.result", "invalid_credentials"))
 		logutil.LogWarn(ctx, "login failed")
 		return nil, userdomain.ErrInvalidCredentials
 	}
 
 	if e.PasswordHash == "" {
+		uc.equalizeTiming(input.Password)
 		telemetry.WarnSpan(span, attribute.String("app.result", "invalid_credentials"))
 		logutil.LogWarn(ctx, "login failed")
 		return nil, userdomain.ErrInvalidCredentials
@@ -107,4 +148,10 @@ func (uc *LoginUseCase) Execute(ctx context.Context, input dto.LoginInput) (*dto
 		AccessToken:  accessToken,
 		RefreshToken: refreshToken,
 	}, nil
+}
+
+// equalizeTiming runs a bcrypt compare against the dummy hash so login failure
+// branches consume CPU comparable to a real password verification
+func (uc *LoginUseCase) equalizeTiming(password string) {
+	_ = bcrypt.CompareHashAndPassword(uc.dummyHash, []byte(password))
 }

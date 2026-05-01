@@ -72,7 +72,7 @@ func (h *AccountHandler) Create(c *gin.Context) {
 	}
 	req.UserID = userID
 
-	span.SetAttributes(attribute.String("account.name", req.Name), attribute.String("account.type", req.Type))
+	span.SetAttributes(attribute.String("account.type", req.Type))
 
 	res, execErr := h.createUC.Execute(ctx, req)
 	if execErr != nil {
