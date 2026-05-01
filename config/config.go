@@ -327,6 +327,18 @@ func (c *Config) Validate() error {
 		return fmt.Errorf("HTTP_MAX_BODY_SIZE must be >= 0, got %d", c.Server.MaxBodySize)
 	}
 
+	// Permissions cache TTL: cap so role revocation can't lag for hours.
+	const maxPermissionsTTL = 15 * time.Minute
+	if c.Redis.PermissionsTTL != "" {
+		permTTL, parseErr := time.ParseDuration(c.Redis.PermissionsTTL)
+		if parseErr != nil {
+			return fmt.Errorf("REDIS_PERMISSIONS_TTL=%q is not a valid duration: %w", c.Redis.PermissionsTTL, parseErr)
+		}
+		if permTTL > maxPermissionsTTL {
+			return fmt.Errorf("REDIS_PERMISSIONS_TTL=%s exceeds the safe upper bound (%s); role revocation would lag too long", permTTL, maxPermissionsTTL)
+		}
+	}
+
 	return nil
 }
 

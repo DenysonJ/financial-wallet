@@ -18,7 +18,7 @@ import (
 
 func makeUserWithPassword(t *testing.T) *userdomain.User {
 	t.Helper()
-	pw, hashErr := vo.NewPassword("Str0ng!Pass", 4)
+	pw, hashErr := vo.NewPassword("Str0ng!Passw", 4)
 	assert.NoError(t, hashErr)
 	return &userdomain.User{
 		ID:           vo.NewID(),
@@ -50,7 +50,7 @@ func TestLoginUseCase_Execute(t *testing.T) {
 				token.On("GenerateRefreshToken", user.ID.String()).Return("refresh-token", nil)
 			},
 			email:      "test@example.com",
-			password:   "Str0ng!Pass",
+			password:   "Str0ng!Passw",
 			wantTokens: true,
 		},
 		{
@@ -59,7 +59,7 @@ func TestLoginUseCase_Execute(t *testing.T) {
 				repo.On("FindByEmail", mock.Anything, mock.Anything).Return(nil, userdomain.ErrUserNotFound)
 			},
 			email:    "notfound@example.com",
-			password: "Str0ng!Pass",
+			password: "Str0ng!Passw",
 			wantErr:  userdomain.ErrInvalidCredentials,
 		},
 		{
@@ -68,7 +68,7 @@ func TestLoginUseCase_Execute(t *testing.T) {
 				repo.On("FindByEmail", mock.Anything, mock.Anything).Return(user, nil)
 			},
 			email:    "test@example.com",
-			password: "WrongPass1!",
+			password: "WrongPassw1!",
 			wantErr:  userdomain.ErrInvalidCredentials,
 		},
 		{
@@ -78,7 +78,7 @@ func TestLoginUseCase_Execute(t *testing.T) {
 			},
 			mutateUser: func(user *userdomain.User) { user.Active = false },
 			email:      "test@example.com",
-			password:   "Str0ng!Pass",
+			password:   "Str0ng!Passw",
 			wantErr:    userdomain.ErrInvalidCredentials,
 		},
 		{
@@ -88,7 +88,7 @@ func TestLoginUseCase_Execute(t *testing.T) {
 			},
 			mutateUser: func(user *userdomain.User) { user.PasswordHash = "" },
 			email:      "test@example.com",
-			password:   "Str0ng!Pass",
+			password:   "Str0ng!Passw",
 			wantErr:    userdomain.ErrInvalidCredentials,
 		},
 		{
@@ -97,7 +97,7 @@ func TestLoginUseCase_Execute(t *testing.T) {
 				// no mock setup needed — validation fails before repo call
 			},
 			email:    "not-an-email",
-			password: "Str0ng!Pass",
+			password: "Str0ng!Passw",
 			wantErr:  userdomain.ErrInvalidCredentials,
 		},
 		{
@@ -107,7 +107,7 @@ func TestLoginUseCase_Execute(t *testing.T) {
 				token.On("GenerateAccessToken", user.ID.String()).Return("", errors.New("signing key error"))
 			},
 			email:      "test@example.com",
-			password:   "Str0ng!Pass",
+			password:   "Str0ng!Passw",
 			wantErrMsg: "signing key error",
 		},
 		{
@@ -118,7 +118,7 @@ func TestLoginUseCase_Execute(t *testing.T) {
 				token.On("GenerateRefreshToken", user.ID.String()).Return("", errors.New("refresh signing error"))
 			},
 			email:      "test@example.com",
-			password:   "Str0ng!Pass",
+			password:   "Str0ng!Passw",
 			wantErrMsg: "refresh signing error",
 		},
 	}

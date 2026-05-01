@@ -67,13 +67,16 @@ func (p Password) String() string {
 	return string(p)
 }
 
+// MinPasswordLength is the minimum password length, aligned with NIST SP 800-63B
+const MinPasswordLength = 12
+
 // ValidatePasswordStrength checks that a password meets complexity requirements:
-// - At least 8 characters
-// - At least 1 letter
-// - At least 1 number
-// - At least 1 special character
+//   - At least MinPasswordLength characters
+//   - At least 1 letter
+//   - At least 1 number
+//   - At least 1 special character
 func ValidatePasswordStrength(plain string) error {
-	if len(plain) < 8 {
+	if len(plain) < MinPasswordLength {
 		return ErrPasswordTooShort
 	}
 

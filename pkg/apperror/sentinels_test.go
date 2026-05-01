@@ -7,7 +7,7 @@ import (
 	"github.com/DenysonJ/financial-wallet/pkg/apperror"
 )
 
-func TestRegister_AppendsToDomainSentinels(t *testing.T) {
+func TestRegister_GivenSentinels_WhenCalled_ThenAppendsToGlobalList(t *testing.T) {
 	before := len(apperror.DomainSentinels)
 	// Restore the registry so test-only sentinels don't leak into later tests
 	// that assert the handler-populated domain set.

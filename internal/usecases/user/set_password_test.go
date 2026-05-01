@@ -40,8 +40,8 @@ func TestSetPasswordUseCase_Execute(t *testing.T) {
 				repo.On("FindByID", mock.Anything, userID).Return(makeUser(userID, ""), nil)
 				repo.On("UpdatePassword", mock.Anything, userID, mock.AnythingOfType("string")).Return(nil)
 			},
-			password:   "Str0ng!Pass",
-			confirm:    "Str0ng!Pass",
+			password:   "Str0ng!Passw",
+			confirm:    "Str0ng!Passw",
 			wantErr:    nil,
 			wantUpdate: true,
 		},
@@ -50,8 +50,8 @@ func TestSetPasswordUseCase_Execute(t *testing.T) {
 			setupMock: func(repo *useruci.MockRepository, userID vo.ID) {
 				repo.On("FindByID", mock.Anything, userID).Return(makeUser(userID, "$2a$12$existinghash"), nil)
 			},
-			password: "Str0ng!Pass",
-			confirm:  "Str0ng!Pass",
+			password: "Str0ng!Passw",
+			confirm:  "Str0ng!Passw",
 			wantErr:  userdomain.ErrPasswordAlreadySet,
 		},
 		{
@@ -59,8 +59,8 @@ func TestSetPasswordUseCase_Execute(t *testing.T) {
 			setupMock: func(repo *useruci.MockRepository, userID vo.ID) {
 				repo.On("FindByID", mock.Anything, userID).Return(makeUser(userID, ""), nil)
 			},
-			password: "Str0ng!Pass",
-			confirm:  "Different1!",
+			password: "Str0ng!Passw",
+			confirm:  "DifferentPa1!",
 			wantErr:  userdomain.ErrPasswordMismatch,
 		},
 		{
@@ -77,8 +77,8 @@ func TestSetPasswordUseCase_Execute(t *testing.T) {
 			setupMock: func(repo *useruci.MockRepository, userID vo.ID) {
 				repo.On("FindByID", mock.Anything, userID).Return(nil, userdomain.ErrUserNotFound)
 			},
-			password: "Str0ng!Pass",
-			confirm:  "Str0ng!Pass",
+			password: "Str0ng!Passw",
+			confirm:  "Str0ng!Passw",
 			wantErr:  userdomain.ErrUserNotFound,
 		},
 	}

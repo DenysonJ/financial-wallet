@@ -15,11 +15,11 @@ import (
 // RoleHandler agrupa todos os handlers relacionados a Role.
 // Segue o padrão de injeção de dependência (UseCases injetados via struct).
 type RoleHandler struct {
-	CreateUC *roleuc.CreateUseCase
-	ListUC   *roleuc.ListUseCase
-	DeleteUC *roleuc.DeleteUseCase
-	AssignUC *roleuc.AssignRoleUseCase
-	RevokeUC *roleuc.RevokeRoleUseCase
+	createUC *roleuc.CreateUseCase
+	listUC   *roleuc.ListUseCase
+	deleteUC *roleuc.DeleteUseCase
+	assignUC *roleuc.AssignRoleUseCase
+	revokeUC *roleuc.RevokeRoleUseCase
 }
 
 // NewRoleHandler cria um novo RoleHandler com todos os use cases.
@@ -31,11 +31,11 @@ func NewRoleHandler(
 	revokeUC *roleuc.RevokeRoleUseCase,
 ) *RoleHandler {
 	return &RoleHandler{
-		CreateUC: createUC,
-		ListUC:   listUC,
-		DeleteUC: deleteUC,
-		AssignUC: assignUC,
-		RevokeUC: revokeUC,
+		createUC: createUC,
+		listUC:   listUC,
+		deleteUC: deleteUC,
+		assignUC: assignUC,
+		revokeUC: revokeUC,
 	}
 }
 
@@ -69,7 +69,7 @@ func (h *RoleHandler) Create(c *gin.Context) {
 		attribute.String("role.name", req.Name),
 	)
 
-	res, execErr := h.CreateUC.Execute(ctx, req)
+	res, execErr := h.createUC.Execute(ctx, req)
 	if execErr != nil {
 		HandleError(c, execErr)
 		return
@@ -112,7 +112,7 @@ func (h *RoleHandler) List(c *gin.Context) {
 		attribute.Int("filter.limit", req.Limit),
 	)
 
-	res, execErr := h.ListUC.Execute(ctx, req)
+	res, execErr := h.listUC.Execute(ctx, req)
 	if execErr != nil {
 		HandleError(c, execErr)
 		return
@@ -143,7 +143,7 @@ func (h *RoleHandler) Delete(c *gin.Context) {
 	id := c.Param("id")
 	span.SetAttributes(attribute.String("role.id", id))
 
-	res, execErr := h.DeleteUC.Execute(ctx, dto.DeleteInput{ID: id})
+	res, execErr := h.deleteUC.Execute(ctx, dto.DeleteInput{ID: id})
 	if execErr != nil {
 		HandleError(c, execErr)
 		return
@@ -186,7 +186,7 @@ func (h *RoleHandler) AssignRole(c *gin.Context) {
 
 	span.SetAttributes(attribute.String("user.id", req.UserID))
 
-	execErr := h.AssignUC.Execute(ctx, req)
+	execErr := h.assignUC.Execute(ctx, req)
 	if execErr != nil {
 		HandleError(c, execErr)
 		return
@@ -228,7 +228,7 @@ func (h *RoleHandler) RevokeRole(c *gin.Context) {
 
 	span.SetAttributes(attribute.String("user.id", req.UserID))
 
-	execErr := h.RevokeUC.Execute(ctx, req)
+	execErr := h.revokeUC.Execute(ctx, req)
 	if execErr != nil {
 		HandleError(c, execErr)
 		return

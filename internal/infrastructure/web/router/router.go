@@ -35,6 +35,7 @@ type Config struct {
 	// TrustedProxies is a comma-separated list of CIDR ranges trusted to set
 	// X-Forwarded-For (e.g. "10.0.0.0/8,192.168.0.0/16"). Empty = trust none
 	TrustedProxies string
+	Env            string
 }
 
 // Dependencies agrupa todas as dependências necessárias para o router
@@ -58,9 +59,8 @@ type Dependencies struct {
 func Setup(deps Dependencies) *gin.Engine {
 	r := gin.New()
 
-	// Trusted proxies: by default Gin trusts every CIDR (0.0.0.0/0), which
-	// makes c.ClientIP() honor X-Forwarded-For from anyone — letting an
-	// attacker spoof per-IP rate-limit keys and idempotency namespaces.
+	// Gin defaults to trusting every CIDR; restrict so X-Forwarded-For from
+	// untrusted hops can't spoof c.ClientIP for rate-limit/idempotency keys.
 	configureTrustedProxies(r, deps.Config.TrustedProxies)
 
 	// Recovery middleware (panic recovery)
@@ -152,9 +152,8 @@ func Setup(deps Dependencies) *gin.Engine {
 	return r
 }
 
-// configureTrustedProxies parses the comma-separated CIDR list and applies it
-// to the engine. An empty list trusts no proxies. A parse error logs a warning
-// and falls back to trusting nothing — safer than the wide-open default.
+// configureTrustedProxies applies the CIDR list; on parse error falls back to
+// no trusted proxies (safer than the Gin default of trusting all).
 func configureTrustedProxies(r *gin.Engine, raw string) {
 	cidrs := splitAndTrim(raw)
 	if setErr := r.SetTrustedProxies(cidrs); setErr != nil {
@@ -204,7 +203,10 @@ func registerHealthRoutes(r *gin.Engine, deps Dependencies) {
 		if !healthy {
 			result["status"] = "not ready"
 		}
-		result["checks"] = statuses
+		// Outside dev, hide dependency names from the public probe.
+		if deps.Config.Env == "development" {
+			result["checks"] = statuses
+		}
 
 		status := http.StatusOK
 		if !healthy {

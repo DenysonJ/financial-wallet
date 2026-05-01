@@ -3,7 +3,7 @@
 -- Statements table (append-only financial ledger)
 CREATE TABLE statements (
     id UUID PRIMARY KEY,
-    account_id UUID NOT NULL REFERENCES accounts(id),
+    account_id UUID NOT NULL REFERENCES accounts(id) ON DELETE NO ACTION,
     type VARCHAR(10) NOT NULL CHECK (type IN ('credit', 'debit')),
     amount BIGINT NOT NULL CHECK (amount > 0),
     description TEXT NOT NULL DEFAULT '',

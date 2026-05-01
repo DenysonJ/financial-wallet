@@ -17,11 +17,8 @@ import (
 const ContextKeyPermissions = "user_permissions"
 const ContextKeyRoles = "user_roles"
 
-// permissionErrorClass maps a permission-loader error to a bounded vocabulary
-// suitable for log shipping (Loki/OTel). Raw error strings are kept on the
-// active span via FailSpan, where they remain useful for debugging without
-// leaking implementation details into log indexes that may have weaker access
-// controls.
+// permissionErrorClass maps a loader error to a bounded vocabulary for logs;
+// raw error strings remain on the span via FailSpan.
 func permissionErrorClass(err error) string {
 	switch {
 	case err == nil:

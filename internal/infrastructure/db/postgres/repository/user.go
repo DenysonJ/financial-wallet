@@ -243,12 +243,6 @@ func (r *UserRepository) List(ctx context.Context, filter userdomain.ListFilter)
 }
 
 func (r *UserRepository) Update(ctx context.Context, e *userdomain.User) error {
-	tx, txErr := r.writer.BeginTxx(ctx, nil)
-	if txErr != nil {
-		return fmt.Errorf("beginning transaction: %w", txErr)
-	}
-	defer func() { _ = tx.Rollback() }()
-
 	query := `
 		UPDATE users SET
 			name = :name,
@@ -259,7 +253,7 @@ func (r *UserRepository) Update(ctx context.Context, e *userdomain.User) error {
 	`
 
 	dbModel := fromDomainUser(e)
-	result, execErr := tx.NamedExecContext(ctx, query, dbModel)
+	result, execErr := r.writer.NamedExecContext(ctx, query, dbModel)
 	if execErr != nil {
 		return execErr
 	}
@@ -271,11 +265,6 @@ func (r *UserRepository) Update(ctx context.Context, e *userdomain.User) error {
 
 	if rowsAffected == 0 {
 		return userdomain.ErrUserNotFound
-	}
-
-	commitErr := tx.Commit()
-	if commitErr != nil {
-		return fmt.Errorf("committing transaction: %w", commitErr)
 	}
 
 	return nil

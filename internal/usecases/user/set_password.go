@@ -88,7 +88,9 @@ func (uc *SetPasswordUseCase) Execute(ctx context.Context, input dto.SetPassword
 	}
 
 	telemetry.OkSpan(span)
-	logutil.LogInfo(ctx, "password set", "user.id", input.UserID)
+	logutil.LogInfo(ctx, "password set",
+		"audit", "password_set",
+		"user.id", input.UserID)
 
 	return nil
 }

@@ -12,65 +12,69 @@ import (
 	"github.com/stretchr/testify/mock"
 )
 
-func TestCreateUseCase_Execute_Success(t *testing.T) {
-	// Arrange
-	mockRepo := useruci.NewMockRepository(t)
-	mockRepo.On("Create", mock.Anything, mock.AnythingOfType("*user.User")).Return(nil)
-
-	uc := NewCreateUseCase(mockRepo)
-	input := dto.CreateInput{
-		Name:  "João Silva",
-		Email: "joao@example.com",
+func TestCreateUseCase_Execute(t *testing.T) {
+	tests := []struct {
+		name            string
+		input           dto.CreateInput
+		setupMock       func(repo *useruci.MockRepository)
+		wantErr         error
+		wantErrContains string
+		wantOutput      bool
+	}{
+		{
+			name:  "GIVEN valid input WHEN executing THEN succeeds",
+			input: dto.CreateInput{Name: "João Silva", Email: "joao@example.com"},
+			setupMock: func(repo *useruci.MockRepository) {
+				repo.On("Create", mock.Anything, mock.AnythingOfType("*user.User")).Return(nil)
+			},
+			wantOutput: true,
+		},
+		{
+			name:  "GIVEN invalid email WHEN executing THEN returns ErrInvalidEmail",
+			input: dto.CreateInput{Name: "João Silva", Email: "invalid-email"},
+			setupMock: func(_ *useruci.MockRepository) {
+				// no repo call expected
+			},
+			wantErr: vo.ErrInvalidEmail,
+		},
+		{
+			name:  "GIVEN repository failure WHEN executing THEN propagates error",
+			input: dto.CreateInput{Name: "João Silva", Email: "joao@example.com"},
+			setupMock: func(repo *useruci.MockRepository) {
+				repo.On("Create", mock.Anything, mock.AnythingOfType("*user.User")).
+					Return(errors.New("database connection failed"))
+			},
+			wantErrContains: "database connection failed",
+		},
 	}
 
-	// Act
-	output, err := uc.Execute(context.Background(), input)
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			mockRepo := useruci.NewMockRepository(t)
+			tt.setupMock(mockRepo)
 
-	// Assert
-	assert.NoError(t, err)
-	assert.NotNil(t, output)
-	assert.NotEmpty(t, output.ID)
-	assert.NotEmpty(t, output.CreatedAt)
-	mockRepo.AssertExpectations(t)
-}
+			uc := NewCreateUseCase(mockRepo)
+			output, execErr := uc.Execute(context.Background(), tt.input)
 
-func TestCreateUseCase_Execute_InvalidEmail(t *testing.T) {
-	// Arrange
-	mockRepo := useruci.NewMockRepository(t)
-	uc := NewCreateUseCase(mockRepo)
-	input := dto.CreateInput{
-		Name:  "João Silva",
-		Email: "invalid-email",
+			switch {
+			case tt.wantErr != nil:
+				assert.ErrorIs(t, execErr, tt.wantErr)
+				assert.Nil(t, output)
+			case tt.wantErrContains != "":
+				assert.Error(t, execErr)
+				assert.Contains(t, execErr.Error(), tt.wantErrContains)
+				assert.Nil(t, output)
+			default:
+				assert.NoError(t, execErr)
+			}
+
+			if tt.wantOutput {
+				assert.NotNil(t, output)
+				assert.NotEmpty(t, output.ID)
+				assert.NotEmpty(t, output.CreatedAt)
+			}
+
+			mockRepo.AssertExpectations(t)
+		})
 	}
-
-	// Act
-	output, err := uc.Execute(context.Background(), input)
-
-	// Assert
-	assert.Error(t, err)
-	assert.Nil(t, output)
-	assert.True(t, errors.Is(err, vo.ErrInvalidEmail), "expected ErrInvalidEmail")
-	mockRepo.AssertNotCalled(t, "Create")
-}
-
-func TestCreateUseCase_Execute_RepositoryError(t *testing.T) {
-	// Arrange
-	mockRepo := useruci.NewMockRepository(t)
-	mockRepo.On("Create", mock.Anything, mock.AnythingOfType("*user.User")).
-		Return(errors.New("database connection failed"))
-
-	uc := NewCreateUseCase(mockRepo)
-	input := dto.CreateInput{
-		Name:  "João Silva",
-		Email: "joao@example.com",
-	}
-
-	// Act
-	output, err := uc.Execute(context.Background(), input)
-
-	// Assert
-	assert.Error(t, err)
-	assert.Nil(t, output)
-	assert.Contains(t, err.Error(), "database connection failed")
-	mockRepo.AssertExpectations(t)
 }

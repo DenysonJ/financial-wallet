@@ -14,8 +14,8 @@ import (
 
 // PasswordHandler agrupa os handlers de gerenciamento de senha.
 type PasswordHandler struct {
-	SetPasswordUC    *useruc.SetPasswordUseCase
-	ChangePasswordUC *useruc.ChangePasswordUseCase
+	setPasswordUC    *useruc.SetPasswordUseCase
+	changePasswordUC *useruc.ChangePasswordUseCase
 }
 
 // NewPasswordHandler cria um novo PasswordHandler.
@@ -24,8 +24,8 @@ func NewPasswordHandler(
 	changePasswordUC *useruc.ChangePasswordUseCase,
 ) *PasswordHandler {
 	return &PasswordHandler{
-		SetPasswordUC:    setPasswordUC,
-		ChangePasswordUC: changePasswordUC,
+		setPasswordUC:    setPasswordUC,
+		changePasswordUC: changePasswordUC,
 	}
 }
 
@@ -56,7 +56,7 @@ func (h *PasswordHandler) SetPassword(c *gin.Context) {
 		return
 	}
 
-	execErr := h.SetPasswordUC.Execute(ctx, req)
+	execErr := h.setPasswordUC.Execute(ctx, req)
 	if execErr != nil {
 		HandleError(c, execErr)
 		return
@@ -104,7 +104,7 @@ func (h *PasswordHandler) ChangePassword(c *gin.Context) {
 	}
 	req.UserID = userIDStr
 
-	execErr := h.ChangePasswordUC.Execute(ctx, req)
+	execErr := h.changePasswordUC.Execute(ctx, req)
 	if execErr != nil {
 		HandleError(c, execErr)
 		return

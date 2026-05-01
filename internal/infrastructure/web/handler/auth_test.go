@@ -42,7 +42,7 @@ func setupAuthRouter(h *AuthHandler) *gin.Engine {
 
 func newTestUser() *userdomain.User {
 	email, _ := uservo.NewEmail("test@example.com")
-	pw, _ := uservo.NewPassword("P@ssw0rd!", 4) // low cost for tests
+	pw, _ := uservo.NewPassword("P@ssw0rd!Long", 4) // low cost for tests
 	hash := pw.String()
 	return &userdomain.User{
 		ID:           uservo.NewID(),
@@ -69,7 +69,7 @@ func TestAuthHandler_Login(t *testing.T) {
 	}{
 		{
 			name: "success",
-			body: map[string]string{"email": "test@example.com", "password": "P@ssw0rd!"},
+			body: map[string]string{"email": "test@example.com", "password": "P@ssw0rd!Long"},
 			setupMock: func(m *authuci.MockUserRepository, tok *authuci.MockTokenService, u *userdomain.User) {
 				m.On("FindByEmail", mock.Anything, mock.AnythingOfType("vo.Email")).Return(u, nil)
 				tok.On("GenerateAccessToken", u.ID.String()).Return("access-token", nil)
@@ -86,7 +86,7 @@ func TestAuthHandler_Login(t *testing.T) {
 		},
 		{
 			name: "missing email",
-			body: map[string]string{"password": "P@ssw0rd!"},
+			body: map[string]string{"password": "P@ssw0rd!Long"},
 			setupMock: func(m *authuci.MockUserRepository, tok *authuci.MockTokenService, u *userdomain.User) {
 			},
 			wantStatus: http.StatusBadRequest,
@@ -94,7 +94,7 @@ func TestAuthHandler_Login(t *testing.T) {
 		},
 		{
 			name: "user not found returns 401",
-			body: map[string]string{"email": "unknown@example.com", "password": "P@ssw0rd!"},
+			body: map[string]string{"email": "unknown@example.com", "password": "P@ssw0rd!Long"},
 			setupMock: func(m *authuci.MockUserRepository, tok *authuci.MockTokenService, u *userdomain.User) {
 				m.On("FindByEmail", mock.Anything, mock.AnythingOfType("vo.Email")).Return(nil, userdomain.ErrUserNotFound)
 			},
@@ -112,7 +112,7 @@ func TestAuthHandler_Login(t *testing.T) {
 		},
 		{
 			name: "inactive user returns 401",
-			body: map[string]string{"email": "test@example.com", "password": "P@ssw0rd!"},
+			body: map[string]string{"email": "test@example.com", "password": "P@ssw0rd!Long"},
 			setupMock: func(m *authuci.MockUserRepository, tok *authuci.MockTokenService, u *userdomain.User) {
 				inactiveUser := *u
 				inactiveUser.Active = false

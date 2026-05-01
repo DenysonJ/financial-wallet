@@ -397,6 +397,7 @@ func buildDependencies(cluster *database.DBCluster, sqlxWriter, sqlxReader *sqlx
 			RateLimitAuthReqs:  cfg.RateLimit.AuthRequests,
 			RateLimitAuthWin:   rlAuthWin,
 			TrustedProxies:     cfg.Server.TrustedProxies,
+			Env:                cfg.Server.Env,
 		},
 	}
 }

@@ -21,11 +21,8 @@ type LoginUseCase struct {
 	repo       interfaces.UserRepository
 	token      interfaces.TokenService
 	bcryptCost int
-	// dummyHash is compared against in failure branches (user-not-found,
-	// inactive, no password) so the request's CPU profile matches the success
-	// path's bcrypt verification — preventing a timing oracle for email
-	// enumeration. The plaintext is random and discarded; no real password
-	// matches it.
+	// dummyHash equalizes bcrypt CPU cost on failure branches to prevent
+	// timing-based email enumeration.
 	dummyHash []byte
 }
 
@@ -40,9 +37,8 @@ func NewLoginUseCase(repo interfaces.UserRepository, token interfaces.TokenServi
 	return uc
 }
 
-// WithBcryptCost sets a custom bcrypt cost (builder pattern). Must match the
-// cost used to hash real passwords; otherwise the dummy comparison would not
-// equalize the timing profile.
+// WithBcryptCost sets the bcrypt cost (builder pattern). Must match the cost
+// used to hash real passwords or the dummy compare won't equalize timing.
 func (uc *LoginUseCase) WithBcryptCost(cost int) *LoginUseCase {
 	uc.bcryptCost = cost
 	uc.dummyHash = generateDummyHash(cost)
@@ -89,10 +85,8 @@ func (uc *LoginUseCase) Execute(ctx context.Context, input dto.LoginInput) (*dto
 		return nil, userdomain.ErrInvalidCredentials
 	}
 
-	// Login keeps an explicit IsExpected branch (instead of ClassifyError) so the
-	// expected arm logs without error details — preventing a credential oracle
-	// via logs. The unexpected arm uses a specific span msg so alert rules can
-	// distinguish a real DB/dep failure from a "user not found" outcome.
+	// Explicit IsExpected branch (not ClassifyError): the expected arm must
+	// not log error details to avoid a credential oracle via logs.
 	e, findErr := uc.repo.FindByEmail(ctx, emailVO)
 	if findErr != nil {
 		uc.equalizeTiming(input.Password)
