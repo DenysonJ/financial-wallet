@@ -25,6 +25,63 @@ func (_m *MockRepository) EXPECT() *MockRepository_Expecter {
 	return &MockRepository_Expecter{mock: &_m.Mock}
 }
 
+// CountByCategory provides a mock function with given fields: ctx, categoryID
+func (_m *MockRepository) CountByCategory(ctx context.Context, categoryID vo.ID) (int, error) {
+	ret := _m.Called(ctx, categoryID)
+
+	if len(ret) == 0 {
+		panic("no return value specified for CountByCategory")
+	}
+
+	var r0 int
+	var r1 error
+	if rf, ok := ret.Get(0).(func(context.Context, vo.ID) (int, error)); ok {
+		return rf(ctx, categoryID)
+	}
+	if rf, ok := ret.Get(0).(func(context.Context, vo.ID) int); ok {
+		r0 = rf(ctx, categoryID)
+	} else {
+		r0 = ret.Get(0).(int)
+	}
+
+	if rf, ok := ret.Get(1).(func(context.Context, vo.ID) error); ok {
+		r1 = rf(ctx, categoryID)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// MockRepository_CountByCategory_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'CountByCategory'
+type MockRepository_CountByCategory_Call struct {
+	*mock.Call
+}
+
+// CountByCategory is a helper method to define mock.On call
+//   - ctx context.Context
+//   - categoryID vo.ID
+func (_e *MockRepository_Expecter) CountByCategory(ctx interface{}, categoryID interface{}) *MockRepository_CountByCategory_Call {
+	return &MockRepository_CountByCategory_Call{Call: _e.mock.On("CountByCategory", ctx, categoryID)}
+}
+
+func (_c *MockRepository_CountByCategory_Call) Run(run func(ctx context.Context, categoryID vo.ID)) *MockRepository_CountByCategory_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(context.Context), args[1].(vo.ID))
+	})
+	return _c
+}
+
+func (_c *MockRepository_CountByCategory_Call) Return(_a0 int, _a1 error) *MockRepository_CountByCategory_Call {
+	_c.Call.Return(_a0, _a1)
+	return _c
+}
+
+func (_c *MockRepository_CountByCategory_Call) RunAndReturn(run func(context.Context, vo.ID) (int, error)) *MockRepository_CountByCategory_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // Create provides a mock function with given fields: ctx, stmt, accountID
 func (_m *MockRepository) Create(ctx context.Context, stmt *statement.Statement, accountID vo.ID) (int64, error) {
 	ret := _m.Called(ctx, stmt, accountID)
@@ -79,6 +136,64 @@ func (_c *MockRepository_Create_Call) Return(_a0 int64, _a1 error) *MockReposito
 }
 
 func (_c *MockRepository_Create_Call) RunAndReturn(run func(context.Context, *statement.Statement, vo.ID) (int64, error)) *MockRepository_Create_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// CreateBatch provides a mock function with given fields: ctx, stmts, accountID
+func (_m *MockRepository) CreateBatch(ctx context.Context, stmts []*statement.Statement, accountID vo.ID) (int64, error) {
+	ret := _m.Called(ctx, stmts, accountID)
+
+	if len(ret) == 0 {
+		panic("no return value specified for CreateBatch")
+	}
+
+	var r0 int64
+	var r1 error
+	if rf, ok := ret.Get(0).(func(context.Context, []*statement.Statement, vo.ID) (int64, error)); ok {
+		return rf(ctx, stmts, accountID)
+	}
+	if rf, ok := ret.Get(0).(func(context.Context, []*statement.Statement, vo.ID) int64); ok {
+		r0 = rf(ctx, stmts, accountID)
+	} else {
+		r0 = ret.Get(0).(int64)
+	}
+
+	if rf, ok := ret.Get(1).(func(context.Context, []*statement.Statement, vo.ID) error); ok {
+		r1 = rf(ctx, stmts, accountID)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// MockRepository_CreateBatch_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'CreateBatch'
+type MockRepository_CreateBatch_Call struct {
+	*mock.Call
+}
+
+// CreateBatch is a helper method to define mock.On call
+//   - ctx context.Context
+//   - stmts []*statement.Statement
+//   - accountID vo.ID
+func (_e *MockRepository_Expecter) CreateBatch(ctx interface{}, stmts interface{}, accountID interface{}) *MockRepository_CreateBatch_Call {
+	return &MockRepository_CreateBatch_Call{Call: _e.mock.On("CreateBatch", ctx, stmts, accountID)}
+}
+
+func (_c *MockRepository_CreateBatch_Call) Run(run func(ctx context.Context, stmts []*statement.Statement, accountID vo.ID)) *MockRepository_CreateBatch_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(context.Context), args[1].([]*statement.Statement), args[2].(vo.ID))
+	})
+	return _c
+}
+
+func (_c *MockRepository_CreateBatch_Call) Return(_a0 int64, _a1 error) *MockRepository_CreateBatch_Call {
+	_c.Call.Return(_a0, _a1)
+	return _c
+}
+
+func (_c *MockRepository_CreateBatch_Call) RunAndReturn(run func(context.Context, []*statement.Statement, vo.ID) (int64, error)) *MockRepository_CreateBatch_Call {
 	_c.Call.Return(run)
 	return _c
 }
@@ -138,6 +253,66 @@ func (_c *MockRepository_FindByID_Call) Return(_a0 *statement.Statement, _a1 err
 }
 
 func (_c *MockRepository_FindByID_Call) RunAndReturn(run func(context.Context, vo.ID) (*statement.Statement, error)) *MockRepository_FindByID_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// FindExternalIDs provides a mock function with given fields: ctx, accountID, externalIDs
+func (_m *MockRepository) FindExternalIDs(ctx context.Context, accountID vo.ID, externalIDs []string) (map[string]bool, error) {
+	ret := _m.Called(ctx, accountID, externalIDs)
+
+	if len(ret) == 0 {
+		panic("no return value specified for FindExternalIDs")
+	}
+
+	var r0 map[string]bool
+	var r1 error
+	if rf, ok := ret.Get(0).(func(context.Context, vo.ID, []string) (map[string]bool, error)); ok {
+		return rf(ctx, accountID, externalIDs)
+	}
+	if rf, ok := ret.Get(0).(func(context.Context, vo.ID, []string) map[string]bool); ok {
+		r0 = rf(ctx, accountID, externalIDs)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(map[string]bool)
+		}
+	}
+
+	if rf, ok := ret.Get(1).(func(context.Context, vo.ID, []string) error); ok {
+		r1 = rf(ctx, accountID, externalIDs)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// MockRepository_FindExternalIDs_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'FindExternalIDs'
+type MockRepository_FindExternalIDs_Call struct {
+	*mock.Call
+}
+
+// FindExternalIDs is a helper method to define mock.On call
+//   - ctx context.Context
+//   - accountID vo.ID
+//   - externalIDs []string
+func (_e *MockRepository_Expecter) FindExternalIDs(ctx interface{}, accountID interface{}, externalIDs interface{}) *MockRepository_FindExternalIDs_Call {
+	return &MockRepository_FindExternalIDs_Call{Call: _e.mock.On("FindExternalIDs", ctx, accountID, externalIDs)}
+}
+
+func (_c *MockRepository_FindExternalIDs_Call) Run(run func(ctx context.Context, accountID vo.ID, externalIDs []string)) *MockRepository_FindExternalIDs_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(context.Context), args[1].(vo.ID), args[2].([]string))
+	})
+	return _c
+}
+
+func (_c *MockRepository_FindExternalIDs_Call) Return(_a0 map[string]bool, _a1 error) *MockRepository_FindExternalIDs_Call {
+	_c.Call.Return(_a0, _a1)
+	return _c
+}
+
+func (_c *MockRepository_FindExternalIDs_Call) RunAndReturn(run func(context.Context, vo.ID, []string) (map[string]bool, error)) *MockRepository_FindExternalIDs_Call {
 	_c.Call.Return(run)
 	return _c
 }
@@ -258,62 +433,100 @@ func (_c *MockRepository_List_Call) RunAndReturn(run func(context.Context, state
 	return _c
 }
 
-// CreateBatch provides a mock function with given fields: ctx, stmts, accountID
-func (_m *MockRepository) CreateBatch(ctx context.Context, stmts []*statement.Statement, accountID vo.ID) (int64, error) {
-	ret := _m.Called(ctx, stmts, accountID)
+// ReplaceTags provides a mock function with given fields: ctx, statementID, tagIDs
+func (_m *MockRepository) ReplaceTags(ctx context.Context, statementID vo.ID, tagIDs []vo.ID) error {
+	ret := _m.Called(ctx, statementID, tagIDs)
 
 	if len(ret) == 0 {
-		panic("no return value specified for CreateBatch")
+		panic("no return value specified for ReplaceTags")
 	}
 
-	var r0 int64
-	var r1 error
-	if rf, ok := ret.Get(0).(func(context.Context, []*statement.Statement, vo.ID) (int64, error)); ok {
-		return rf(ctx, stmts, accountID)
-	}
-	if rf, ok := ret.Get(0).(func(context.Context, []*statement.Statement, vo.ID) int64); ok {
-		r0 = rf(ctx, stmts, accountID)
+	var r0 error
+	if rf, ok := ret.Get(0).(func(context.Context, vo.ID, []vo.ID) error); ok {
+		r0 = rf(ctx, statementID, tagIDs)
 	} else {
-		r0 = ret.Get(0).(int64)
+		r0 = ret.Error(0)
 	}
 
-	if rf, ok := ret.Get(1).(func(context.Context, []*statement.Statement, vo.ID) error); ok {
-		r1 = rf(ctx, stmts, accountID)
-	} else {
-		r1 = ret.Error(1)
-	}
-
-	return r0, r1
+	return r0
 }
 
-// FindExternalIDs provides a mock function with given fields: ctx, accountID, externalIDs
-func (_m *MockRepository) FindExternalIDs(ctx context.Context, accountID vo.ID, externalIDs []string) (map[string]bool, error) {
-	ret := _m.Called(ctx, accountID, externalIDs)
+// MockRepository_ReplaceTags_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'ReplaceTags'
+type MockRepository_ReplaceTags_Call struct {
+	*mock.Call
+}
+
+// ReplaceTags is a helper method to define mock.On call
+//   - ctx context.Context
+//   - statementID vo.ID
+//   - tagIDs []vo.ID
+func (_e *MockRepository_Expecter) ReplaceTags(ctx interface{}, statementID interface{}, tagIDs interface{}) *MockRepository_ReplaceTags_Call {
+	return &MockRepository_ReplaceTags_Call{Call: _e.mock.On("ReplaceTags", ctx, statementID, tagIDs)}
+}
+
+func (_c *MockRepository_ReplaceTags_Call) Run(run func(ctx context.Context, statementID vo.ID, tagIDs []vo.ID)) *MockRepository_ReplaceTags_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(context.Context), args[1].(vo.ID), args[2].([]vo.ID))
+	})
+	return _c
+}
+
+func (_c *MockRepository_ReplaceTags_Call) Return(_a0 error) *MockRepository_ReplaceTags_Call {
+	_c.Call.Return(_a0)
+	return _c
+}
+
+func (_c *MockRepository_ReplaceTags_Call) RunAndReturn(run func(context.Context, vo.ID, []vo.ID) error) *MockRepository_ReplaceTags_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// UpdateCategory provides a mock function with given fields: ctx, statementID, categoryID
+func (_m *MockRepository) UpdateCategory(ctx context.Context, statementID vo.ID, categoryID *vo.ID) error {
+	ret := _m.Called(ctx, statementID, categoryID)
 
 	if len(ret) == 0 {
-		panic("no return value specified for FindExternalIDs")
+		panic("no return value specified for UpdateCategory")
 	}
 
-	var r0 map[string]bool
-	var r1 error
-	if rf, ok := ret.Get(0).(func(context.Context, vo.ID, []string) (map[string]bool, error)); ok {
-		return rf(ctx, accountID, externalIDs)
-	}
-	if rf, ok := ret.Get(0).(func(context.Context, vo.ID, []string) map[string]bool); ok {
-		r0 = rf(ctx, accountID, externalIDs)
+	var r0 error
+	if rf, ok := ret.Get(0).(func(context.Context, vo.ID, *vo.ID) error); ok {
+		r0 = rf(ctx, statementID, categoryID)
 	} else {
-		if ret.Get(0) != nil {
-			r0 = ret.Get(0).(map[string]bool)
-		}
+		r0 = ret.Error(0)
 	}
 
-	if rf, ok := ret.Get(1).(func(context.Context, vo.ID, []string) error); ok {
-		r1 = rf(ctx, accountID, externalIDs)
-	} else {
-		r1 = ret.Error(1)
-	}
+	return r0
+}
 
-	return r0, r1
+// MockRepository_UpdateCategory_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'UpdateCategory'
+type MockRepository_UpdateCategory_Call struct {
+	*mock.Call
+}
+
+// UpdateCategory is a helper method to define mock.On call
+//   - ctx context.Context
+//   - statementID vo.ID
+//   - categoryID *vo.ID
+func (_e *MockRepository_Expecter) UpdateCategory(ctx interface{}, statementID interface{}, categoryID interface{}) *MockRepository_UpdateCategory_Call {
+	return &MockRepository_UpdateCategory_Call{Call: _e.mock.On("UpdateCategory", ctx, statementID, categoryID)}
+}
+
+func (_c *MockRepository_UpdateCategory_Call) Run(run func(ctx context.Context, statementID vo.ID, categoryID *vo.ID)) *MockRepository_UpdateCategory_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(context.Context), args[1].(vo.ID), args[2].(*vo.ID))
+	})
+	return _c
+}
+
+func (_c *MockRepository_UpdateCategory_Call) Return(_a0 error) *MockRepository_UpdateCategory_Call {
+	_c.Call.Return(_a0)
+	return _c
+}
+
+func (_c *MockRepository_UpdateCategory_Call) RunAndReturn(run func(context.Context, vo.ID, *vo.ID) error) *MockRepository_UpdateCategory_Call {
+	_c.Call.Return(run)
+	return _c
 }
 
 // NewMockRepository creates a new instance of MockRepository. It also registers a testing interface on the mock and a cleanup function to assert the mocks expectations.

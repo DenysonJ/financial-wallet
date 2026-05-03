@@ -6,9 +6,12 @@ import (
 
 	accountdomain "github.com/DenysonJ/financial-wallet/internal/domain/account"
 	accountvo "github.com/DenysonJ/financial-wallet/internal/domain/account/vo"
+	categorydomain "github.com/DenysonJ/financial-wallet/internal/domain/category"
+	categoryvo "github.com/DenysonJ/financial-wallet/internal/domain/category/vo"
 	roledomain "github.com/DenysonJ/financial-wallet/internal/domain/role"
 	stmtdomain "github.com/DenysonJ/financial-wallet/internal/domain/statement"
 	stmtvo "github.com/DenysonJ/financial-wallet/internal/domain/statement/vo"
+	tagdomain "github.com/DenysonJ/financial-wallet/internal/domain/tag"
 	userdomain "github.com/DenysonJ/financial-wallet/internal/domain/user"
 	uservo "github.com/DenysonJ/financial-wallet/internal/domain/user/vo"
 	"github.com/DenysonJ/financial-wallet/pkg/apperror"
@@ -80,6 +83,22 @@ var domainErrors = []struct {
 	{ofx.ErrNoTransactions, domainErrorMapping{http.StatusBadRequest, apperror.CodeInvalidRequest, "no transactions found in OFX file"}},
 	{ofx.ErrInvalidAmount, domainErrorMapping{http.StatusBadRequest, apperror.CodeInvalidRequest, "invalid amount in OFX file"}},
 	{ofx.ErrInvalidDate, domainErrorMapping{http.StatusBadRequest, apperror.CodeInvalidRequest, "invalid date in OFX file"}},
+	// Category domain errors
+	{categoryvo.ErrInvalidCategoryType, domainErrorMapping{http.StatusBadRequest, apperror.CodeInvalidRequest, "invalid category type"}},
+	{categorydomain.ErrCategoryInvalidName, domainErrorMapping{http.StatusBadRequest, apperror.CodeValidationError, "category name must not be empty"}},
+	{categorydomain.ErrCategoryNotFound, domainErrorMapping{http.StatusNotFound, apperror.CodeNotFound, "category not found"}},
+	{categorydomain.ErrCategoryDuplicate, domainErrorMapping{http.StatusConflict, apperror.CodeConflict, "category already exists"}},
+	{categorydomain.ErrCategoryReadOnly, domainErrorMapping{http.StatusForbidden, apperror.CodeForbidden, "system category is read-only"}},
+	{categorydomain.ErrCategoryInUse, domainErrorMapping{http.StatusConflict, apperror.CodeConflict, "category is in use by one or more statements"}},
+	{categorydomain.ErrCategoryTypeMismatch, domainErrorMapping{http.StatusUnprocessableEntity, apperror.CodeValidationError, "category type does not match statement type"}},
+	{categorydomain.ErrCategoryNotVisible, domainErrorMapping{http.StatusUnprocessableEntity, apperror.CodeValidationError, "category is not visible to the user"}},
+	// Tag domain errors
+	{tagdomain.ErrTagInvalidName, domainErrorMapping{http.StatusBadRequest, apperror.CodeValidationError, "tag name must not be empty"}},
+	{tagdomain.ErrTagNotFound, domainErrorMapping{http.StatusNotFound, apperror.CodeNotFound, "tag not found"}},
+	{tagdomain.ErrTagDuplicate, domainErrorMapping{http.StatusConflict, apperror.CodeConflict, "tag already exists"}},
+	{tagdomain.ErrTagReadOnly, domainErrorMapping{http.StatusForbidden, apperror.CodeForbidden, "system tag is read-only"}},
+	{tagdomain.ErrTagNotVisible, domainErrorMapping{http.StatusUnprocessableEntity, apperror.CodeValidationError, "tag is not visible to the user"}},
+	{tagdomain.ErrTagLimitExceeded, domainErrorMapping{http.StatusUnprocessableEntity, apperror.CodeValidationError, "tag limit per statement exceeded"}},
 }
 
 // init publishes every sentinel listed in domainErrors to

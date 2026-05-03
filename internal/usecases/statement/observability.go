@@ -13,8 +13,10 @@ const TracerKey = "usecase"
 // only apply to the statement domain. Kept local on purpose — ActionReverse
 // and ActionImport are not meaningful outside financial statements
 const (
-	ActionReverse = "reverse"
-	ActionImport  = "import"
+	ActionReverse        = "reverse"
+	ActionImport         = "import"
+	ActionUpdateCategory = "update_category"
+	ActionReplaceTags    = "replace_tags"
 )
 
 // injectLogContext enriches the context with structured logging fields for the use case layer.

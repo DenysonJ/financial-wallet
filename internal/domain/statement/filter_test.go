@@ -7,6 +7,7 @@ import (
 	"github.com/DenysonJ/financial-wallet/internal/domain/statement/vo"
 	pkgvo "github.com/DenysonJ/financial-wallet/pkg/vo"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func TestListFilter_Normalize(t *testing.T) {
@@ -87,4 +88,68 @@ func TestListFilter_WithOptionalFields(t *testing.T) {
 	assert.Equal(t, vo.TypeCredit, *f.Type)
 	assert.NotNil(t, f.DateFrom)
 	assert.NotNil(t, f.DateTo)
+}
+
+func TestListFilter_CategoryAndTagsFilter(t *testing.T) {
+	accountID := pkgvo.NewID()
+	categoryID := pkgvo.NewID()
+	tag1 := pkgvo.NewID()
+	tag2 := pkgvo.NewID()
+	debit := vo.TypeDebit
+
+	tests := []struct {
+		name           string
+		filter         ListFilter
+		wantCategoryID *pkgvo.ID
+		wantTagIDs     []pkgvo.ID
+		wantHasType    bool
+	}{
+		{
+			name:           "GIVEN zero-value filter WHEN inspected THEN no category/tag constraints",
+			filter:         ListFilter{AccountID: accountID},
+			wantCategoryID: nil,
+			wantTagIDs:     nil,
+		},
+		{
+			name:           "GIVEN CategoryID set WHEN inspected THEN pointer is propagated",
+			filter:         ListFilter{AccountID: accountID, CategoryID: &categoryID},
+			wantCategoryID: &categoryID,
+			wantTagIDs:     nil,
+		},
+		{
+			name:           "GIVEN TagIDs set WHEN inspected THEN slice is preserved in order",
+			filter:         ListFilter{AccountID: accountID, TagIDs: []pkgvo.ID{tag1, tag2}},
+			wantCategoryID: nil,
+			wantTagIDs:     []pkgvo.ID{tag1, tag2},
+		},
+		{
+			name: "GIVEN category + tags + type combined WHEN inspected THEN all three are present",
+			filter: ListFilter{
+				AccountID:  accountID,
+				Type:       &debit,
+				CategoryID: &categoryID,
+				TagIDs:     []pkgvo.ID{tag1},
+			},
+			wantCategoryID: &categoryID,
+			wantTagIDs:     []pkgvo.ID{tag1},
+			wantHasType:    true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			// Act + Assert
+			assert.Equal(t, accountID, tt.filter.AccountID)
+			if tt.wantCategoryID == nil {
+				assert.Nil(t, tt.filter.CategoryID)
+			} else {
+				require.NotNil(t, tt.filter.CategoryID)
+				assert.Equal(t, *tt.wantCategoryID, *tt.filter.CategoryID)
+			}
+			assert.Equal(t, tt.wantTagIDs, tt.filter.TagIDs)
+			if tt.wantHasType {
+				assert.NotNil(t, tt.filter.Type)
+			}
+		})
+	}
 }

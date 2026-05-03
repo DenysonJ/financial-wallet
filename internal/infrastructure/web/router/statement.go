@@ -29,3 +29,18 @@ func RegisterStatementRoutes(rg *gin.RouterGroup, h *handler.StatementHandler, l
 		middleware.RequireIdempotencyKey(idempotencyStore),
 		h.Reverse)
 }
+
+// RegisterStatementMetadataRoutes registers the metadata-mutation endpoints
+// (PATCH category, PUT tags). Top-level `/statements/:id/...` — not nested
+// under accounts — because category/tags edits are pure metadata mutations
+// that do not affect the account balance and have their own ownership flow
+// (statement → account → user). Idempotency keys are NOT required because
+// these operations are idempotent by definition
+func RegisterStatementMetadataRoutes(rg *gin.RouterGroup, h *handler.StatementMetadataHandler, loader middleware.PermissionLoader) {
+	rg.PATCH("/statements/:id/category",
+		middleware.RequirePermission(loader, "statement:write"),
+		h.UpdateCategory)
+	rg.PUT("/statements/:id/tags",
+		middleware.RequirePermission(loader, "statement:write"),
+		h.ReplaceTags)
+}

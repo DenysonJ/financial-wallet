@@ -38,6 +38,18 @@ packages:
     interfaces:
       Repository:
       AccountRepository:
+  github.com/DenysonJ/financial-wallet/internal/usecases/category/interfaces:
+    config:
+      dir: "internal/mocks/categoryuci"
+      outpkg: "categoryuci"
+    interfaces:
+      Repository:
+  github.com/DenysonJ/financial-wallet/internal/usecases/tag/interfaces:
+    config:
+      dir: "internal/mocks/taguci"
+      outpkg: "taguci"
+    interfaces:
+      Repository:
   github.com/DenysonJ/financial-wallet/internal/infrastructure/web/middleware:
     config:
       dir: "internal/mocks/middlewaremock"

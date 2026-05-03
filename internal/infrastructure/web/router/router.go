@@ -40,19 +40,22 @@ type Config struct {
 
 // Dependencies agrupa todas as dependências necessárias para o router
 type Dependencies struct {
-	HealthChecker    *health.Checker
-	UserHandler      *handler.UserHandler
-	RoleHandler      *handler.RoleHandler
-	AccountHandler   *handler.AccountHandler
-	StatementHandler *handler.StatementHandler
-	AuthHandler      *handler.AuthHandler
-	PasswordHandler  *handler.PasswordHandler
-	JWTService       interfaces.TokenService
-	PermissionLoader middleware.PermissionLoader
-	HTTPMetrics      *telemetry.HTTPMetrics
-	IdempotencyStore idempotency.Store
-	RateLimitStore   ratelimit.Store
-	Config           Config
+	HealthChecker            *health.Checker
+	UserHandler              *handler.UserHandler
+	RoleHandler              *handler.RoleHandler
+	AccountHandler           *handler.AccountHandler
+	StatementHandler         *handler.StatementHandler
+	StatementMetadataHandler *handler.StatementMetadataHandler
+	CategoryHandler          *handler.CategoryHandler
+	TagHandler               *handler.TagHandler
+	AuthHandler              *handler.AuthHandler
+	PasswordHandler          *handler.PasswordHandler
+	JWTService               interfaces.TokenService
+	PermissionLoader         middleware.PermissionLoader
+	HTTPMetrics              *telemetry.HTTPMetrics
+	IdempotencyStore         idempotency.Store
+	RateLimitStore           ratelimit.Store
+	Config                   Config
 }
 
 // Setup configura e retorna o router Gin com todos os middlewares e rotas
@@ -144,10 +147,31 @@ func Setup(deps Dependencies) *gin.Engine {
 		RegisterStatementRoutes(statementGroup, deps.StatementHandler, deps.PermissionLoader, deps.IdempotencyStore)
 	}
 
+	// Statement metadata routes: top-level /statements/:id/... — JWT auth.
+	if deps.StatementMetadataHandler != nil {
+		stmtMetaGroup := protected.Group("")
+		stmtMetaGroup.Use(middleware.JWTAuth(deps.JWTService))
+		RegisterStatementMetadataRoutes(stmtMetaGroup, deps.StatementMetadataHandler, deps.PermissionLoader)
+	}
+
 	// Role routes: Service Key + Admin JWT
 	roleGroup := protected.Group("")
 	roleGroup.Use(middleware.JWTAuth(deps.JWTService))
 	RegisterRoleRoutes(roleGroup, deps.RoleHandler, deps.PermissionLoader)
+
+	// Category routes: JWT authentication
+	if deps.CategoryHandler != nil {
+		categoryGroup := protected.Group("")
+		categoryGroup.Use(middleware.JWTAuth(deps.JWTService))
+		RegisterCategoryRoutes(categoryGroup, deps.CategoryHandler, deps.PermissionLoader)
+	}
+
+	// Tag routes: JWT authentication
+	if deps.TagHandler != nil {
+		tagGroup := protected.Group("")
+		tagGroup.Use(middleware.JWTAuth(deps.JWTService))
+		RegisterTagRoutes(tagGroup, deps.TagHandler, deps.PermissionLoader)
+	}
 
 	return r
 }

@@ -21,8 +21,10 @@ import (
 	"github.com/DenysonJ/financial-wallet/internal/infrastructure/web/router"
 	accountuc "github.com/DenysonJ/financial-wallet/internal/usecases/account"
 	authuc "github.com/DenysonJ/financial-wallet/internal/usecases/auth"
+	categoryuc "github.com/DenysonJ/financial-wallet/internal/usecases/category"
 	roleuc "github.com/DenysonJ/financial-wallet/internal/usecases/role"
 	stmtuc "github.com/DenysonJ/financial-wallet/internal/usecases/statement"
+	taguc "github.com/DenysonJ/financial-wallet/internal/usecases/tag"
 	useruc "github.com/DenysonJ/financial-wallet/internal/usecases/user"
 	"github.com/DenysonJ/financial-wallet/pkg/cache"
 	"github.com/DenysonJ/financial-wallet/pkg/cache/redisclient"
@@ -325,14 +327,37 @@ func buildDependencies(cluster *database.DBCluster, sqlxWriter, sqlxReader *sqlx
 	accountDeleteUC := accountuc.NewDeleteUseCase(accountRepo)
 	accountHandler := handler.NewAccountHandler(accountCreateUC, accountGetUC, accountListUC, accountUpdateUC, accountDeleteUC)
 
+	// --- Category Domain ---
+	categoryRepo := repository.NewCategoryRepository(sqlxWriter, sqlxReader)
+	categoryCreateUC := categoryuc.NewCreateUseCase(categoryRepo)
+	categoryListUC := categoryuc.NewListUseCase(categoryRepo)
+	categoryUpdateUC := categoryuc.NewUpdateUseCase(categoryRepo)
+	categoryDeleteUC := categoryuc.NewDeleteUseCase(categoryRepo)
+	categoryHandler := handler.NewCategoryHandler(categoryCreateUC, categoryListUC, categoryUpdateUC, categoryDeleteUC)
+
+	// --- Tag Domain ---
+	tagRepo := repository.NewTagRepository(sqlxWriter, sqlxReader)
+	tagCreateUC := taguc.NewCreateUseCase(tagRepo)
+	tagListUC := taguc.NewListUseCase(tagRepo)
+	tagUpdateUC := taguc.NewUpdateUseCase(tagRepo)
+	tagDeleteUC := taguc.NewDeleteUseCase(tagRepo)
+	tagHandler := handler.NewTagHandler(tagCreateUC, tagListUC, tagUpdateUC, tagDeleteUC)
+
 	// --- Statement Domain ---
 	stmtRepo := repository.NewStatementRepository(sqlxWriter, sqlxReader)
-	stmtCreateUC := stmtuc.NewCreateUseCase(stmtRepo, accountRepo)
+	stmtCreateUC := stmtuc.NewCreateUseCase(stmtRepo, accountRepo).
+		WithCategoryRepo(categoryRepo).
+		WithTagRepo(tagRepo)
 	stmtReverseUC := stmtuc.NewReverseUseCase(stmtRepo, accountRepo)
 	stmtGetUC := stmtuc.NewGetUseCase(stmtRepo, accountRepo)
 	stmtListUC := stmtuc.NewListUseCase(stmtRepo, accountRepo)
 	stmtImportUC := stmtuc.NewImportUseCase(stmtRepo, accountRepo, ofx.NewParser())
 	stmtHandler := handler.NewStatementHandler(stmtCreateUC, stmtReverseUC, stmtGetUC, stmtListUC, stmtImportUC)
+
+	// --- Statement Metadata ---
+	stmtUpdateCategoryUC := stmtuc.NewUpdateCategoryUseCase(stmtRepo, accountRepo, categoryRepo)
+	stmtReplaceTagsUC := stmtuc.NewReplaceTagsUseCase(stmtRepo, accountRepo, tagRepo)
+	stmtMetadataHandler := handler.NewStatementMetadataHandler(stmtUpdateCategoryUC, stmtReplaceTagsUC)
 
 	// --- JWT Service ---
 	var jwtService *pkgjwt.Service
@@ -374,18 +399,21 @@ func buildDependencies(cluster *database.DBCluster, sqlxWriter, sqlxReader *sqlx
 	permissionLoader := middleware.NewCachedPermissionLoader(&permissionRepoAdapter{repo: roleRepo}, permissionCache)
 
 	return router.Dependencies{
-		HealthChecker:    checker,
-		UserHandler:      userHandler,
-		RoleHandler:      roleHandler,
-		AccountHandler:   accountHandler,
-		StatementHandler: stmtHandler,
-		AuthHandler:      authHandler,
-		PasswordHandler:  passwordHandler,
-		JWTService:       tokenAdapter,
-		PermissionLoader: permissionLoader,
-		HTTPMetrics:      httpMetrics,
-		IdempotencyStore: idempotencyStore,
-		RateLimitStore:   rateLimitStore,
+		HealthChecker:            checker,
+		UserHandler:              userHandler,
+		RoleHandler:              roleHandler,
+		AccountHandler:           accountHandler,
+		StatementHandler:         stmtHandler,
+		StatementMetadataHandler: stmtMetadataHandler,
+		CategoryHandler:          categoryHandler,
+		TagHandler:               tagHandler,
+		AuthHandler:              authHandler,
+		PasswordHandler:          passwordHandler,
+		JWTService:               tokenAdapter,
+		PermissionLoader:         permissionLoader,
+		HTTPMetrics:              httpMetrics,
+		IdempotencyStore:         idempotencyStore,
+		RateLimitStore:           rateLimitStore,
 		Config: router.Config{
 			ServiceName:        cfg.Otel.ServiceName,
 			ServiceKeysEnabled: cfg.Auth.Enabled,
