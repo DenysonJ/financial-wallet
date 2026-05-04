@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"encoding/base64"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"strings"
@@ -17,18 +18,31 @@ import (
 	"github.com/lib/pq"
 )
 
-// statementDB is the database model for Statement.
+// statementDB is the database model for Statement, including hydrated
+// category + tags (LEFT JOIN + json_agg subselect).
 type statementDB struct {
-	ID           string    `db:"id"`
-	AccountID    string    `db:"account_id"`
-	Type         string    `db:"type"`
-	Amount       int64     `db:"amount"`
-	Description  string    `db:"description"`
-	ReferenceID  *string   `db:"reference_id"`
-	ExternalID   *string   `db:"external_id"`
-	BalanceAfter int64     `db:"balance_after"`
-	PostedAt     time.Time `db:"posted_at"`
-	CreatedAt    time.Time `db:"created_at"`
+	ID           string         `db:"id"`
+	AccountID    string         `db:"account_id"`
+	Type         string         `db:"type"`
+	Amount       int64          `db:"amount"`
+	Description  string         `db:"description"`
+	ReferenceID  *string        `db:"reference_id"`
+	ExternalID   *string        `db:"external_id"`
+	BalanceAfter int64          `db:"balance_after"`
+	PostedAt     time.Time      `db:"posted_at"`
+	CreatedAt    time.Time      `db:"created_at"`
+	CategoryID   sql.NullString `db:"category_id"`
+	// Hydrated columns from LEFT JOIN categories (NULL when CategoryID is NULL).
+	CategoryName sql.NullString `db:"category_name"`
+	CategoryType sql.NullString `db:"category_type"`
+	// json_agg result: '[{"id":"...","name":"..."}]' — never NULL (COALESCE in query).
+	TagsJSON []byte `db:"tags_json"`
+}
+
+// tagJSONRow models a single object inside tags_json.
+type tagJSONRow struct {
+	ID   string `json:"id"`
+	Name string `json:"name"`
 }
 
 func (s *statementDB) toStatement() (*stmtdomain.Statement, error) {
@@ -52,6 +66,7 @@ func (s *statementDB) toStatement() (*stmtdomain.Statement, error) {
 		BalanceAfter: s.BalanceAfter,
 		PostedAt:     s.PostedAt,
 		CreatedAt:    s.CreatedAt,
+		Tags:         []stmtdomain.TagRef{}, // never nil
 	}
 
 	if s.ReferenceID != nil {
@@ -60,6 +75,37 @@ func (s *statementDB) toStatement() (*stmtdomain.Statement, error) {
 			return nil, fmt.Errorf("parsing reference ID: %w", refErr)
 		}
 		stmt.ReferenceID = &refID
+	}
+
+	if s.CategoryID.Valid {
+		catID, catIDErr := pkgvo.ParseID(s.CategoryID.String)
+		if catIDErr != nil {
+			return nil, fmt.Errorf("parsing category ID: %w", catIDErr)
+		}
+		stmt.CategoryID = &catID
+		if s.CategoryName.Valid && s.CategoryType.Valid {
+			stmt.Category = &stmtdomain.CategoryRef{
+				ID:   catID,
+				Name: s.CategoryName.String,
+				Type: stmtvo.ParseStatementType(s.CategoryType.String),
+			}
+		}
+	}
+
+	if len(s.TagsJSON) > 0 && string(s.TagsJSON) != "[]" {
+		var rows []tagJSONRow
+		if jsonErr := json.Unmarshal(s.TagsJSON, &rows); jsonErr != nil {
+			return nil, fmt.Errorf("parsing tags_json: %w", jsonErr)
+		}
+		refs := make([]stmtdomain.TagRef, 0, len(rows))
+		for _, row := range rows {
+			tagID, tagIDErr := pkgvo.ParseID(row.ID)
+			if tagIDErr != nil {
+				return nil, fmt.Errorf("parsing tag ID: %w", tagIDErr)
+			}
+			refs = append(refs, stmtdomain.TagRef{ID: tagID, Name: row.Name})
+		}
+		stmt.Tags = refs
 	}
 
 	return stmt, nil
@@ -81,8 +127,31 @@ func fromDomainStatement(s *stmtdomain.Statement) statementDB {
 		ref := s.ReferenceID.String()
 		db.ReferenceID = &ref
 	}
+	if s.CategoryID != nil {
+		db.CategoryID = sql.NullString{String: s.CategoryID.String(), Valid: true}
+	}
 	return db
 }
+
+// statementSelectColumns is the canonical SELECT projection for hydrated reads.
+// Centralized so FindByID and List stay aligned.
+const statementSelectColumns = `
+	s.id, s.account_id, s.type, s.amount, s.description, s.reference_id, s.external_id,
+	s.balance_after, s.posted_at, s.created_at, s.category_id,
+	c.name AS category_name, c.type AS category_type,
+	COALESCE(
+		(SELECT json_agg(json_build_object('id', t.id, 'name', t.name) ORDER BY LOWER(t.name))
+		 FROM statement_tags st JOIN tags t ON t.id = st.tag_id
+		 WHERE st.statement_id = s.id),
+		'[]'::json
+	) AS tags_json
+`
+
+// statementSelectFrom is the canonical FROM + LEFT JOIN clause for hydrated reads.
+const statementSelectFrom = `
+	FROM statements s
+	LEFT JOIN categories c ON c.id = s.category_id
+`
 
 // StatementRepository implements the Repository interface for Statement.
 type StatementRepository struct {
@@ -130,14 +199,19 @@ func (r *StatementRepository) Create(ctx context.Context, stmt *stmtdomain.State
 	dbModel.BalanceAfter = newBalance
 	insertQuery := `
 		INSERT INTO statements (
-			id, account_id, type, amount, description, reference_id, external_id, balance_after, posted_at, created_at
+			id, account_id, type, amount, description, reference_id, external_id, balance_after, posted_at, created_at, category_id
 		) VALUES (
-			:id, :account_id, :type, :amount, :description, :reference_id, :external_id, :balance_after, :posted_at, :created_at
+			:id, :account_id, :type, :amount, :description, :reference_id, :external_id, :balance_after, :posted_at, :created_at, :category_id
 		)
 	`
 	_, insertErr := tx.NamedExecContext(ctx, insertQuery, dbModel)
 	if insertErr != nil {
 		return 0, fmt.Errorf("inserting statement: %w", insertErr)
+	}
+
+	// Insert tag associations (if any)
+	if tagsErr := insertStatementTagsTx(ctx, tx, stmt.ID, stmt.Tags); tagsErr != nil {
+		return 0, fmt.Errorf("inserting statement tags: %w", tagsErr)
 	}
 
 	// Update account balance
@@ -155,13 +229,26 @@ func (r *StatementRepository) Create(ctx context.Context, stmt *stmtdomain.State
 	return newBalance, nil
 }
 
-// FindByID returns a Statement by its ID.
+// insertStatementTagsTx inserts (statement_id, tag_id) rows for the given
+// statement inside an open transaction. No-op when refs is empty.
+func insertStatementTagsTx(ctx context.Context, tx *sqlx.Tx, statementID pkgvo.ID, refs []stmtdomain.TagRef) error {
+	if len(refs) == 0 {
+		return nil
+	}
+	placeholders := make([]string, 0, len(refs))
+	args := make([]interface{}, 0, len(refs)*2)
+	for i, ref := range refs {
+		placeholders = append(placeholders, fmt.Sprintf("($%d, $%d)", i*2+1, i*2+2))
+		args = append(args, statementID.String(), ref.ID.String())
+	}
+	query := "INSERT INTO statement_tags (statement_id, tag_id) VALUES " + strings.Join(placeholders, ",")
+	_, execErr := tx.ExecContext(ctx, query, args...)
+	return execErr
+}
+
+// FindByID returns a Statement by its ID, hydrated with category + tags.
 func (r *StatementRepository) FindByID(ctx context.Context, id pkgvo.ID) (*stmtdomain.Statement, error) {
-	query := `
-		SELECT id, account_id, type, amount, description, reference_id, external_id, balance_after, posted_at, created_at
-		FROM statements
-		WHERE id = $1
-	`
+	query := "SELECT " + statementSelectColumns + statementSelectFrom + " WHERE s.id = $1"
 
 	var dbModel statementDB
 	selectErr := r.reader.GetContext(ctx, &dbModel, query, id.String())
@@ -175,24 +262,38 @@ func (r *StatementRepository) FindByID(ctx context.Context, id pkgvo.ID) (*stmtd
 	return dbModel.toStatement()
 }
 
-// List returns a paginated list of Statements matching the filter.
+// List returns a paginated list of Statements matching the filter, hydrated
+// with category + tags via JOIN + json_agg.
 func (r *StatementRepository) List(ctx context.Context, filter stmtdomain.ListFilter) (*stmtdomain.ListResult, error) {
 	filter.Normalize()
 
-	conditions := []string{"account_id = :account_id"}
+	conditions := []string{"s.account_id = :account_id"}
 	args := map[string]interface{}{"account_id": filter.AccountID.String()}
 
 	if filter.Type != nil {
-		conditions = append(conditions, "type = :type")
+		conditions = append(conditions, "s.type = :type")
 		args["type"] = filter.Type.String()
 	}
 	if filter.DateFrom != nil {
-		conditions = append(conditions, "posted_at >= :date_from")
+		conditions = append(conditions, "s.posted_at >= :date_from")
 		args["date_from"] = *filter.DateFrom
 	}
 	if filter.DateTo != nil {
-		conditions = append(conditions, "posted_at <= :date_to")
+		conditions = append(conditions, "s.posted_at <= :date_to")
 		args["date_to"] = *filter.DateTo
+	}
+	if filter.CategoryID != nil {
+		conditions = append(conditions, "s.category_id = :category_id")
+		args["category_id"] = filter.CategoryID.String()
+	}
+	if len(filter.TagIDs) > 0 {
+		// Match statements that have ANY of the given tag IDs assigned.
+		tagStrs := make([]string, len(filter.TagIDs))
+		for i, id := range filter.TagIDs {
+			tagStrs[i] = id.String()
+		}
+		conditions = append(conditions, "EXISTS (SELECT 1 FROM statement_tags stf WHERE stf.statement_id = s.id AND stf.tag_id = ANY(:tag_ids))")
+		args["tag_ids"] = pq.Array(tagStrs)
 	}
 
 	whereClause := "WHERE " + strings.Join(conditions, " AND ")
@@ -205,7 +306,7 @@ func (r *StatementRepository) List(ctx context.Context, filter stmtdomain.ListFi
 	defer func() { _ = tx.Rollback() }()
 
 	// Count query
-	countQuery := fmt.Sprintf("SELECT COUNT(*) FROM statements %s", whereClause)
+	countQuery := fmt.Sprintf("SELECT COUNT(*) FROM statements s %s", whereClause)
 	countQuery, countArgs, namedErr := sqlx.Named(countQuery, args)
 	if namedErr != nil {
 		return nil, namedErr
@@ -223,26 +324,18 @@ func (r *StatementRepository) List(ctx context.Context, filter stmtdomain.ListFi
 
 	var dataQuery string
 	if filter.UseCursor() {
-		conditions = append(conditions, "(posted_at, id) < (:cursor_posted_at, :cursor_id)")
+		conditions = append(conditions, "(s.posted_at, s.id) < (:cursor_posted_at, :cursor_id)")
 		args["cursor_posted_at"] = *filter.CursorPostedAt
 		args["cursor_id"] = filter.CursorID.String()
 		cursorWhere := "WHERE " + strings.Join(conditions, " AND ")
-		dataQuery = fmt.Sprintf(`
-			SELECT id, account_id, type, amount, description, reference_id, external_id, balance_after, posted_at, created_at
-			FROM statements
-			%s
-			ORDER BY posted_at DESC, id DESC
-			LIMIT :limit
-		`, cursorWhere)
+		dataQuery = "SELECT " + statementSelectColumns + statementSelectFrom + cursorWhere + `
+			ORDER BY s.posted_at DESC, s.id DESC
+			LIMIT :limit`
 	} else {
 		args["offset"] = filter.Offset()
-		dataQuery = fmt.Sprintf(`
-			SELECT id, account_id, type, amount, description, reference_id, external_id, balance_after, posted_at, created_at
-			FROM statements
-			%s
-			ORDER BY posted_at DESC, id DESC
-			LIMIT :limit OFFSET :offset
-		`, whereClause)
+		dataQuery = "SELECT " + statementSelectColumns + statementSelectFrom + whereClause + `
+			ORDER BY s.posted_at DESC, s.id DESC
+			LIMIT :limit OFFSET :offset`
 	}
 
 	dataQuery, dataArgs, dataNamedErr := sqlx.Named(dataQuery, args)
@@ -330,7 +423,7 @@ func (r *StatementRepository) CreateBatch(ctx context.Context, stmts []*stmtdoma
 	}
 
 	// Compute running balance and prepare all DB models
-	const colCount = 10
+	const colCount = 11 // 10 + category_id
 	runningBalance := currentBalance
 	placeholders := make([]string, 0, len(stmts))
 	allArgs := make([]interface{}, 0, len(stmts)*colCount)
@@ -347,25 +440,40 @@ func (r *StatementRepository) CreateBatch(ctx context.Context, stmts []*stmtdoma
 		dbModel := fromDomainStatement(stmt)
 		dbModel.BalanceAfter = runningBalance
 
+		var categoryIDArg interface{}
+		if dbModel.CategoryID.Valid {
+			categoryIDArg = dbModel.CategoryID.String
+		} else {
+			categoryIDArg = nil
+		}
+
 		base := i * colCount
 		placeholders = append(placeholders, fmt.Sprintf(
-			"($%d,$%d,$%d,$%d,$%d,$%d,$%d,$%d,$%d,$%d)",
+			"($%d,$%d,$%d,$%d,$%d,$%d,$%d,$%d,$%d,$%d,$%d)",
 			base+1, base+2, base+3, base+4, base+5,
-			base+6, base+7, base+8, base+9, base+10,
+			base+6, base+7, base+8, base+9, base+10, base+11,
 		))
 		allArgs = append(allArgs,
 			dbModel.ID, dbModel.AccountID, dbModel.Type, dbModel.Amount,
 			dbModel.Description, dbModel.ReferenceID, dbModel.ExternalID,
 			dbModel.BalanceAfter, dbModel.PostedAt, dbModel.CreatedAt,
+			categoryIDArg,
 		)
 	}
 
-	insertQuery := "INSERT INTO statements (id, account_id, type, amount, description, reference_id, external_id, balance_after, posted_at, created_at) VALUES " +
+	insertQuery := "INSERT INTO statements (id, account_id, type, amount, description, reference_id, external_id, balance_after, posted_at, created_at, category_id) VALUES " +
 		strings.Join(placeholders, ",")
 
 	_, insertErr := tx.ExecContext(ctx, insertQuery, allArgs...)
 	if insertErr != nil {
 		return 0, fmt.Errorf("inserting statement batch: %w", insertErr)
+	}
+
+	// Insert tag associations for each statement (best-effort batch — small N).
+	for _, stmt := range stmts {
+		if tagsErr := insertStatementTagsTx(ctx, tx, stmt.ID, stmt.Tags); tagsErr != nil {
+			return 0, fmt.Errorf("inserting statement_tags: %w", tagsErr)
+		}
 	}
 
 	// Update account balance with final balance
@@ -403,4 +511,104 @@ func (r *StatementRepository) FindExternalIDs(ctx context.Context, accountID pkg
 		result[id] = true
 	}
 	return result, nil
+}
+
+// UpdateCategory sets (or clears with nil) the category of a statement.
+//
+// This query updates ONLY `category_id` and `updated_at`.
+// Accounting fields (amount, type, balance_after) are excluded
+// from the SET clause — account balance and downstream statements stay intact.
+func (r *StatementRepository) UpdateCategory(ctx context.Context, statementID pkgvo.ID, categoryID *pkgvo.ID) error {
+	var (
+		query string
+		args  []interface{}
+	)
+	if categoryID != nil {
+		query = `UPDATE statements SET category_id = $1 WHERE id = $2`
+		args = []interface{}{categoryID.String(), statementID.String()}
+	} else {
+		query = `UPDATE statements SET category_id = NULL WHERE id = $1`
+		args = []interface{}{statementID.String()}
+	}
+
+	result, execErr := r.writer.ExecContext(ctx, query, args...)
+	if execErr != nil {
+		if isForeignKeyViolation(execErr) {
+			// Race: category was deleted between use case visibility check and UPDATE.
+			return stmtdomain.ErrStatementNotFound
+		}
+		return fmt.Errorf("updating statement category: %w", execErr)
+	}
+
+	rows, rowsErr := result.RowsAffected()
+	if rowsErr != nil {
+		return rowsErr
+	}
+	if rows == 0 {
+		return stmtdomain.ErrStatementNotFound
+	}
+	return nil
+}
+
+// ReplaceTags replaces the entire tag set of a statement.
+// DELETE existing rows + INSERT new set, in a single transaction.
+// Empty tagIDs is valid — clears all tags.
+//
+// Does NOT touch the parent statement row — accounting invariants preserved.
+func (r *StatementRepository) ReplaceTags(ctx context.Context, statementID pkgvo.ID, tagIDs []pkgvo.ID) error {
+	tx, txErr := r.writer.BeginTxx(ctx, nil)
+	if txErr != nil {
+		return fmt.Errorf("beginning transaction: %w", txErr)
+	}
+	defer func() { _ = tx.Rollback() }()
+
+	// Verify the statement exists (defense — caller should have checked).
+	var exists bool
+	checkErr := tx.GetContext(ctx, &exists,
+		"SELECT EXISTS(SELECT 1 FROM statements WHERE id = $1)",
+		statementID.String(),
+	)
+	if checkErr != nil {
+		return fmt.Errorf("checking statement existence: %w", checkErr)
+	}
+	if !exists {
+		return stmtdomain.ErrStatementNotFound
+	}
+
+	if _, delErr := tx.ExecContext(ctx,
+		"DELETE FROM statement_tags WHERE statement_id = $1",
+		statementID.String(),
+	); delErr != nil {
+		return fmt.Errorf("deleting statement_tags: %w", delErr)
+	}
+
+	if len(tagIDs) > 0 {
+		refs := make([]stmtdomain.TagRef, 0, len(tagIDs))
+		for _, id := range tagIDs {
+			refs = append(refs, stmtdomain.TagRef{ID: id})
+		}
+		if insertErr := insertStatementTagsTx(ctx, tx, statementID, refs); insertErr != nil {
+			return fmt.Errorf("inserting statement_tags: %w", insertErr)
+		}
+	}
+
+	if commitErr := tx.Commit(); commitErr != nil {
+		return commitErr
+	}
+	return nil
+}
+
+// CountByCategory returns how many statements reference the given category.
+// Used by the category Delete use case to surface ErrCategoryInUse before
+// issuing the DELETE.
+func (r *StatementRepository) CountByCategory(ctx context.Context, categoryID pkgvo.ID) (int, error) {
+	var count int
+	queryErr := r.reader.GetContext(ctx, &count,
+		"SELECT COUNT(*) FROM statements WHERE category_id = $1",
+		categoryID.String(),
+	)
+	if queryErr != nil {
+		return 0, fmt.Errorf("counting statements by category: %w", queryErr)
+	}
+	return count, nil
 }

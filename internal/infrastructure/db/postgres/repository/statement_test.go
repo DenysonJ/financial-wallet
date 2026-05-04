@@ -51,7 +51,11 @@ func buildTestReversalStatement(referenceID pkgvo.ID) *stmtdomain.Statement {
 	}
 }
 
-var statementDBColumns = []string{"id", "account_id", "type", "amount", "description", "reference_id", "external_id", "balance_after", "posted_at", "created_at"}
+var statementDBColumns = []string{
+	"id", "account_id", "type", "amount", "description", "reference_id", "external_id",
+	"balance_after", "posted_at", "created_at",
+	"category_id", "category_name", "category_type", "tags_json",
+}
 
 // =============================================================================
 // Unit Tests for internal conversions
@@ -248,9 +252,9 @@ func TestStatementRepository_Create(t *testing.T) {
 			} else {
 				lockQuery.WillReturnRows(sqlmock.NewRows([]string{"balance"}).AddRow(tt.balance))
 
-				// Insert
+				// Insert (11 columns including category_id)
 				insertExec := mock.ExpectExec("INSERT INTO statements").
-					WithArgs(sqlmock.AnyArg(), sqlmock.AnyArg(), sqlmock.AnyArg(), sqlmock.AnyArg(), sqlmock.AnyArg(), sqlmock.AnyArg(), sqlmock.AnyArg(), sqlmock.AnyArg(), sqlmock.AnyArg(), sqlmock.AnyArg())
+					WithArgs(sqlmock.AnyArg(), sqlmock.AnyArg(), sqlmock.AnyArg(), sqlmock.AnyArg(), sqlmock.AnyArg(), sqlmock.AnyArg(), sqlmock.AnyArg(), sqlmock.AnyArg(), sqlmock.AnyArg(), sqlmock.AnyArg(), sqlmock.AnyArg())
 				if tt.insertErr != nil {
 					insertExec.WillReturnError(tt.insertErr)
 					mock.ExpectRollback()
@@ -306,15 +310,15 @@ func TestStatementRepository_FindByID(t *testing.T) {
 			name: "given existing statement when finding by ID then returns it",
 			setupMock: func(mock sqlmock.Sqlmock) {
 				rows := sqlmock.NewRows(statementDBColumns).
-					AddRow(testID.String(), testAccountID.String(), "credit", int64(5000), "Salary", nil, nil, int64(15000), now, now)
-				mock.ExpectQuery("SELECT .+ FROM statements WHERE id").
+					AddRow(testID.String(), testAccountID.String(), "credit", int64(5000), "Salary", nil, nil, int64(15000), now, now, nil, nil, nil, []byte("[]"))
+				mock.ExpectQuery(`SELECT .+ FROM statements s\s+LEFT JOIN categories c ON c\.id = s\.category_id\s+WHERE s\.id`).
 					WithArgs(testID.String()).WillReturnRows(rows)
 			},
 		},
 		{
 			name: "given nonexistent ID when finding then returns not found",
 			setupMock: func(mock sqlmock.Sqlmock) {
-				mock.ExpectQuery("SELECT .+ FROM statements WHERE id").
+				mock.ExpectQuery(`SELECT .+ FROM statements s\s+LEFT JOIN categories c ON c\.id = s\.category_id\s+WHERE s\.id`).
 					WithArgs(testID.String()).WillReturnError(sql.ErrNoRows)
 			},
 			wantErr: stmtdomain.ErrStatementNotFound,
@@ -323,7 +327,7 @@ func TestStatementRepository_FindByID(t *testing.T) {
 		{
 			name: "given db failure when querying then returns error",
 			setupMock: func(mock sqlmock.Sqlmock) {
-				mock.ExpectQuery("SELECT .+ FROM statements WHERE id").
+				mock.ExpectQuery(`SELECT .+ FROM statements s\s+LEFT JOIN categories c ON c\.id = s\.category_id\s+WHERE s\.id`).
 					WithArgs(testID.String()).WillReturnError(sql.ErrConnDone)
 			},
 			wantErr: sql.ErrConnDone,
@@ -380,11 +384,11 @@ func TestStatementRepository_List(t *testing.T) {
 			filter: stmtdomain.ListFilter{AccountID: testAccountID, Page: 1, Limit: 20},
 			setupMock: func(mock sqlmock.Sqlmock) {
 				mock.ExpectBegin()
-				mock.ExpectQuery("SELECT COUNT\\(\\*\\) FROM statements WHERE account_id").
+				mock.ExpectQuery(`SELECT COUNT\(\*\) FROM statements s WHERE s\.account_id`).
 					WillReturnRows(sqlmock.NewRows([]string{"count"}).AddRow(1))
 				mock.ExpectQuery("SELECT .+ FROM statements").
 					WillReturnRows(sqlmock.NewRows(statementDBColumns).
-						AddRow(testID.String(), testAccountID.String(), "credit", int64(5000), "Salary", nil, nil, int64(15000), now, now))
+						AddRow(testID.String(), testAccountID.String(), "credit", int64(5000), "Salary", nil, nil, int64(15000), now, now, nil, nil, nil, []byte("[]")))
 				mock.ExpectCommit()
 			},
 			wantTotal: 1,
@@ -395,7 +399,7 @@ func TestStatementRepository_List(t *testing.T) {
 			filter: stmtdomain.ListFilter{AccountID: testAccountID, Page: 1, Limit: 20},
 			setupMock: func(mock sqlmock.Sqlmock) {
 				mock.ExpectBegin()
-				mock.ExpectQuery("SELECT COUNT\\(\\*\\) FROM statements WHERE account_id").
+				mock.ExpectQuery(`SELECT COUNT\(\*\) FROM statements s WHERE s\.account_id`).
 					WillReturnRows(sqlmock.NewRows([]string{"count"}).AddRow(0))
 				mock.ExpectQuery("SELECT .+ FROM statements").
 					WillReturnRows(sqlmock.NewRows(statementDBColumns))
