@@ -2,7 +2,7 @@
   "info": {
     "_postman_id": "f1a2c9d0-0000-4a1a-9b7e-financial-wallet",
     "name": "Financial Wallet API",
-    "description": "Postman collection covering all routes currently implemented in the financial-wallet microservice. Routes are grouped by domain (Health, Auth, Users, Roles, Accounts, Statements). Uses {{base_url}}, service key headers, JWT, randomized email/name, and post-response scripts to propagate IDs/tokens across requests.",
+    "description": "Postman collection covering all routes currently implemented in the financial-wallet microservice. Routes are grouped by domain (Health, Auth, Users, Roles, Accounts, Statements, Categories, Tags). Uses {{base_url}}, service key headers, JWT, randomized email/name, and post-response scripts to propagate IDs/tokens across requests.",
     "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
   },
   "variable": [
@@ -15,6 +15,9 @@
     { "key": "role_id", "value": "", "type": "string" },
     { "key": "account_id", "value": "", "type": "string" },
     { "key": "statement_id", "value": "", "type": "string" },
+    { "key": "category_id", "value": "", "type": "string" },
+    { "key": "tag_id", "value": "", "type": "string" },
+    { "key": "tag_id_2", "value": "", "type": "string" },
     { "key": "user_email", "value": "", "type": "string" },
     { "key": "user_password", "value": "Str0ngP@ssw0rd!", "type": "string" }
   ],
@@ -562,8 +565,14 @@
             ],
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"type\": \"credit\",\n  \"amount\": 12500,\n  \"description\": \"Salary deposit for {{random_name}}\",\n  \"posted_at\": \"{{$isoTimestamp}}\"\n}"
+              "raw": "{\n  \"type\": \"credit\",\n  \"amount\": 12500,\n  \"description\": \"Salary deposit for {{random_name}}\",\n  \"posted_at\": \"{{$isoTimestamp}}\",\n  \"category_id\": \"{{category_id}}\",\n  \"tag_ids\": [\"{{tag_id}}\"]\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
             },
+            "description": "category_id and tag_ids are optional. Category type must match statement type. tag_ids deduplicated; max 10.",
             "url": {
               "raw": "{{base_url}}/accounts/{{account_id}}/statements",
               "host": ["{{base_url}}"],
@@ -616,6 +625,8 @@
                 { "key": "type", "value": "", "disabled": true },
                 { "key": "date_from", "value": "", "disabled": true },
                 { "key": "date_to", "value": "", "disabled": true },
+                { "key": "category_id", "value": "{{category_id}}", "disabled": true, "description": "Filter by category (REQ-13)" },
+                { "key": "tag_ids", "value": "{{tag_id}}", "disabled": true, "description": "Filter by tag — repeat the param for multiple tags (REQ-13)" },
                 { "key": "cursor", "value": "", "disabled": true }
               ]
             }
@@ -649,10 +660,291 @@
               "mode": "raw",
               "raw": "{\n  \"description\": \"Reversal requested via Postman\"\n}"
             },
+            "description": "Reversal auto-applies the system default 'Estorno' category matching the reversed type. Tags are NOT inherited from the original.",
             "url": {
               "raw": "{{base_url}}/accounts/{{account_id}}/statements/{{statement_id}}/reverse",
               "host": ["{{base_url}}"],
               "path": ["accounts", "{{account_id}}", "statements", "{{statement_id}}", "reverse"]
+            }
+          }
+        },
+        {
+          "name": "Update Statement Category (set/swap/clear)",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Service-Name", "value": "{{service_name}}" },
+              { "key": "Service-Key", "value": "{{service_key}}" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"category_id\": \"{{category_id}}\"\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "description": "REQ-11: Set, swap, or clear (send {\"category_id\": null}) the category. Category type must match statement type. NEVER touches amount/type/balance_after.",
+            "url": {
+              "raw": "{{base_url}}/statements/{{statement_id}}/category",
+              "host": ["{{base_url}}"],
+              "path": ["statements", "{{statement_id}}", "category"]
+            }
+          }
+        },
+        {
+          "name": "Replace Statement Tags",
+          "request": {
+            "method": "PUT",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Service-Name", "value": "{{service_name}}" },
+              { "key": "Service-Key", "value": "{{service_key}}" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"tag_ids\": [\"{{tag_id}}\", \"{{tag_id_2}}\"]\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "description": "REQ-10: Replaces the entire tag set. Empty array clears all tags. Deduplicated; max 10. NEVER touches accounting fields.",
+            "url": {
+              "raw": "{{base_url}}/statements/{{statement_id}}/tags",
+              "host": ["{{base_url}}"],
+              "path": ["statements", "{{statement_id}}", "tags"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Categories",
+      "item": [
+        {
+          "name": "Create Category",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const json = pm.response.json();",
+                  "const data = json.data || json;",
+                  "if (data && data.id) {",
+                  "  pm.collectionVariables.set('category_id', data.id);",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Service-Name", "value": "{{service_name}}" },
+              { "key": "Service-Key", "value": "{{service_key}}" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Mercado-{{$randomInt}}\",\n  \"type\": \"debit\"\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "description": "Creates a user-scoped category. type must be 'credit' or 'debit' and is immutable after creation. Unique per (user_id, lower(name), type).",
+            "url": {
+              "raw": "{{base_url}}/categories",
+              "host": ["{{base_url}}"],
+              "path": ["categories"]
+            }
+          }
+        },
+        {
+          "name": "List Categories",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Service-Name", "value": "{{service_name}}" },
+              { "key": "Service-Key", "value": "{{service_key}}" }
+            ],
+            "description": "Returns the union of system defaults and the user's own categories. Optional filters: type (credit|debit) and scope (system|user).",
+            "url": {
+              "raw": "{{base_url}}/categories",
+              "host": ["{{base_url}}"],
+              "path": ["categories"],
+              "query": [
+                { "key": "type", "value": "debit", "disabled": true, "description": "Filter by credit|debit" },
+                { "key": "scope", "value": "user", "disabled": true, "description": "system | user; omitted = both" }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Update Category (rename)",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Service-Name", "value": "{{service_name}}" },
+              { "key": "Service-Key", "value": "{{service_key}}" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Supermercado\"\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "description": "Renames a user-owned category. Type is immutable. System defaults return 403; cross-user returns 404.",
+            "url": {
+              "raw": "{{base_url}}/categories/{{category_id}}",
+              "host": ["{{base_url}}"],
+              "path": ["categories", "{{category_id}}"]
+            }
+          }
+        },
+        {
+          "name": "Delete Category",
+          "request": {
+            "method": "DELETE",
+            "header": [
+              { "key": "Service-Name", "value": "{{service_name}}" },
+              { "key": "Service-Key", "value": "{{service_key}}" }
+            ],
+            "description": "Deletes a user-owned category. Returns 409 if statements still reference it; system defaults return 403.",
+            "url": {
+              "raw": "{{base_url}}/categories/{{category_id}}",
+              "host": ["{{base_url}}"],
+              "path": ["categories", "{{category_id}}"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Tags",
+      "item": [
+        {
+          "name": "Create Tag",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const json = pm.response.json();",
+                  "const data = json.data || json;",
+                  "if (data && data.id) {",
+                  "  pm.collectionVariables.set('tag_id', data.id);",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Service-Name", "value": "{{service_name}}" },
+              { "key": "Service-Key", "value": "{{service_key}}" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"viagem-{{$randomInt}}\"\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "description": "Creates a user-scoped tag. Unique per (user_id, lower(name)). Tags are untyped (unlike categories).",
+            "url": {
+              "raw": "{{base_url}}/tags",
+              "host": ["{{base_url}}"],
+              "path": ["tags"]
+            }
+          }
+        },
+        {
+          "name": "Create Second Tag",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const json = pm.response.json();",
+                  "const data = json.data || json;",
+                  "if (data && data.id) {",
+                  "  pm.collectionVariables.set('tag_id_2', data.id);",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Service-Name", "value": "{{service_name}}" },
+              { "key": "Service-Key", "value": "{{service_key}}" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"reembolsavel-{{$randomInt}}\"\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "description": "Creates a second tag and stores its ID in {{tag_id_2}} for use in 'Replace Statement Tags'.",
+            "url": {
+              "raw": "{{base_url}}/tags",
+              "host": ["{{base_url}}"],
+              "path": ["tags"]
+            }
+          }
+        },
+        {
+          "name": "List Tags",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Service-Name", "value": "{{service_name}}" },
+              { "key": "Service-Key", "value": "{{service_key}}" }
+            ],
+            "description": "Returns the union of system defaults and the user's own tags. Optional filter: scope (system|user).",
+            "url": {
+              "raw": "{{base_url}}/tags",
+              "host": ["{{base_url}}"],
+              "path": ["tags"],
+              "query": [
+                { "key": "scope", "value": "user", "disabled": true, "description": "system | user; omitted = both" }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Update Tag (rename)",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Service-Name", "value": "{{service_name}}" },
+              { "key": "Service-Key", "value": "{{service_key}}" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"viagem-2026\"\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "description": "Renames a user-owned tag. System defaults return 403; cross-user returns 404.",
+            "url": {
+              "raw": "{{base_url}}/tags/{{tag_id}}",
+              "host": ["{{base_url}}"],
+              "path": ["tags", "{{tag_id}}"]
+            }
+          }
+        },
+        {
+          "name": "Delete Tag",
+          "request": {
+            "method": "DELETE",
+            "header": [
+              { "key": "Service-Name", "value": "{{service_name}}" },
+              { "key": "Service-Key", "value": "{{service_key}}" }
+            ],
+            "description": "Deletes a user-owned tag. CASCADE removes statement_tags associations — unlike category, tag in use CAN be deleted.",
+            "url": {
+              "raw": "{{base_url}}/tags/{{tag_id}}",
+              "host": ["{{base_url}}"],
+              "path": ["tags", "{{tag_id}}"]
             }
           }
         }
