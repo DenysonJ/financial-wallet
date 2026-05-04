@@ -6,7 +6,9 @@ import (
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/attribute"
 
+	categorydomain "github.com/DenysonJ/financial-wallet/internal/domain/category"
 	stmtdomain "github.com/DenysonJ/financial-wallet/internal/domain/statement"
+	stmtvo "github.com/DenysonJ/financial-wallet/internal/domain/statement/vo"
 	"github.com/DenysonJ/financial-wallet/internal/usecases/statement/dto"
 	"github.com/DenysonJ/financial-wallet/internal/usecases/statement/interfaces"
 	"github.com/DenysonJ/financial-wallet/pkg/logutil"
@@ -112,6 +114,17 @@ func (uc *ReverseUseCase) Execute(ctx context.Context, input dto.ReverseInput) (
 		statementID,
 	)
 
+	// Auto-apply the default "Estorno" category matching the reversal type.
+	// Reversal of a debit → credit Estorno; reversal of a credit → debit Estorno.
+	// Tags stay empty by design — a reversal is a neutral accounting event.
+	estornoID := defaultEstornoCategoryID(reversal.Type)
+	reversal.WithCategory(estornoID)
+	reversal.Category = &stmtdomain.CategoryRef{
+		ID:   estornoID,
+		Name: "Estorno",
+		Type: reversal.Type,
+	}
+
 	// Persist (transactional)
 	balanceAfter, createErr := uc.repo.Create(ctx, reversal, accountID)
 	if createErr != nil {
@@ -120,9 +133,22 @@ func (uc *ReverseUseCase) Execute(ctx context.Context, input dto.ReverseInput) (
 	}
 	reversal.SetBalanceAfter(balanceAfter)
 
-	span.SetAttributes(attribute.String("reversal.id", reversal.ID.String()))
+	span.SetAttributes(
+		attribute.String("reversal.id", reversal.ID.String()),
+		attribute.String("reversal.category.id", estornoID.String()),
+	)
 	telemetry.OkSpan(span)
 	logutil.LogInfo(ctx, "statement reversed", "reversal.id", reversal.ID.String(), "original.id", statementID.String())
 
 	return toOutput(reversal), nil
+}
+
+// defaultEstornoCategoryID returns the seeded Estorno category ID matching the
+// given statement type. UUIDs are constants in the category domain (see
+// migration 20260501162515) — no DB roundtrip needed.
+func defaultEstornoCategoryID(t stmtvo.StatementType) pkgvo.ID {
+	if t == stmtvo.TypeCredit {
+		return categorydomain.SystemCategoryEstornoCreditID
+	}
+	return categorydomain.SystemCategoryEstornoDebitID
 }

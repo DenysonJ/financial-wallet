@@ -415,10 +415,10 @@ Para agentes de IA, ver [AGENTS.md](AGENTS.md) e [CLAUDE.md](CLAUDE.md).
 O app está em constante evolução. Próximas features planejadas:
 
 - [x] **Statements (Registros financeiros)** — CRUD de lançamentos (receitas/despesas) vinculados a accounts, com categorização e data de competência
-- [ ] **Parser de arquivos OFX** — Import automático de extratos bancários no formato OFX (Open Financial Exchange) para popular statements
+- [x] **Parser de arquivos OFX** — Import automático de extratos bancários no formato OFX (Open Financial Exchange) para popular statements
 - [ ] **Dashboard de resumo** — Endpoints para consolidação: saldo por account, totais por categoria, fluxo mensal
 - [ ] **Orçamentos (Orçamentos)** — Definição de limites mensais por categoria com alerta de ultrapassagem
-- [ ] **Tags e categorias** — Sistema flexível de categorização de statements com tags customizáveis
+- [x] **Tags e categorias** — Sistema flexível de categorização de statements com tags customizáveis
 - [ ] **Export CSV/PDF** — Geração de relatórios exportáveis para uso externo
 
 ---

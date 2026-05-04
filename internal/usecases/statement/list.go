@@ -110,6 +110,32 @@ func (uc *ListUseCase) Execute(ctx context.Context, input dto.ListInput) (*dto.L
 		filter.DateTo = &dateTo
 	}
 
+	// Parse optional category filter.
+	if input.CategoryID != "" {
+		categoryID, categoryErr := pkgvo.ParseID(input.CategoryID)
+		if categoryErr != nil {
+			telemetry.WarnSpan(span, attribute.String("app.result", "invalid_category_id"))
+			return nil, categoryErr
+		}
+		filter.CategoryID = &categoryID
+	}
+
+	// Parse optional tag filter. Dedup the IDs to avoid feeding duplicates
+	// into the EXISTS clause; an invalid UUID surfaces as ErrInvalidID (400).
+	if len(input.TagIDs) > 0 {
+		uniqueRaw := dedupTagIDs(input.TagIDs)
+		tagFilter := make([]pkgvo.ID, 0, len(uniqueRaw))
+		for _, raw := range uniqueRaw {
+			id, tagErr := pkgvo.ParseID(raw)
+			if tagErr != nil {
+				telemetry.WarnSpan(span, attribute.String("app.result", "invalid_tag_id"))
+				return nil, tagErr
+			}
+			tagFilter = append(tagFilter, id)
+		}
+		filter.TagIDs = tagFilter
+	}
+
 	filter.Normalize()
 
 	// List operations return only infrastructure errors — no expected domain

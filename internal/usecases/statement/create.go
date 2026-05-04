@@ -18,13 +18,29 @@ import (
 
 // CreateUseCase implements the use case for creating a credit or debit statement.
 type CreateUseCase struct {
-	repo        interfaces.Repository
-	accountRepo interfaces.AccountRepository
+	repo         interfaces.Repository
+	accountRepo  interfaces.AccountRepository
+	categoryRepo interfaces.CategoryReader
+	tagRepo      interfaces.TagReader
 }
 
 // NewCreateUseCase creates a new CreateUseCase instance.
 func NewCreateUseCase(repo interfaces.Repository, accountRepo interfaces.AccountRepository) *CreateUseCase {
 	return &CreateUseCase{repo: repo, accountRepo: accountRepo}
+}
+
+// WithCategoryRepo attaches the category port. Required when accepting CategoryID
+// in CreateInput; if not wired and input has CategoryID, Execute panics with
+// a clear error (cf. tests).
+func (uc *CreateUseCase) WithCategoryRepo(r interfaces.CategoryReader) *CreateUseCase {
+	uc.categoryRepo = r
+	return uc
+}
+
+// WithTagRepo attaches the tag port. Required when accepting TagIDs in CreateInput.
+func (uc *CreateUseCase) WithTagRepo(r interfaces.TagReader) *CreateUseCase {
+	uc.tagRepo = r
+	return uc
 }
 
 // Execute creates a new statement and atomically updates the account balance.
@@ -91,11 +107,27 @@ func (uc *CreateUseCase) Execute(ctx context.Context, input dto.CreateInput) (*d
 		postedAt = parsedPostedAt
 	}
 
-	// Create domain entity
+	// Resolve metadata (category + tags). UserID for visibility comes from the
+	// authenticated requester — categories/tags are always scoped to the owner
+	// of the statement (which is the account owner, validated above).
+	requesterID := account.UserID
+	cat, catErr := resolveCategory(ctx, uc.categoryRepo, input.CategoryID, requesterID, stmtType)
+	if catErr != nil {
+		telemetry.ClassifyError(ctx, span, catErr, "domain_error", "statement creation failed: category")
+		return nil, catErr
+	}
+	tags, tagErr := resolveTags(ctx, uc.tagRepo, input.TagIDs, requesterID)
+	if tagErr != nil {
+		telemetry.ClassifyError(ctx, span, tagErr, "domain_error", "statement creation failed: tags")
+		return nil, tagErr
+	}
+
+	// Create domain entity + attach metadata
 	stmt := stmtdomain.NewStatement(accountID, stmtType, amount, input.Description)
 	if !postedAt.IsZero() {
 		stmt.PostedAt = postedAt
 	}
+	applyMetadataToStatement(stmt, cat, tags)
 
 	// Persist (transactional: INSERT statement + UPDATE account balance)
 	balanceAfter, createErr := uc.repo.Create(ctx, stmt, accountID)
@@ -113,6 +145,9 @@ func (uc *CreateUseCase) Execute(ctx context.Context, input dto.CreateInput) (*d
 }
 
 // toOutput converts a domain Statement to the output DTO.
+//
+// Always emits `tags: []` (never null) for client stability.
+// `category` is nil when CategoryID is nil and non-nil otherwise.
 func toOutput(stmt *stmtdomain.Statement) *dto.StatementOutput {
 	output := &dto.StatementOutput{
 		ID:           stmt.ID.String(),
@@ -124,10 +159,25 @@ func toOutput(stmt *stmtdomain.Statement) *dto.StatementOutput {
 		BalanceAfter: stmt.BalanceAfter,
 		PostedAt:     stmt.PostedAt.Format(time.RFC3339),
 		CreatedAt:    stmt.CreatedAt.Format(time.RFC3339),
+		Tags:         []dto.TagRef{},
 	}
 	if stmt.ReferenceID != nil {
 		ref := stmt.ReferenceID.String()
 		output.ReferenceID = &ref
+	}
+	if stmt.Category != nil {
+		output.Category = &dto.CategoryRef{
+			ID:   stmt.Category.ID.String(),
+			Name: stmt.Category.Name,
+			Type: stmt.Category.Type.String(),
+		}
+	}
+	if len(stmt.Tags) > 0 {
+		refs := make([]dto.TagRef, 0, len(stmt.Tags))
+		for _, t := range stmt.Tags {
+			refs = append(refs, dto.TagRef{ID: t.ID.String(), Name: t.Name})
+		}
+		output.Tags = refs
 	}
 	return output
 }

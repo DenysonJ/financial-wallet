@@ -13,6 +13,11 @@ type ListFilter struct {
 	Type      *vo.StatementType
 	DateFrom  *time.Time
 	DateTo    *time.Time
+	// CategoryID filters statements with the given category (REQ-13).
+	CategoryID *pkgvo.ID
+	// TagIDs filters statements that have ANY of the given tag IDs assigned (REQ-13).
+	// Empty slice = no tag filter applied.
+	TagIDs []pkgvo.ID
 	// Page-based pagination (fallback when no cursor)
 	Page  int
 	Limit int

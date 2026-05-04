@@ -135,6 +135,83 @@ definitions:
         description: Novo JWT refresh token
         type: string
     type: object
+  github_com_DenysonJ_financial-wallet_internal_usecases_category_dto.CategoryOutput:
+    properties:
+      created_at:
+        type: string
+      id:
+        type: string
+      name:
+        type: string
+      scope:
+        description: '"system" or "user"'
+        type: string
+      type:
+        type: string
+      updated_at:
+        type: string
+    type: object
+  github_com_DenysonJ_financial-wallet_internal_usecases_category_dto.CreateInput:
+    properties:
+      name:
+        maxLength: 60
+        type: string
+      type:
+        enum:
+        - credit
+        - debit
+        type: string
+    required:
+    - name
+    - type
+    type: object
+  github_com_DenysonJ_financial-wallet_internal_usecases_category_dto.CreateOutput:
+    properties:
+      created_at:
+        type: string
+      id:
+        type: string
+      name:
+        type: string
+      scope:
+        description: '"system" or "user"'
+        type: string
+      type:
+        type: string
+      updated_at:
+        type: string
+    type: object
+  github_com_DenysonJ_financial-wallet_internal_usecases_category_dto.ListOutput:
+    properties:
+      data:
+        items:
+          $ref: '#/definitions/github_com_DenysonJ_financial-wallet_internal_usecases_category_dto.CategoryOutput'
+        type: array
+    type: object
+  github_com_DenysonJ_financial-wallet_internal_usecases_category_dto.UpdateInput:
+    properties:
+      name:
+        maxLength: 60
+        type: string
+    required:
+    - name
+    type: object
+  github_com_DenysonJ_financial-wallet_internal_usecases_category_dto.UpdateOutput:
+    properties:
+      created_at:
+        type: string
+      id:
+        type: string
+      name:
+        type: string
+      scope:
+        description: '"system" or "user"'
+        type: string
+      type:
+        type: string
+      updated_at:
+        type: string
+    type: object
   github_com_DenysonJ_financial-wallet_internal_usecases_role_dto.AssignRoleInput:
     properties:
       user_id:
@@ -214,17 +291,34 @@ definitions:
       updated_at:
         type: string
     type: object
+  github_com_DenysonJ_financial-wallet_internal_usecases_statement_dto.CategoryRef:
+    properties:
+      id:
+        type: string
+      name:
+        type: string
+      type:
+        type: string
+    type: object
   github_com_DenysonJ_financial-wallet_internal_usecases_statement_dto.CreateInput:
     properties:
       amount:
         description: Amount in cents (positive)
         type: integer
+      category_id:
+        description: Optional UUID; type must match Type
+        type: string
       description:
         description: Optional description
         maxLength: 1000
         type: string
       posted_at:
         type: string
+      tag_ids:
+        description: Optional UUIDs; deduped, max 10
+        items:
+          type: string
+        type: array
       type:
         description: credit or debit
         enum:
@@ -266,6 +360,13 @@ definitions:
       total_pages:
         type: integer
     type: object
+  github_com_DenysonJ_financial-wallet_internal_usecases_statement_dto.ReplaceTagsInput:
+    properties:
+      tag_ids:
+        items:
+          type: string
+        type: array
+    type: object
   github_com_DenysonJ_financial-wallet_internal_usecases_statement_dto.ReverseInput:
     properties:
       description:
@@ -281,6 +382,10 @@ definitions:
         type: integer
       balance_after:
         type: integer
+      category:
+        allOf:
+        - $ref: '#/definitions/github_com_DenysonJ_financial-wallet_internal_usecases_statement_dto.CategoryRef'
+        description: null when the statement has no category; field is always present
       created_at:
         type: string
       description:
@@ -293,7 +398,89 @@ definitions:
         type: string
       reference_id:
         type: string
+      tags:
+        description: always a slice (possibly empty) — client stability
+        items:
+          $ref: '#/definitions/github_com_DenysonJ_financial-wallet_internal_usecases_statement_dto.TagRef'
+        type: array
       type:
+        type: string
+    type: object
+  github_com_DenysonJ_financial-wallet_internal_usecases_statement_dto.TagRef:
+    properties:
+      id:
+        type: string
+      name:
+        type: string
+    type: object
+  github_com_DenysonJ_financial-wallet_internal_usecases_statement_dto.UpdateCategoryInput:
+    properties:
+      category_id:
+        type: string
+    type: object
+  github_com_DenysonJ_financial-wallet_internal_usecases_tag_dto.CreateInput:
+    properties:
+      name:
+        maxLength: 40
+        type: string
+    required:
+    - name
+    type: object
+  github_com_DenysonJ_financial-wallet_internal_usecases_tag_dto.CreateOutput:
+    properties:
+      created_at:
+        type: string
+      id:
+        type: string
+      name:
+        type: string
+      scope:
+        description: '"system" or "user"'
+        type: string
+      updated_at:
+        type: string
+    type: object
+  github_com_DenysonJ_financial-wallet_internal_usecases_tag_dto.ListOutput:
+    properties:
+      data:
+        items:
+          $ref: '#/definitions/github_com_DenysonJ_financial-wallet_internal_usecases_tag_dto.TagOutput'
+        type: array
+    type: object
+  github_com_DenysonJ_financial-wallet_internal_usecases_tag_dto.TagOutput:
+    properties:
+      created_at:
+        type: string
+      id:
+        type: string
+      name:
+        type: string
+      scope:
+        description: '"system" or "user"'
+        type: string
+      updated_at:
+        type: string
+    type: object
+  github_com_DenysonJ_financial-wallet_internal_usecases_tag_dto.UpdateInput:
+    properties:
+      name:
+        maxLength: 40
+        type: string
+    required:
+    - name
+    type: object
+  github_com_DenysonJ_financial-wallet_internal_usecases_tag_dto.UpdateOutput:
+    properties:
+      created_at:
+        type: string
+      id:
+        type: string
+      name:
+        type: string
+      scope:
+        description: '"system" or "user"'
+        type: string
+      updated_at:
         type: string
     type: object
   github_com_DenysonJ_financial-wallet_internal_usecases_user_dto.ChangePasswordInput:
@@ -978,6 +1165,177 @@ paths:
       summary: Refresh tokens
       tags:
       - auth
+  /categories:
+    get:
+      description: 'Returns the union of system defaults and the authenticated user''s
+        categories. Optional filters: type (credit|debit) and scope (system|user).'
+      parameters:
+      - description: Filter by type (credit|debit)
+        in: query
+        name: type
+        type: string
+      - description: Filter by scope (system|user); omitted = both
+        in: query
+        name: scope
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/github_com_DenysonJ_financial-wallet_internal_usecases_category_dto.ListOutput'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/internal_infrastructure_web_handler.ErrorResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/internal_infrastructure_web_handler.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/internal_infrastructure_web_handler.ErrorResponse'
+      security:
+      - jwt: []
+      summary: List visible categories
+      tags:
+      - categories
+    post:
+      consumes:
+      - application/json
+      description: Creates a category in the authenticated user's scope. System defaults
+        are seeded and not user-creatable.
+      parameters:
+      - description: Category info
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/github_com_DenysonJ_financial-wallet_internal_usecases_category_dto.CreateInput'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            $ref: '#/definitions/github_com_DenysonJ_financial-wallet_internal_usecases_category_dto.CreateOutput'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/internal_infrastructure_web_handler.ErrorResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/internal_infrastructure_web_handler.ErrorResponse'
+        "409":
+          description: Conflict
+          schema:
+            $ref: '#/definitions/internal_infrastructure_web_handler.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/internal_infrastructure_web_handler.ErrorResponse'
+      security:
+      - jwt: []
+      summary: Create a custom category
+      tags:
+      - categories
+  /categories/{id}:
+    delete:
+      description: Deletes a user-owned category. Returns 409 if any statements still
+        reference it; system defaults return 403.
+      parameters:
+      - description: Category ID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "204":
+          description: No Content
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/internal_infrastructure_web_handler.ErrorResponse'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/internal_infrastructure_web_handler.ErrorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/internal_infrastructure_web_handler.ErrorResponse'
+        "409":
+          description: Conflict
+          schema:
+            $ref: '#/definitions/internal_infrastructure_web_handler.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/internal_infrastructure_web_handler.ErrorResponse'
+      security:
+      - ServiceName: []
+      - ServiceKey: []
+      summary: Delete a custom category
+      tags:
+      - categories
+    patch:
+      consumes:
+      - application/json
+      description: Renames a user-owned category. The type field is immutable; only
+        the name is updated. System defaults are read-only.
+      parameters:
+      - description: Category ID
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: New name
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/github_com_DenysonJ_financial-wallet_internal_usecases_category_dto.UpdateInput'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/github_com_DenysonJ_financial-wallet_internal_usecases_category_dto.UpdateOutput'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/internal_infrastructure_web_handler.ErrorResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/internal_infrastructure_web_handler.ErrorResponse'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/internal_infrastructure_web_handler.ErrorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/internal_infrastructure_web_handler.ErrorResponse'
+        "409":
+          description: Conflict
+          schema:
+            $ref: '#/definitions/internal_infrastructure_web_handler.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/internal_infrastructure_web_handler.ErrorResponse'
+      security:
+      - jwt: []
+      summary: Rename a custom category
+      tags:
+      - categories
   /roles:
     get:
       description: Get a paginated list of roles
@@ -1193,6 +1551,275 @@ paths:
       summary: Revoke a role from a user
       tags:
       - roles
+  /statements/{id}/category:
+    patch:
+      consumes:
+      - application/json
+      description: Sets, swaps, or clears (with `null`) the category on an existing
+        statement. The category type must match the statement type. This operation
+        never modifies amount, type, or balance — it is purely a metadata mutation
+        (REQ-11).
+      parameters:
+      - description: Statement ID
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: New category_id (UUID) or null to clear
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/github_com_DenysonJ_financial-wallet_internal_usecases_statement_dto.UpdateCategoryInput'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/github_com_DenysonJ_financial-wallet_internal_usecases_statement_dto.StatementOutput'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/internal_infrastructure_web_handler.ErrorResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/internal_infrastructure_web_handler.ErrorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/internal_infrastructure_web_handler.ErrorResponse'
+        "422":
+          description: Unprocessable Entity
+          schema:
+            $ref: '#/definitions/internal_infrastructure_web_handler.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/internal_infrastructure_web_handler.ErrorResponse'
+      security:
+      - ServiceName: []
+      - ServiceKey: []
+      summary: Update or clear a statement's category
+      tags:
+      - statements
+  /statements/{id}/tags:
+    put:
+      consumes:
+      - application/json
+      description: Replaces the entire tag set assigned to a statement (PUT semantics).
+        Empty array clears all tags. This operation never modifies amount, type, or
+        balance — it is purely a metadata mutation (REQ-10).
+      parameters:
+      - description: Statement ID
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: Tag IDs (deduplicated; max 10)
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/github_com_DenysonJ_financial-wallet_internal_usecases_statement_dto.ReplaceTagsInput'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/github_com_DenysonJ_financial-wallet_internal_usecases_statement_dto.StatementOutput'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/internal_infrastructure_web_handler.ErrorResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/internal_infrastructure_web_handler.ErrorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/internal_infrastructure_web_handler.ErrorResponse'
+        "422":
+          description: Unprocessable Entity
+          schema:
+            $ref: '#/definitions/internal_infrastructure_web_handler.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/internal_infrastructure_web_handler.ErrorResponse'
+      security:
+      - ServiceName: []
+      - ServiceKey: []
+      summary: Replace the tag set of a statement
+      tags:
+      - statements
+  /tags:
+    get:
+      description: Returns the union of system default tags and the authenticated
+        user's tags. Optional scope filter (system|user).
+      parameters:
+      - description: Filter by scope (system|user); omitted = both
+        in: query
+        name: scope
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/github_com_DenysonJ_financial-wallet_internal_usecases_tag_dto.ListOutput'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/internal_infrastructure_web_handler.ErrorResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/internal_infrastructure_web_handler.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/internal_infrastructure_web_handler.ErrorResponse'
+      security:
+      - ServiceName: []
+      - ServiceKey: []
+      summary: List visible tags
+      tags:
+      - tags
+    post:
+      consumes:
+      - application/json
+      description: Creates a tag in the authenticated user's scope.
+      parameters:
+      - description: Tag info
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/github_com_DenysonJ_financial-wallet_internal_usecases_tag_dto.CreateInput'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            $ref: '#/definitions/github_com_DenysonJ_financial-wallet_internal_usecases_tag_dto.CreateOutput'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/internal_infrastructure_web_handler.ErrorResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/internal_infrastructure_web_handler.ErrorResponse'
+        "409":
+          description: Conflict
+          schema:
+            $ref: '#/definitions/internal_infrastructure_web_handler.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/internal_infrastructure_web_handler.ErrorResponse'
+      security:
+      - ServiceName: []
+      - ServiceKey: []
+      summary: Create a custom tag
+      tags:
+      - tags
+  /tags/{id}:
+    delete:
+      description: Deletes a user-owned tag. Associations in statement_tags CASCADE;
+        statements remain intact. System defaults return 403.
+      parameters:
+      - description: Tag ID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "204":
+          description: No Content
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/internal_infrastructure_web_handler.ErrorResponse'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/internal_infrastructure_web_handler.ErrorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/internal_infrastructure_web_handler.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/internal_infrastructure_web_handler.ErrorResponse'
+      security:
+      - ServiceName: []
+      - ServiceKey: []
+      summary: Delete a custom tag
+      tags:
+      - tags
+    patch:
+      consumes:
+      - application/json
+      description: Renames a user-owned tag. System defaults are read-only.
+      parameters:
+      - description: Tag ID
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: New name
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/github_com_DenysonJ_financial-wallet_internal_usecases_tag_dto.UpdateInput'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/github_com_DenysonJ_financial-wallet_internal_usecases_tag_dto.UpdateOutput'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/internal_infrastructure_web_handler.ErrorResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/internal_infrastructure_web_handler.ErrorResponse'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/internal_infrastructure_web_handler.ErrorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/internal_infrastructure_web_handler.ErrorResponse'
+        "409":
+          description: Conflict
+          schema:
+            $ref: '#/definitions/internal_infrastructure_web_handler.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/internal_infrastructure_web_handler.ErrorResponse'
+      security:
+      - ServiceName: []
+      - ServiceKey: []
+      summary: Rename a custom tag
+      tags:
+      - tags
   /users:
     get:
       description: Get a paginated list of users
