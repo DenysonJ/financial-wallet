@@ -875,10 +875,7 @@ const docTemplate = `{
             "get": {
                 "security": [
                     {
-                        "ServiceName": []
-                    },
-                    {
-                        "ServiceKey": []
+                        "jwt": []
                     }
                 ],
                 "description": "Returns the union of system defaults and the authenticated user's categories. Optional filters: type (credit|debit) and scope (system|user).",
@@ -933,10 +930,7 @@ const docTemplate = `{
             "post": {
                 "security": [
                     {
-                        "ServiceName": []
-                    },
-                    {
-                        "ServiceKey": []
+                        "jwt": []
                     }
                 ],
                 "description": "Creates a category in the authenticated user's scope. System defaults are seeded and not user-creatable.",
@@ -1061,10 +1055,7 @@ const docTemplate = `{
             "patch": {
                 "security": [
                     {
-                        "ServiceName": []
-                    },
-                    {
-                        "ServiceKey": []
+                        "jwt": []
                     }
                 ],
                 "description": "Renames a user-owned category. The type field is immutable; only the name is updated. System defaults are read-only.",
@@ -2582,7 +2573,7 @@ const docTemplate = `{
                     "type": "string"
                 },
                 "scope": {
-                    "description": "\"system\" ou \"user\"",
+                    "description": "\"system\" or \"user\"",
                     "type": "string"
                 },
                 "type": {
@@ -2626,7 +2617,7 @@ const docTemplate = `{
                     "type": "string"
                 },
                 "scope": {
-                    "description": "\"system\" ou \"user\"",
+                    "description": "\"system\" or \"user\"",
                     "type": "string"
                 },
                 "type": {
@@ -2673,7 +2664,7 @@ const docTemplate = `{
                     "type": "string"
                 },
                 "scope": {
-                    "description": "\"system\" ou \"user\"",
+                    "description": "\"system\" or \"user\"",
                     "type": "string"
                 },
                 "type": {
@@ -2938,7 +2929,7 @@ const docTemplate = `{
                     "type": "integer"
                 },
                 "category": {
-                    "description": "null quando o statement não tem categoria; sempre presente",
+                    "description": "null when the statement has no category; field is always present",
                     "allOf": [
                         {
                             "$ref": "#/definitions/github_com_DenysonJ_financial-wallet_internal_usecases_statement_dto.CategoryRef"
@@ -2964,7 +2955,7 @@ const docTemplate = `{
                     "type": "string"
                 },
                 "tags": {
-                    "description": "sempre slice (possivelmente vazio) — estabilidade de cliente",
+                    "description": "always a slice (possibly empty) — client stability",
                     "type": "array",
                     "items": {
                         "$ref": "#/definitions/github_com_DenysonJ_financial-wallet_internal_usecases_statement_dto.TagRef"
@@ -3019,7 +3010,7 @@ const docTemplate = `{
                     "type": "string"
                 },
                 "scope": {
-                    "description": "\"system\" ou \"user\"",
+                    "description": "\"system\" or \"user\"",
                     "type": "string"
                 },
                 "updated_at": {
@@ -3051,7 +3042,7 @@ const docTemplate = `{
                     "type": "string"
                 },
                 "scope": {
-                    "description": "\"system\" ou \"user\"",
+                    "description": "\"system\" or \"user\"",
                     "type": "string"
                 },
                 "updated_at": {
@@ -3084,7 +3075,7 @@ const docTemplate = `{
                     "type": "string"
                 },
                 "scope": {
-                    "description": "\"system\" ou \"user\"",
+                    "description": "\"system\" or \"user\"",
                     "type": "string"
                 },
                 "updated_at": {

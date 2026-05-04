@@ -144,7 +144,7 @@ definitions:
       name:
         type: string
       scope:
-        description: '"system" ou "user"'
+        description: '"system" or "user"'
         type: string
       type:
         type: string
@@ -174,7 +174,7 @@ definitions:
       name:
         type: string
       scope:
-        description: '"system" ou "user"'
+        description: '"system" or "user"'
         type: string
       type:
         type: string
@@ -205,7 +205,7 @@ definitions:
       name:
         type: string
       scope:
-        description: '"system" ou "user"'
+        description: '"system" or "user"'
         type: string
       type:
         type: string
@@ -385,7 +385,7 @@ definitions:
       category:
         allOf:
         - $ref: '#/definitions/github_com_DenysonJ_financial-wallet_internal_usecases_statement_dto.CategoryRef'
-        description: null quando o statement não tem categoria; sempre presente
+        description: null when the statement has no category; field is always present
       created_at:
         type: string
       description:
@@ -399,7 +399,7 @@ definitions:
       reference_id:
         type: string
       tags:
-        description: sempre slice (possivelmente vazio) — estabilidade de cliente
+        description: always a slice (possibly empty) — client stability
         items:
           $ref: '#/definitions/github_com_DenysonJ_financial-wallet_internal_usecases_statement_dto.TagRef'
         type: array
@@ -435,7 +435,7 @@ definitions:
       name:
         type: string
       scope:
-        description: '"system" ou "user"'
+        description: '"system" or "user"'
         type: string
       updated_at:
         type: string
@@ -456,7 +456,7 @@ definitions:
       name:
         type: string
       scope:
-        description: '"system" ou "user"'
+        description: '"system" or "user"'
         type: string
       updated_at:
         type: string
@@ -478,7 +478,7 @@ definitions:
       name:
         type: string
       scope:
-        description: '"system" ou "user"'
+        description: '"system" or "user"'
         type: string
       updated_at:
         type: string
@@ -1198,8 +1198,7 @@ paths:
           schema:
             $ref: '#/definitions/internal_infrastructure_web_handler.ErrorResponse'
       security:
-      - ServiceName: []
-      - ServiceKey: []
+      - jwt: []
       summary: List visible categories
       tags:
       - categories
@@ -1239,8 +1238,7 @@ paths:
           schema:
             $ref: '#/definitions/internal_infrastructure_web_handler.ErrorResponse'
       security:
-      - ServiceName: []
-      - ServiceKey: []
+      - jwt: []
       summary: Create a custom category
       tags:
       - categories
@@ -1334,8 +1332,7 @@ paths:
           schema:
             $ref: '#/definitions/internal_infrastructure_web_handler.ErrorResponse'
       security:
-      - ServiceName: []
-      - ServiceKey: []
+      - jwt: []
       summary: Rename a custom category
       tags:
       - categories
