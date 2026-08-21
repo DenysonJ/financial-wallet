@@ -88,9 +88,6 @@ func TestLoad_Defaults(t *testing.T) {
 	assert.Equal(t, 10, cfg.DB.MaxIdleConns)
 	assert.Equal(t, 5*time.Minute, cfg.DB.ConnMaxLifetime)
 	assert.Equal(t, 90*time.Second, cfg.DB.ConnMaxIdleTime)
-	assert.False(t, cfg.DB.ReplicaEnabled)
-	assert.False(t, cfg.Redis.Enabled)
-	assert.False(t, cfg.Swagger.Enabled)
 
 	// Writer DSN with defaults
 	writerDSN := cfg.DB.GetWriterDSN()

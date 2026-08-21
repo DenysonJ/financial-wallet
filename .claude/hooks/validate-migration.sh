@@ -10,12 +10,14 @@ FILE_PATH=$(echo "$INPUT" | jq -r '.tool_input.file_path // empty')
 [[ ! -f "$FILE_PATH" ]] && exit 0
 
 ERRORS=""
+# Newline real + printf %s: o %b interpretaria barras invertidas do conteudo.
+NL=$'\n'
 
-grep -q '^-- +goose Up' "$FILE_PATH" || ERRORS="Missing '-- +goose Up' section.\n"
-grep -q '^-- +goose Down' "$FILE_PATH" || ERRORS="${ERRORS}Missing '-- +goose Down' section (migrations must be reversible).\n"
+grep -q '^-- +goose Up' "$FILE_PATH" || ERRORS="Missing '-- +goose Up' section.${NL}"
+grep -q '^-- +goose Down' "$FILE_PATH" || ERRORS="${ERRORS}Missing '-- +goose Down' section (migrations must be reversible).${NL}"
 
 if [ -n "$ERRORS" ]; then
-  printf "Migration validation failed — %s:\n%b" "$(basename "$FILE_PATH")" "$ERRORS" >&2
+  printf 'Migration validation failed — %s:\n%s' "$(basename "$FILE_PATH")" "$ERRORS" >&2
   exit 2
 fi
 

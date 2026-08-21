@@ -9,6 +9,7 @@
 # Saída de testes (tudo em tests/)
 tests/coverage/
 tests/load/results/
+tests/output/
 
 # Dependências
 /vendor/

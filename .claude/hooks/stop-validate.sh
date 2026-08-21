@@ -47,9 +47,14 @@ if [ -z "$GO_CHANGES" ]; then
 fi
 
 ERRORS=""
+# Newline real: as mensagens sao montadas com quebras de linha de verdade e
+# impressas com %s. Usar escapes "\n" + printf %b quebra a saida, porque o %b
+# tambem interpreta as barras invertidas do conteudo (ex.: caminhos do Windows
+# como internal\usecases\... viram escapes invalidos e abortam o printf).
+NL=$'\n'
 
 # ── 1. Build ───────────────────────────────────────────────────────
-BUILD_OUT=$(go build ./... 2>&1) || ERRORS="BUILD FAILED:\n${BUILD_OUT}\n\n"
+BUILD_OUT=$(go build ./... 2>&1) || ERRORS="BUILD FAILED:${NL}${BUILD_OUT}${NL}${NL}"
 
 # ── 2. Formatting (goimports > gofmt) ──────────────────────────────
 if command -v goimports &>/dev/null; then
@@ -60,21 +65,21 @@ else
   FMT_CMD="gofmt -w ."
 fi
 if [ -n "$FMT_FILES" ]; then
-  ERRORS="${ERRORS}FILES NOT FORMATTED (run ${FMT_CMD}):\n${FMT_FILES}\n\n"
+  ERRORS="${ERRORS}FILES NOT FORMATTED (run ${FMT_CMD}):${NL}${FMT_FILES}${NL}${NL}"
 fi
 
 # ── 3. Go vet ──────────────────────────────────────────────────────
-VET_OUT=$(go vet ./... 2>&1) || ERRORS="${ERRORS}GO VET ISSUES:\n${VET_OUT}\n\n"
+VET_OUT=$(go vet ./... 2>&1) || ERRORS="${ERRORS}GO VET ISSUES:${NL}${VET_OUT}${NL}${NL}"
 
 # ── 4. Unit tests (first attempt only, skip on retry) ──────────────
 if [ "$STOP_HOOK_ACTIVE" != "true" ] && [ -z "$ERRORS" ]; then
   TEST_OUT=$(go test ./internal/... -count=1 -short -timeout 60s 2>&1) || \
-    ERRORS="${ERRORS}TEST FAILURES:\n${TEST_OUT}\n\n"
+    ERRORS="${ERRORS}TEST FAILURES:${NL}${TEST_OUT}${NL}${NL}"
 fi
 
 # ── Result ──────────────────────────────────────────────────────────
 if [ -n "$ERRORS" ]; then
-  printf "Post-implementation validation FAILED:\n\n%b" "$ERRORS" >&2
+  printf 'Post-implementation validation FAILED:\n\n%s' "$ERRORS" >&2
   exit 2
 fi
 

@@ -18,13 +18,13 @@ import (
 
 // ReverseUseCase implements the use case for reversing an existing statement.
 type ReverseUseCase struct {
-	repo        interfaces.Repository
+	stmtRepo    interfaces.Repository
 	accountRepo interfaces.AccountRepository
 }
 
 // NewReverseUseCase creates a new ReverseUseCase instance.
-func NewReverseUseCase(repo interfaces.Repository, accountRepo interfaces.AccountRepository) *ReverseUseCase {
-	return &ReverseUseCase{repo: repo, accountRepo: accountRepo}
+func NewReverseUseCase(stmtRepo interfaces.Repository, accountRepo interfaces.AccountRepository) *ReverseUseCase {
+	return &ReverseUseCase{stmtRepo: stmtRepo, accountRepo: accountRepo}
 }
 
 // Execute reverses an existing statement by creating an opposite-type statement.
@@ -74,7 +74,7 @@ func (uc *ReverseUseCase) Execute(ctx context.Context, input dto.ReverseInput) (
 	}
 
 	// Find original statement
-	original, findErr := uc.repo.FindByID(ctx, statementID)
+	original, findErr := uc.stmtRepo.FindByID(ctx, statementID)
 	if findErr != nil {
 		telemetry.ClassifyError(ctx, span, findErr, "not_found", "statement reversal failed")
 		return nil, findErr
@@ -88,7 +88,7 @@ func (uc *ReverseUseCase) Execute(ctx context.Context, input dto.ReverseInput) (
 	}
 
 	// Check if already reversed
-	hasReversal, reversalErr := uc.repo.HasReversal(ctx, statementID)
+	hasReversal, reversalErr := uc.stmtRepo.HasReversal(ctx, statementID)
 	if reversalErr != nil {
 		telemetry.FailSpan(span, reversalErr, "statement reversal failed")
 		logutil.LogError(ctx, "statement reversal failed: check reversal error", "error", reversalErr.Error())
@@ -126,7 +126,7 @@ func (uc *ReverseUseCase) Execute(ctx context.Context, input dto.ReverseInput) (
 	}
 
 	// Persist (transactional)
-	balanceAfter, createErr := uc.repo.Create(ctx, reversal, accountID)
+	balanceAfter, createErr := uc.stmtRepo.Create(ctx, reversal, accountID)
 	if createErr != nil {
 		telemetry.ClassifyError(ctx, span, createErr, "domain_error", "statement reversal failed")
 		return nil, createErr
