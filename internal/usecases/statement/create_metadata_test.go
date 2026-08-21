@@ -10,6 +10,10 @@ import (
 	categorydomain "github.com/DenysonJ/financial-wallet/internal/domain/category"
 	categoryvo "github.com/DenysonJ/financial-wallet/internal/domain/category/vo"
 	tagdomain "github.com/DenysonJ/financial-wallet/internal/domain/tag"
+	"github.com/DenysonJ/financial-wallet/internal/mocks/accountuci"
+	"github.com/DenysonJ/financial-wallet/internal/mocks/categoryuci"
+	"github.com/DenysonJ/financial-wallet/internal/mocks/stmtuci"
+	"github.com/DenysonJ/financial-wallet/internal/mocks/taguci"
 	"github.com/DenysonJ/financial-wallet/internal/usecases/statement/dto"
 	"github.com/DenysonJ/financial-wallet/pkg/vo"
 	"github.com/stretchr/testify/assert"
@@ -193,10 +197,10 @@ func TestCreateUseCase_Execute_WithCategoryAndTags(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			// Arrange
-			stmtRepo := &mockRepository{}
-			accRepo := &mockAccountRepository{}
-			catReader := &mockCategoryReader{}
-			tagReader := &mockTagReader{}
+			stmtRepo := &stmtuci.MockRepository{}
+			accRepo := &accountuci.MockRepository{}
+			catReader := &categoryuci.MockRepository{}
+			tagReader := &taguci.MockRepository{}
 
 			tt.input.AccountID = accountID.String()
 			tt.input.RequestingUserID = ownerID.String()

@@ -8,9 +8,6 @@ import (
 )
 
 // Repository defines the persistence contract for Category.
-//
-// Declared in the use-case layer and implemented in infrastructure
-// (Dependency Inversion Principle).
 type Repository interface {
 	// Create persists a new category. Returns ErrCategoryDuplicate when the
 	// (user_id, lower(name), type) constraint is violated.
@@ -38,6 +35,5 @@ type Repository interface {
 	Delete(ctx context.Context, id vo.ID) error
 
 	// CountStatementsUsing returns how many statements reference the category.
-	// Used by the Delete use case to surface ErrCategoryInUse before the DELETE.
 	CountStatementsUsing(ctx context.Context, id vo.ID) (int, error)
 }

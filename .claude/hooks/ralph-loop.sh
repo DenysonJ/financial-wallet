@@ -5,7 +5,12 @@
 set -uo pipefail
 
 INPUT=$(cat)
-SESSION_ID=$(echo "$INPUT" | jq -r '.session_id // "unknown"')
+# Try jq first, fallback to grep/sed if jq not available
+if command -v jq &>/dev/null; then
+  SESSION_ID=$(echo "$INPUT" | jq -r '.session_id // "unknown"')
+else
+  SESSION_ID=$(echo "$INPUT" | grep -o '"session_id"[[:space:]]*:[[:space:]]*"[^"]*"' | sed 's/.*"session_id"[[:space:]]*:[[:space:]]*"//;s/"//' || echo "unknown")
+fi
 
 REPO_ROOT=$(git rev-parse --show-toplevel 2>/dev/null || pwd)
 SPECS_DIR="${REPO_ROOT}/.specs"
@@ -40,8 +45,22 @@ if [ "$COUNT" -ge 30 ]; then
 fi
 
 # ── Count remaining tasks ────────────────────────────────────────
-TOTAL=$(grep -c '^\- \[[ x]\] TASK-' "$SPEC_FILE" 2>/dev/null || echo "0")
-DONE=$(grep -c '^\- \[x\] TASK-' "$SPEC_FILE" 2>/dev/null || echo "0")
+# Support both formats:
+#   - [ ] TASK-N / - [x] TASK-N  (checklist format)
+#   - ### Task N: / ### ~~Task N: ...~~ [x]  (header format)
+TOTAL_CHECKLIST=$(grep -c '^\- \[[ x]\] \*\*\?TASK-' "$SPEC_FILE" 2>/dev/null || true)
+DONE_CHECKLIST=$(grep -c '^\- \[x\] \*\*\?TASK-' "$SPEC_FILE" 2>/dev/null || true)
+TOTAL_HEADER=$(grep -c '^### .*Task [0-9]\+:' "$SPEC_FILE" 2>/dev/null || true)
+DONE_HEADER=$(grep -c '^### .*Task [0-9]\+:.*\[x\]' "$SPEC_FILE" 2>/dev/null || true)
+
+# Use whichever format has tasks
+if [ "${TOTAL_CHECKLIST:-0}" -gt 0 ]; then
+  TOTAL=${TOTAL_CHECKLIST}
+  DONE=${DONE_CHECKLIST}
+else
+  TOTAL=${TOTAL_HEADER:-0}
+  DONE=${DONE_HEADER:-0}
+fi
 REMAINING=$((TOTAL - DONE))
 
 if [ "$REMAINING" -le 0 ]; then
@@ -64,7 +83,11 @@ fi
 
 # ── More tasks remain — loop ────────────────────────────────────
 # Next task info for context (concise stderr message)
-NEXT_TASK=$(grep '^\- \[ \] TASK-' "$SPEC_FILE" 2>/dev/null | head -1 | sed 's/^- \[ \] //')
+# Match both checklist and header format for next task
+NEXT_TASK=$(grep '^\- \[ \] \*\*\?TASK-' "$SPEC_FILE" 2>/dev/null | head -1 | sed 's/^- \[ \] //;s/\*\*//g')
+if [ -z "$NEXT_TASK" ]; then
+  NEXT_TASK=$(grep '^### Task [0-9]\+:' "$SPEC_FILE" 2>/dev/null | grep -v '\[x\]' | head -1 | sed 's/^### //')
+fi
 
 echo "Ralph Loop: Task ${DONE}/${TOTAL} complete (iteration ${COUNT}). Next: ${NEXT_TASK}" >&2
 echo "Read the spec file at ${SPEC_FILE}, execute the next uncompleted task, then stop." >&2
