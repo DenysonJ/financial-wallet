@@ -8,6 +8,8 @@ import (
 	accountdomain "github.com/DenysonJ/financial-wallet/internal/domain/account"
 	accountvo "github.com/DenysonJ/financial-wallet/internal/domain/account/vo"
 	stmtdomain "github.com/DenysonJ/financial-wallet/internal/domain/statement"
+	"github.com/DenysonJ/financial-wallet/internal/mocks/accountuci"
+	"github.com/DenysonJ/financial-wallet/internal/mocks/stmtuci"
 	"github.com/DenysonJ/financial-wallet/internal/usecases/statement/dto"
 	"github.com/DenysonJ/financial-wallet/pkg/vo"
 	"github.com/stretchr/testify/assert"
@@ -88,8 +90,8 @@ func TestListUseCase_CategoryAndTagFilters(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			// Arrange
-			stmtRepo := &mockRepository{}
-			accRepo := &mockAccountRepository{}
+			stmtRepo := &stmtuci.MockRepository{}
+			accRepo := &accountuci.MockRepository{}
 
 			tt.input.AccountID = accountID.String()
 			tt.input.RequestingUserID = ownerID.String()

@@ -50,7 +50,7 @@ ENV_FILE := $(if $(wildcard .env),--env-file .env,)
 # Declara todos os targets que não são arquivos
 .PHONY: help setup tools jwt-secret go-tools-check docker-check k6-check kind-check \
         dev run run-stop build clean lint security vulncheck swagger mocks \
-        test test-unit test-e2e test-fuzz test-coverage \
+        test test-run test-unit test-e2e test-fuzz test-coverage \
         load-smoke load-test load-stress load-spike load-kind load-clean \
         docker-up docker-down docker-build \
         observability-up observability-down observability-logs observability-status \
@@ -217,11 +217,46 @@ mocks: ## Regenera mocks com mockery (requer mockery instalado)
 # TESTES
 # ============================================
 
-test: ## Roda todos os testes
-	go test ./... -v
+# Pacotes cobertos pelos testes unitarios
+UNIT_PKGS := ./pkg/... ./config/... ./internal/...
+# -run '^Test' restringe a execucao as funcoes Test*, deixando os fuzz targets
+# (Fuzz*, que o `go test` roda via seed corpus) de fora. Use `make test-fuzz`.
+TEST_FILTER := -run '^Test'
+# Saida enxuta por padrao (so falhas aparecem). VERBOSE=1 liga o -v do go test.
+TEST_VERBOSE := $(if $(VERBOSE),-v,)
+TEST_LOG_DIR := tests/output
+TEST_LOG := $(TEST_LOG_DIR)/test.log
 
-test-unit: ## Roda apenas testes unitarios
-	go test ./pkg/... ./config/... ./internal/... -v
+test: ## Roda todos os testes (unitarios + e2e, sem fuzz)
+	@"$(MAKE)" --no-print-directory test-run PKGS="./..."
+
+test-unit: ## Roda apenas testes unitarios (sem fuzz; VERBOSE=1 = saida completa)
+	@"$(MAKE)" --no-print-directory test-run PKGS="$(UNIT_PKGS)"
+
+# Target interno: roda `go test` nos $(PKGS), guarda o log completo e imprime
+# um resumo das falhas no final (mesma extracao usada no CI do GitHub).
+test-run:
+	@mkdir -p $(TEST_LOG_DIR)
+	@set +e; \
+	go test $(PKGS) $(TEST_FILTER) $(TEST_VERBOSE) $(GOTEST_ARGS) 2>&1 \
+		| tee $(TEST_LOG) \
+		| grep -v -E '^\?[[:space:]]+.*\[no test files\]$$'; \
+	status=$${PIPESTATUS[0]}; \
+	if [ "$$status" -eq 0 ]; then \
+		printf '\n\033[1;32mOK - todos os testes passaram\033[0m\n'; \
+		exit 0; \
+	fi; \
+	compile=$$(grep -E '^[^[:space:]#].*\.go:[0-9]+:[0-9]+:' $(TEST_LOG) || true); \
+	if [ -n "$$compile" ]; then \
+		printf '\n\033[1;31m=== ERROS DE COMPILACAO ===\033[0m\n'; \
+		printf '%s\n' "$$compile"; \
+	fi; \
+	printf '\n\033[1;31m=== TESTES QUE FALHARAM ===\033[0m\n'; \
+	grep -E '^[[:space:]]*--- FAIL: ' $(TEST_LOG) | sed -E 's/^[[:space:]]*//' | sort -u || echo "(nenhuma linha --- FAIL encontrada)"; \
+	printf '\n\033[1;31m=== PACOTES QUE FALHARAM ===\033[0m\n'; \
+	grep -E '^FAIL[[:space:]]' $(TEST_LOG) || echo "(nenhum pacote FAIL encontrado)"; \
+	printf '\n\033[0;36mLog completo: $(TEST_LOG)\033[0m\n'; \
+	exit $$status
 
 test-e2e: ## Roda testes e2e (requer Docker)
 	go test ./tests/e2e/... -v -count=1

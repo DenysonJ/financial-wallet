@@ -19,14 +19,14 @@ import (
 
 // ImportUseCase implements the use case for importing statements from an OFX file.
 type ImportUseCase struct {
-	repo        interfaces.Repository
-	accountRepo interfaces.AccountRepository
-	parser      interfaces.OFXParser
+	statementRepo interfaces.Repository
+	accountRepo   interfaces.AccountRepository
+	parser        interfaces.OFXParser
 }
 
 // NewImportUseCase creates a new ImportUseCase instance.
-func NewImportUseCase(repo interfaces.Repository, accountRepo interfaces.AccountRepository, parser interfaces.OFXParser) *ImportUseCase {
-	return &ImportUseCase{repo: repo, accountRepo: accountRepo, parser: parser}
+func NewImportUseCase(statementRepo interfaces.Repository, accountRepo interfaces.AccountRepository, parser interfaces.OFXParser) *ImportUseCase {
+	return &ImportUseCase{statementRepo: statementRepo, accountRepo: accountRepo, parser: parser}
 }
 
 // Execute parses an OFX file and batch-creates statements for the given account.
@@ -84,7 +84,7 @@ func (uc *ImportUseCase) Execute(ctx context.Context, input dto.ImportOFXInput) 
 	}
 
 	// Find existing external IDs for this account
-	existingIDs, findIDsErr := uc.repo.FindExternalIDs(ctx, accountID, fitIDs)
+	existingIDs, findIDsErr := uc.statementRepo.FindExternalIDs(ctx, accountID, fitIDs)
 	if findIDsErr != nil {
 		telemetry.FailSpan(span, findIDsErr, "statement import failed")
 		logutil.LogError(ctx, "statement import failed: finding external IDs", "error", findIDsErr.Error())
@@ -118,7 +118,7 @@ func (uc *ImportUseCase) Execute(ctx context.Context, input dto.ImportOFXInput) 
 
 	// Batch create (if any new statements)
 	if len(statements) > 0 {
-		_, batchErr := uc.repo.CreateBatch(ctx, statements, accountID)
+		_, batchErr := uc.statementRepo.CreateBatch(ctx, statements, accountID)
 		if batchErr != nil {
 			telemetry.ClassifyError(ctx, span, batchErr, "domain_error", "statement import failed")
 			return nil, batchErr

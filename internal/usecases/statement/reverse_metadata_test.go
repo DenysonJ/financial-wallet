@@ -10,6 +10,8 @@ import (
 	categorydomain "github.com/DenysonJ/financial-wallet/internal/domain/category"
 	stmtdomain "github.com/DenysonJ/financial-wallet/internal/domain/statement"
 	stmtvo "github.com/DenysonJ/financial-wallet/internal/domain/statement/vo"
+	"github.com/DenysonJ/financial-wallet/internal/mocks/accountuci"
+	"github.com/DenysonJ/financial-wallet/internal/mocks/stmtuci"
 	"github.com/DenysonJ/financial-wallet/internal/usecases/statement/dto"
 	"github.com/DenysonJ/financial-wallet/pkg/vo"
 	"github.com/stretchr/testify/assert"
@@ -53,8 +55,8 @@ func TestReverseUseCase_AutoAppliesEstornoCategory(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			// Arrange
-			stmtRepo := &mockRepository{}
-			accRepo := &mockAccountRepository{}
+			stmtRepo := &stmtuci.MockRepository{}
+			accRepo := &accountuci.MockRepository{}
 
 			originalID := vo.NewID()
 			original := &stmtdomain.Statement{

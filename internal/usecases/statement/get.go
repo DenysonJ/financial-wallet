@@ -16,13 +16,13 @@ import (
 
 // GetUseCase implements the use case for fetching a single statement by ID.
 type GetUseCase struct {
-	repo        interfaces.Repository
-	accountRepo interfaces.AccountRepository
+	statementRepo interfaces.Repository
+	accountRepo   interfaces.AccountRepository
 }
 
 // NewGetUseCase creates a new GetUseCase instance.
-func NewGetUseCase(repo interfaces.Repository, accountRepo interfaces.AccountRepository) *GetUseCase {
-	return &GetUseCase{repo: repo, accountRepo: accountRepo}
+func NewGetUseCase(statementRepo interfaces.Repository, accountRepo interfaces.AccountRepository) *GetUseCase {
+	return &GetUseCase{statementRepo: statementRepo, accountRepo: accountRepo}
 }
 
 // Execute fetches a statement by ID with ownership verification.
@@ -66,7 +66,7 @@ func (uc *GetUseCase) Execute(ctx context.Context, input dto.GetInput) (*dto.Sta
 	}
 
 	// Find statement
-	stmt, findErr := uc.repo.FindByID(ctx, statementID)
+	stmt, findErr := uc.statementRepo.FindByID(ctx, statementID)
 	if findErr != nil {
 		telemetry.ClassifyError(ctx, span, findErr, "not_found", "statement get failed")
 		return nil, findErr

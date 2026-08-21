@@ -8,7 +8,6 @@ import (
 )
 
 // Repository defines the contract for Statement persistence.
-// Create is transactional: it inserts the statement and updates the account balance atomically.
 type Repository interface {
 	// Create persists a new Statement and updates the account balance in a single transaction.
 	// Returns the balance after the statement was applied.
@@ -38,8 +37,7 @@ type Repository interface {
 	FindExternalIDs(ctx context.Context, accountID vo.ID, externalIDs []string) (map[string]bool, error)
 
 	// UpdateCategory sets (or clears) the category of a statement. Only mutates
-	// statements.category_id + updated_at — accounting fields (amount, type,
-	// balance_after) are NEVER touched.
+	// statements.category_id + updated_at — accounting fields (amount, type, balance_after) are NEVER touched.
 	// Pass nil to clear. Returns ErrStatementNotFound if the ID does not exist.
 	UpdateCategory(ctx context.Context, statementID vo.ID, categoryID *vo.ID) error
 
@@ -49,8 +47,6 @@ type Repository interface {
 	// the parent statement row.
 	ReplaceTags(ctx context.Context, statementID vo.ID, tagIDs []vo.ID) error
 
-	// CountByCategory returns the number of statements referencing the given
-	// category. Used by the category Delete use case to surface ErrCategoryInUse
-	// before issuing the DELETE.
+	// CountByCategory returns the number of statements referencing the given category.
 	CountByCategory(ctx context.Context, categoryID vo.ID) (int, error)
 }

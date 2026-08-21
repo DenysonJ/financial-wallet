@@ -18,15 +18,15 @@ import (
 
 // CreateUseCase implements the use case for creating a credit or debit statement.
 type CreateUseCase struct {
-	repo         interfaces.Repository
-	accountRepo  interfaces.AccountRepository
-	categoryRepo interfaces.CategoryReader
-	tagRepo      interfaces.TagReader
+	statementRepo interfaces.Repository
+	accountRepo   interfaces.AccountRepository
+	categoryRepo  interfaces.CategoryReader
+	tagRepo       interfaces.TagReader
 }
 
 // NewCreateUseCase creates a new CreateUseCase instance.
-func NewCreateUseCase(repo interfaces.Repository, accountRepo interfaces.AccountRepository) *CreateUseCase {
-	return &CreateUseCase{repo: repo, accountRepo: accountRepo}
+func NewCreateUseCase(statementRepo interfaces.Repository, accountRepo interfaces.AccountRepository) *CreateUseCase {
+	return &CreateUseCase{statementRepo: statementRepo, accountRepo: accountRepo}
 }
 
 // WithCategoryRepo attaches the category port. Required when accepting CategoryID
@@ -130,7 +130,7 @@ func (uc *CreateUseCase) Execute(ctx context.Context, input dto.CreateInput) (*d
 	applyMetadataToStatement(stmt, cat, tags)
 
 	// Persist (transactional: INSERT statement + UPDATE account balance)
-	balanceAfter, createErr := uc.repo.Create(ctx, stmt, accountID)
+	balanceAfter, createErr := uc.statementRepo.Create(ctx, stmt, accountID)
 	if createErr != nil {
 		telemetry.ClassifyError(ctx, span, createErr, "domain_error", "statement creation failed")
 		return nil, createErr

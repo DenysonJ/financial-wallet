@@ -13,9 +13,10 @@ make setup          # Full setup: install tools + start Docker + run migrations
 make dev            # Start server with hot reload (air)
 make lint           # Run golangci-lint + gofmt
 make vulncheck      # Run govulncheck for dependency vulnerabilities
-make test           # Run all tests: go test ./... -v
-make test-unit      # Unit tests only: go test ./internal/... -v
+make test           # All tests (unit + e2e), fuzz excluded, with failure summary
+make test-unit      # Unit tests only (pkg + config + internal), fuzz excluded; VERBOSE=1 for full -v output
 make test-e2e       # E2E tests (requires Docker): go test ./tests/e2e/... -v -count=1
+make test-fuzz      # Fuzz tests only (FUZZ_TIME=30s each)
 make test-coverage  # Generate HTML coverage report
 make docker-up      # Start infrastructure containers (Postgres, Redis)
 make docker-down    # Stop infrastructure containers

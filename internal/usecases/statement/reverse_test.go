@@ -10,6 +10,8 @@ import (
 	accountvo "github.com/DenysonJ/financial-wallet/internal/domain/account/vo"
 	stmtdomain "github.com/DenysonJ/financial-wallet/internal/domain/statement"
 	stmtvo "github.com/DenysonJ/financial-wallet/internal/domain/statement/vo"
+	"github.com/DenysonJ/financial-wallet/internal/mocks/accountuci"
+	"github.com/DenysonJ/financial-wallet/internal/mocks/stmtuci"
 	"github.com/DenysonJ/financial-wallet/internal/usecases/statement/dto"
 	"github.com/DenysonJ/financial-wallet/pkg/vo"
 	"github.com/stretchr/testify/assert"
@@ -187,8 +189,8 @@ func TestReverseUseCase_Execute(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			mockRepo := &mockRepository{}
-			mockAccRepo := &mockAccountRepository{}
+			mockRepo := &stmtuci.MockRepository{}
+			mockAccRepo := &accountuci.MockRepository{}
 
 			if !tt.skipAccountCall {
 				mockAccRepo.On("FindByID", mock.Anything, mock.AnythingOfType("vo.ID")).

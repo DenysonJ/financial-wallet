@@ -31,7 +31,7 @@ func (uc *CreateUseCase) Execute(ctx context.Context, input dto.CreateInput) (*d
 	ctx, span := otel.Tracer(TracerKey).Start(ctx, "UseCase.Category.Create")
 	defer span.End()
 
-	ctx = injectLogContext(ctx, "create")
+	ctx = injectLogContext(ctx, logutil.ActionCreate)
 
 	userID, parseErr := pkgvo.ParseID(input.UserID)
 	if parseErr != nil {
