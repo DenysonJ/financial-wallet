@@ -26,6 +26,7 @@ type accountDB struct {
 	Active      bool      `db:"active"`
 	CreatedAt   time.Time `db:"created_at"`
 	UpdatedAt   time.Time `db:"updated_at"`
+	CreditLimit *int64    `db:"credit_limit"`
 }
 
 func (a *accountDB) toAccount() (*accountdomain.Account, error) {
@@ -39,6 +40,12 @@ func (a *accountDB) toAccount() (*accountdomain.Account, error) {
 		return nil, fmt.Errorf("parsing user ID: %w", userIDErr)
 	}
 
+	var creditLimit *accountvo.CreditLimit
+	if a.CreditLimit != nil {
+		limit := accountvo.ParseCreditLimit(*a.CreditLimit)
+		creditLimit = &limit
+	}
+
 	return &accountdomain.Account{
 		ID:          id,
 		UserID:      userID,
@@ -49,10 +56,17 @@ func (a *accountDB) toAccount() (*accountdomain.Account, error) {
 		Active:      a.Active,
 		CreatedAt:   a.CreatedAt,
 		UpdatedAt:   a.UpdatedAt,
+		CreditLimit: creditLimit,
 	}, nil
 }
 
 func fromDomainAccount(a *accountdomain.Account) accountDB {
+	var creditLimit *int64
+	if a.CreditLimit != nil {
+		cents := a.CreditLimit.Int64()
+		creditLimit = &cents
+	}
+
 	return accountDB{
 		ID:          a.ID.String(),
 		UserID:      a.UserID.String(),
@@ -63,6 +77,7 @@ func fromDomainAccount(a *accountdomain.Account) accountDB {
 		Active:      a.Active,
 		CreatedAt:   a.CreatedAt,
 		UpdatedAt:   a.UpdatedAt,
+		CreditLimit: creditLimit,
 	}
 }
 
@@ -80,9 +95,9 @@ func NewAccountRepository(writer, reader *sqlx.DB) *AccountRepository {
 func (r *AccountRepository) Create(ctx context.Context, a *accountdomain.Account) error {
 	query := `
 		INSERT INTO accounts (
-			id, user_id, name, type, description, balance, active, created_at, updated_at
+			id, user_id, name, type, description, balance, active, created_at, updated_at, credit_limit
 		) VALUES (
-			:id, :user_id, :name, :type, :description, :balance, :active, :created_at, :updated_at
+			:id, :user_id, :name, :type, :description, :balance, :active, :created_at, :updated_at, :credit_limit
 		)
 	`
 
@@ -93,7 +108,7 @@ func (r *AccountRepository) Create(ctx context.Context, a *accountdomain.Account
 
 func (r *AccountRepository) FindByID(ctx context.Context, id uservo.ID) (*accountdomain.Account, error) {
 	query := `
-		SELECT id, user_id, name, type, description, balance, active, created_at, updated_at
+		SELECT id, user_id, name, type, description, balance, active, created_at, updated_at, credit_limit
 		FROM accounts
 		WHERE id = $1 AND active = true
 	`
@@ -171,7 +186,7 @@ func (r *AccountRepository) List(ctx context.Context, filter accountdomain.ListF
 		args["cursor_id"] = filter.CursorID.String()
 		cursorWhere := "WHERE " + strings.Join(conditions, " AND ")
 		dataQuery = fmt.Sprintf(`
-			SELECT id, user_id, name, type, description, balance, active, created_at, updated_at
+			SELECT id, user_id, name, type, description, balance, active, created_at, updated_at, credit_limit
 			FROM accounts
 			%s
 			ORDER BY created_at DESC, id DESC
@@ -180,7 +195,7 @@ func (r *AccountRepository) List(ctx context.Context, filter accountdomain.ListF
 	} else {
 		args["offset"] = filter.Offset()
 		dataQuery = fmt.Sprintf(`
-			SELECT id, user_id, name, type, description, balance, active, created_at, updated_at
+			SELECT id, user_id, name, type, description, balance, active, created_at, updated_at, credit_limit
 			FROM accounts
 			%s
 			ORDER BY created_at DESC, id DESC
@@ -238,7 +253,8 @@ func (r *AccountRepository) Update(ctx context.Context, a *accountdomain.Account
 			name = :name,
 			description = :description,
 			active = :active,
-			updated_at = :updated_at
+			updated_at = :updated_at,
+			credit_limit = :credit_limit
 		WHERE id = :id
 	`
 

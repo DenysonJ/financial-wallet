@@ -13,7 +13,7 @@ import (
 	"time"
 
 	"github.com/jmoiron/sqlx"
-	_ "github.com/lib/pq"
+	"github.com/lib/pq"
 	"github.com/pressly/goose/v3"
 	"github.com/testcontainers/testcontainers-go"
 	"github.com/testcontainers/testcontainers-go/modules/postgres"
@@ -21,6 +21,7 @@ import (
 	"github.com/testcontainers/testcontainers-go/wait"
 
 	"github.com/DenysonJ/financial-wallet/pkg/cache/redisclient"
+	"github.com/DenysonJ/financial-wallet/pkg/vo"
 )
 
 var testDB *sqlx.DB
@@ -127,6 +128,12 @@ func TestMain(m *testing.M) {
 		log.Fatalf("Failed to run migrations: %v", migrateErr)
 	}
 
+	// Remove sobras de uma execução anterior interrompida, restrito ao namespace
+	// reservado (@e2e.local) — nunca toca dado fora dele.
+	if purgeErr := purgeE2ENamespace(); purgeErr != nil {
+		log.Fatalf("Failed to purge e2e namespace: %v", purgeErr)
+	}
+
 	// Iniciar container Redis
 	redisContainer, redisConnStr, err := CreateRedisContainer(ctx)
 	if err != nil {
@@ -178,8 +185,137 @@ func GetTestDB() *sqlx.DB {
 	return testDB
 }
 
-// CleanupUsers remove todos os users do banco de teste
-func CleanupUsers() error {
-	_, err := testDB.Exec("DELETE FROM users")
-	return err
+// =============================================================================
+// Escopo de dados dos testes
+//
+// Nenhum teste apaga tabela inteira. Cada teste trabalha num namespace próprio e
+// remove apenas o que criou:
+//
+//   - o dono dos dados é um user novo por teste (UUID v7), e todo o resto do
+//     schema pendura nele — accounts → statements → statement_tags, além de
+//     categories, tags e user_roles, que têm user_id;
+//   - nomes e e-mails carregam o token do escopo e o domínio reservado
+//     e2e.local, então as listagens podem ser filtradas pelo próprio escopo em
+//     vez de depender de tabela vazia;
+//   - a limpeza roda em t.Cleanup, portanto acontece mesmo quando o teste falha.
+//
+// O resultado: a suíte não depende de ordem de execução, um teste nunca apaga o
+// dado de outro e nada fora do namespace e2e é tocado — inclusive se a suíte for
+// apontada para um banco compartilhado em vez do container efêmero.
+// =============================================================================
+
+// e2eDomain é o domínio de e-mail reservado aos dados de teste. Só a suíte cria
+// registros com ele, e a limpeza de segurança do TestMain só remove esses.
+const e2eDomain = "e2e.local"
+
+// newScopeToken devolve um token curto e único para identificar um teste. Usa o
+// segmento aleatório do UUID v7, o que evita colisão entre testes criados no
+// mesmo milissegundo.
+func newScopeToken() string {
+	return vo.NewID().String()[24:]
+}
+
+// scopedEmail monta um e-mail dentro do namespace reservado.
+func scopedEmail(token, local string) string {
+	return fmt.Sprintf("%s-%s@%s", local, token, e2eDomain)
+}
+
+// scopedName prefixa um nome com o token do escopo, para que a listagem possa
+// ser filtrada por ?name=<token> e a contagem seja exata sem limpar a tabela.
+func scopedName(token, label string) string {
+	return fmt.Sprintf("%s %s", token, label)
+}
+
+// cleanupUserData remove tudo que pertence aos users informados, na ordem das
+// FKs. Chame via t.Cleanup para que rode também quando o teste falha.
+func cleanupUserData(t *testing.T, userIDs ...string) {
+	t.Helper()
+	if len(userIDs) == 0 {
+		return
+	}
+
+	ids := pq.Array(userIDs)
+	statements := []string{
+		`DELETE FROM statement_tags WHERE statement_id IN (
+			SELECT s.id FROM statements s
+			JOIN accounts a ON a.id = s.account_id
+			WHERE a.user_id = ANY($1))`,
+		`DELETE FROM statements WHERE account_id IN (SELECT id FROM accounts WHERE user_id = ANY($1))`,
+		`DELETE FROM accounts WHERE user_id = ANY($1)`,
+		`DELETE FROM categories WHERE user_id = ANY($1)`,
+		`DELETE FROM tags WHERE user_id = ANY($1)`,
+		`DELETE FROM user_roles WHERE user_id = ANY($1)`,
+		`DELETE FROM users WHERE id = ANY($1)`,
+	}
+
+	for _, query := range statements {
+		if _, execErr := testDB.Exec(query, ids); execErr != nil {
+			t.Errorf("cleanup do escopo falhou: %v\nquery: %s", execErr, query)
+		}
+	}
+}
+
+// cleanupScope remove os dados de um escopo quando os users foram criados pela
+// própria API (o teste não conhece os IDs de antemão): resolve os users pelo
+// token embutido no e-mail e delega para cleanupUserData.
+func cleanupScope(t *testing.T, token string) {
+	t.Helper()
+
+	var userIDs []string
+	selectErr := testDB.Select(&userIDs,
+		`SELECT id FROM users WHERE email LIKE $1`, "%-"+token+"@"+e2eDomain)
+	if selectErr != nil {
+		t.Errorf("cleanup do escopo %s falhou ao resolver users: %v", token, selectErr)
+		return
+	}
+
+	cleanupUserData(t, userIDs...)
+}
+
+// cleanupRolesByPrefix remove apenas os roles criados por um escopo. Role é
+// entidade global (não tem user_id), e as migrations semeiam os roles `admin` e
+// `user` de que o RBAC depende — apagar a tabela inteira destruiria esse seed.
+func cleanupRolesByPrefix(t *testing.T, token string) {
+	t.Helper()
+	if _, execErr := testDB.Exec(`DELETE FROM roles WHERE name LIKE $1`, token+"%"); execErr != nil {
+		t.Errorf("cleanup de roles falhou: %v", execErr)
+	}
+}
+
+// purgeE2ENamespace roda uma vez no início da suíte e remove sobras de execuções
+// anteriores interrompidas (Ctrl+C, timeout, crash). Restringe-se ao namespace
+// reservado: users com e-mail @e2e.local e a subárvore deles. É inofensivo no
+// container efêmero e é a rede de segurança caso a suíte aponte para um banco
+// com dados de verdade.
+func purgeE2ENamespace() error {
+	const selectLeftovers = `SELECT id FROM users WHERE email LIKE $1`
+
+	var leftovers []string
+	if selectErr := testDB.Select(&leftovers, selectLeftovers, "%@"+e2eDomain); selectErr != nil {
+		return fmt.Errorf("listing e2e leftovers: %w", selectErr)
+	}
+	if len(leftovers) == 0 {
+		return nil
+	}
+
+	log.Printf("e2e: removendo %d user(s) de execução anterior no namespace @%s", len(leftovers), e2eDomain)
+
+	ids := pq.Array(leftovers)
+	for _, query := range []string{
+		`DELETE FROM statement_tags WHERE statement_id IN (
+			SELECT s.id FROM statements s
+			JOIN accounts a ON a.id = s.account_id
+			WHERE a.user_id = ANY($1))`,
+		`DELETE FROM statements WHERE account_id IN (SELECT id FROM accounts WHERE user_id = ANY($1))`,
+		`DELETE FROM accounts WHERE user_id = ANY($1)`,
+		`DELETE FROM categories WHERE user_id = ANY($1)`,
+		`DELETE FROM tags WHERE user_id = ANY($1)`,
+		`DELETE FROM user_roles WHERE user_id = ANY($1)`,
+		`DELETE FROM users WHERE id = ANY($1)`,
+	} {
+		if _, execErr := testDB.Exec(query, ids); execErr != nil {
+			return fmt.Errorf("purging e2e namespace: %w", execErr)
+		}
+	}
+	return nil
 }

@@ -92,6 +92,7 @@ func (uc *ListUseCase) Execute(ctx context.Context, input dto.ListInput) (*dto.L
 			Active:      a.Active,
 			CreatedAt:   a.CreatedAt.Format(time.RFC3339),
 			UpdatedAt:   a.UpdatedAt.Format(time.RFC3339),
+			CreditLimit: creditLimitCents(a.CreditLimit),
 		})
 	}
 

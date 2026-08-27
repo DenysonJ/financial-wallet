@@ -68,5 +68,6 @@ func (uc *GetUseCase) Execute(ctx context.Context, input dto.GetInput) (*dto.Get
 		Active:      a.Active,
 		CreatedAt:   a.CreatedAt.Format(time.RFC3339),
 		UpdatedAt:   a.UpdatedAt.Format(time.RFC3339),
+		CreditLimit: creditLimitCents(a.CreditLimit),
 	}, nil
 }

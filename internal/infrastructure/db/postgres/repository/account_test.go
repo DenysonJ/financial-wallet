@@ -159,7 +159,7 @@ func TestAccountRepository_Create(t *testing.T) {
 			repo := NewAccountRepository(sqlxDB, sqlxDB)
 
 			exec := mock.ExpectExec("INSERT INTO accounts").
-				WithArgs(sqlmock.AnyArg(), sqlmock.AnyArg(), sqlmock.AnyArg(), sqlmock.AnyArg(), sqlmock.AnyArg(), sqlmock.AnyArg(), sqlmock.AnyArg(), sqlmock.AnyArg(), sqlmock.AnyArg())
+				WithArgs(sqlmock.AnyArg(), sqlmock.AnyArg(), sqlmock.AnyArg(), sqlmock.AnyArg(), sqlmock.AnyArg(), sqlmock.AnyArg(), sqlmock.AnyArg(), sqlmock.AnyArg(), sqlmock.AnyArg(), sqlmock.AnyArg())
 
 			if tt.dbErr != nil {
 				exec.WillReturnError(tt.dbErr)
@@ -406,7 +406,7 @@ func TestAccountRepository_Update(t *testing.T) {
 			repo := NewAccountRepository(sqlxDB, sqlxDB)
 
 			exec := mock.ExpectExec("UPDATE accounts SET").
-				WithArgs(sqlmock.AnyArg(), sqlmock.AnyArg(), sqlmock.AnyArg(), sqlmock.AnyArg(), sqlmock.AnyArg())
+				WithArgs(sqlmock.AnyArg(), sqlmock.AnyArg(), sqlmock.AnyArg(), sqlmock.AnyArg(), sqlmock.AnyArg(), sqlmock.AnyArg())
 
 			if tt.dbErr != nil {
 				exec.WillReturnError(tt.dbErr)
@@ -481,4 +481,80 @@ func TestAccountRepository_Delete(t *testing.T) {
 			assert.NoError(t, mock.ExpectationsWereMet())
 		})
 	}
+}
+
+// accountDBColumnsWithCreditLimit espelha o SELECT real, incluindo a coluna de
+// limite de crédito.
+var accountDBColumnsWithCreditLimit = append(append([]string{}, accountDBColumns...), "credit_limit")
+
+func TestAccountRepository_FindByID_CreditLimitRoundTrip(t *testing.T) {
+	tests := []struct {
+		name      string
+		dbValue   any
+		wantCents *int64
+	}{
+		{
+			name:      "GIVEN a credit card row WHEN reading THEN maps the limit into the domain (RN-14)",
+			dbValue:   int64(500000),
+			wantCents: func() *int64 { v := int64(500000); return &v }(),
+		},
+		{
+			name:      "GIVEN a NULL credit limit WHEN reading THEN maps to a nil pointer, not zero (RN-14)",
+			dbValue:   nil,
+			wantCents: nil,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			db, mock, mockErr := sqlmock.New()
+			require.NoError(t, mockErr)
+			defer db.Close()
+
+			sqlxDB := sqlx.NewDb(db, "postgres")
+			repo := NewAccountRepository(sqlxDB, sqlxDB)
+
+			testID := uservo.NewID()
+			testUserID := uservo.NewID()
+			now := time.Now().Truncate(time.Microsecond)
+
+			rows := sqlmock.NewRows(accountDBColumnsWithCreditLimit).
+				AddRow(testID.String(), testUserID.String(), "Cartão", "credit_card", "", int64(-300000), true, now, now, tt.dbValue)
+			mock.ExpectQuery("SELECT .+ FROM accounts WHERE id").
+				WithArgs(testID.String()).WillReturnRows(rows)
+
+			acc, findErr := repo.FindByID(context.Background(), testID)
+
+			require.NoError(t, findErr)
+			require.NotNil(t, acc)
+			if tt.wantCents == nil {
+				assert.Nil(t, acc.CreditLimit)
+			} else {
+				require.NotNil(t, acc.CreditLimit)
+				assert.Equal(t, *tt.wantCents, acc.CreditLimit.Int64())
+			}
+			// O limite não interfere no saldo (INV-04).
+			assert.Equal(t, int64(-300000), acc.Balance)
+			assert.NoError(t, mock.ExpectationsWereMet())
+		})
+	}
+}
+
+func TestFromDomainAccount_CreditLimit(t *testing.T) {
+	t.Run("GIVEN an account without a credit limit WHEN mapping to the DB model THEN the column is NULL", func(t *testing.T) {
+		dbModel := fromDomainAccount(buildTestAccount())
+		assert.Nil(t, dbModel.CreditLimit)
+	})
+
+	t.Run("GIVEN a credit card WHEN mapping to the DB model THEN carries the limit in cents", func(t *testing.T) {
+		acc := buildTestAccount()
+		acc.Type = accountvo.TypeCreditCard
+		limit := accountvo.ParseCreditLimit(500000)
+		acc.CreditLimit = &limit
+
+		dbModel := fromDomainAccount(acc)
+
+		require.NotNil(t, dbModel.CreditLimit)
+		assert.Equal(t, int64(500000), *dbModel.CreditLimit)
+	})
 }

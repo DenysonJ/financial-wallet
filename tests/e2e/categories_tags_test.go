@@ -91,31 +91,14 @@ func setupCategoriesTagsRouter(userID string) *gin.Engine {
 	return r
 }
 
-func cleanupCategoriesTags(t *testing.T) {
-	t.Helper()
-	// Order respects FK constraints: statement_tags → statements → accounts;
-	// user-scoped categories/tags after statements (RESTRICT FK).
-	for _, q := range []string{
-		"DELETE FROM statement_tags",
-		"DELETE FROM statements",
-		"DELETE FROM accounts",
-		"DELETE FROM categories WHERE user_id IS NOT NULL",
-		"DELETE FROM tags WHERE user_id IS NOT NULL",
-	} {
-		_, execErr := testDB.Exec(q)
-		require.NoError(t, execErr, "cleanup: %s", q)
-	}
-}
-
 // =============================================================================
 // REQ-13 end-to-end scenario
 // =============================================================================
 
 func TestE2E_CategoriesAndTags_FullFlow(t *testing.T) {
-	cleanupCategoriesTags(t)
-
 	userID := vo.NewID().String()
 	seedTestUser(t, userID)
+	t.Cleanup(func() { cleanupUserData(t, userID) })
 	router := setupCategoriesTagsRouter(userID)
 
 	accountID := createTestAccount(t, router)
@@ -216,8 +199,6 @@ func TestE2E_CategoriesAndTags_FullFlow(t *testing.T) {
 	require.Equal(t, http.StatusOK, clearW.Code, "clear category: %s", clearW.Body.String())
 	cleared := extractData(t, clearW.Body.Bytes())
 	assert.Nil(t, cleared["category"], "category must be null after clear")
-
-	cleanupCategoriesTags(t)
 }
 
 // =============================================================================
@@ -248,14 +229,27 @@ func createTag(t *testing.T, router *gin.Engine, name string) string {
 	return extractData(t, w.Body.Bytes())["id"].(string)
 }
 
-// extractListData parses {"data": [...]} responses (list endpoints).
-// extractData (in user_test.go) only handles object data — list endpoints carry a slice.
+// extractListData devolve os itens de uma resposta de listagem paginada.
+//
+// O envelope é aninhado: httpgin.SendSuccess embrulha o payload em "data" e o
+// próprio dto.ListOutput já tem "data" + "pagination" — ou seja
+// {"data": {"data": [...], "pagination": {...}}}. Aceita também o formato plano
+// {"data": [...]} das listagens sem paginação.
 func extractListData(t *testing.T, body []byte) []interface{} {
 	t.Helper()
 	var envelope map[string]interface{}
 	parseErr := json.Unmarshal(body, &envelope)
 	require.NoError(t, parseErr)
-	data, ok := envelope["data"].([]interface{})
-	require.True(t, ok, "expected 'data' key with array value, got: %s", string(body))
-	return data
+
+	switch data := envelope["data"].(type) {
+	case []interface{}:
+		return data
+	case map[string]interface{}:
+		items, ok := data["data"].([]interface{})
+		require.True(t, ok, "expected paginated 'data.data' array, got: %s", string(body))
+		return items
+	default:
+		require.Fail(t, "unexpected list envelope", "got: %s", string(body))
+		return nil
+	}
 }

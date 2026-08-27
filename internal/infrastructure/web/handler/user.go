@@ -249,7 +249,7 @@ func (h *UserHandler) Update(c *gin.Context) {
 // @Tags         users
 // @Produce      json
 // @Param        id   path      string  true  "User ID"
-// @Success      200  {object}  dto.DeleteOutput
+// @Success      204
 // @Failure      403  {object}  ErrorResponse
 // @Failure      404  {object}  ErrorResponse
 // @Failure      429  {object}  ErrorResponse

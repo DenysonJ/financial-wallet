@@ -101,7 +101,7 @@ const docTemplate = `{
                         "ServiceKey": []
                     }
                 ],
-                "description": "Create a new financial account for the authenticated user",
+                "description": "Create a new financial account for the authenticated user.\ncredit_limit (cents) is required for type=credit_card and rejected for other types.",
                 "consumes": [
                     "application/json"
                 ],
@@ -138,6 +138,12 @@ const docTemplate = `{
                     },
                     "401": {
                         "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/internal_infrastructure_web_handler.ErrorResponse"
+                        }
+                    },
+                    "422": {
+                        "description": "Unprocessable Entity",
                         "schema": {
                             "$ref": "#/definitions/internal_infrastructure_web_handler.ErrorResponse"
                         }
@@ -220,7 +226,7 @@ const docTemplate = `{
                         "ServiceKey": []
                     }
                 ],
-                "description": "Update account details by ID",
+                "description": "Update account details by ID. Partial update: omitted fields are unchanged.\ncredit_limit (cents) is accepted only for type=credit_card; null or omitted keeps the current limit.",
                 "consumes": [
                     "application/json"
                 ],
@@ -264,6 +270,12 @@ const docTemplate = `{
                     },
                     "404": {
                         "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/internal_infrastructure_web_handler.ErrorResponse"
+                        }
+                    },
+                    "422": {
+                        "description": "Unprocessable Entity",
                         "schema": {
                             "$ref": "#/definitions/internal_infrastructure_web_handler.ErrorResponse"
                         }
@@ -2326,11 +2338,8 @@ const docTemplate = `{
                     }
                 ],
                 "responses": {
-                    "200": {
-                        "description": "OK",
-                        "schema": {
-                            "$ref": "#/definitions/github_com_DenysonJ_financial-wallet_internal_usecases_user_dto.DeleteOutput"
-                        }
+                    "204": {
+                        "description": "No Content"
                     },
                     "403": {
                         "description": "Forbidden",
@@ -2368,6 +2377,10 @@ const docTemplate = `{
                 "type"
             ],
             "properties": {
+                "credit_limit": {
+                    "description": "CreditLimit é o limite de crédito em centavos. Obrigatório para\ntype=credit_card, proibido nos demais tipos. Sem tag ` + "`" + `binding` + "`" + ` de faixa:\na validação é do domínio, para o erro carregar o sentinela correto.",
+                    "type": "integer"
+                },
                 "description": {
                     "description": "Descrição opcional",
                     "type": "string",
@@ -2409,6 +2422,10 @@ const docTemplate = `{
                 },
                 "created_at": {
                     "type": "string"
+                },
+                "credit_limit": {
+                    "description": "CreditLimit em centavos; null quando a account não admite limite.\nSem ` + "`" + `omitempty` + "`" + `: o campo precisa aparecer como null (RN-14).",
+                    "type": "integer"
                 },
                 "description": {
                     "type": "string"
@@ -2467,6 +2484,10 @@ const docTemplate = `{
         "github_com_DenysonJ_financial-wallet_internal_usecases_account_dto.UpdateInput": {
             "type": "object",
             "properties": {
+                "credit_limit": {
+                    "description": "CreditLimit em centavos. Ausente ou null = não alterar — não existe\noperação de remoção de limite (INV-01 e INV-02 tornam-na sem sentido).",
+                    "type": "integer"
+                },
                 "description": {
                     "description": "Descrição (opcional)",
                     "type": "string",
@@ -2484,6 +2505,10 @@ const docTemplate = `{
             "properties": {
                 "active": {
                     "type": "boolean"
+                },
+                "credit_limit": {
+                    "description": "CreditLimit em centavos; null quando a account não admite limite.\nSem ` + "`" + `omitempty` + "`" + `: o campo precisa aparecer como null (RN-14).",
+                    "type": "integer"
                 },
                 "description": {
                     "type": "string"
@@ -3133,18 +3158,6 @@ const docTemplate = `{
                 },
                 "id": {
                     "description": "ID gerado (UUID v7)",
-                    "type": "string"
-                }
-            }
-        },
-        "github_com_DenysonJ_financial-wallet_internal_usecases_user_dto.DeleteOutput": {
-            "type": "object",
-            "properties": {
-                "deleted_at": {
-                    "description": "Timestamp da deleção",
-                    "type": "string"
-                },
-                "id": {
                     "type": "string"
                 }
             }

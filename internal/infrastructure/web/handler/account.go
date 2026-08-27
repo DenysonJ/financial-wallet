@@ -40,7 +40,8 @@ func NewAccountHandler(
 
 // Create godoc
 // @Summary      Create a new account
-// @Description  Create a new financial account for the authenticated user
+// @Description  Create a new financial account for the authenticated user.
+// @Description  credit_limit (cents) is required for type=credit_card and rejected for other types.
 // @Tags         accounts
 // @Accept       json
 // @Produce      json
@@ -48,6 +49,7 @@ func NewAccountHandler(
 // @Success      201  {object}  dto.CreateOutput
 // @Failure      400  {object}  ErrorResponse
 // @Failure      401  {object}  ErrorResponse
+// @Failure      422  {object}  ErrorResponse
 // @Failure      429  {object}  ErrorResponse
 // @Failure      500  {object}  ErrorResponse
 // @Security     ServiceName
@@ -170,7 +172,8 @@ func (h *AccountHandler) List(c *gin.Context) {
 
 // Update godoc
 // @Summary      Update an account
-// @Description  Update account details by ID
+// @Description  Update account details by ID. Partial update: omitted fields are unchanged.
+// @Description  credit_limit (cents) is accepted only for type=credit_card; null or omitted keeps the current limit.
 // @Tags         accounts
 // @Accept       json
 // @Produce      json
@@ -179,6 +182,7 @@ func (h *AccountHandler) List(c *gin.Context) {
 // @Success      200      {object}  dto.UpdateOutput
 // @Failure      400      {object}  ErrorResponse
 // @Failure      404      {object}  ErrorResponse
+// @Failure      422      {object}  ErrorResponse
 // @Failure      429      {object}  ErrorResponse
 // @Failure      500      {object}  ErrorResponse
 // @Security     ServiceName

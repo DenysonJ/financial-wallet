@@ -62,6 +62,15 @@ func (uc *UpdateUseCase) Execute(ctx context.Context, input dto.UpdateInput) (*d
 	if input.Description != nil {
 		a.UpdateDescription(*input.Description)
 	}
+	// Ausente ou null = não alterar. A entidade recusa tipo que não admite
+	// limite e valor fora da faixa.
+	if input.CreditLimit != nil {
+		if limitErr := a.SetCreditLimit(*input.CreditLimit); limitErr != nil {
+			telemetry.WarnSpan(span, attribute.String("app.result", "invalid_credit_limit"))
+			logutil.LogWarn(ctx, "account update failed: invalid credit limit", "error", limitErr.Error())
+			return nil, limitErr
+		}
+	}
 
 	// Persistir
 	if updateErr := uc.repo.Update(ctx, a); updateErr != nil {
@@ -80,5 +89,6 @@ func (uc *UpdateUseCase) Execute(ctx context.Context, input dto.UpdateInput) (*d
 		Description: a.Description,
 		Active:      a.Active,
 		UpdatedAt:   a.UpdatedAt.Format(time.RFC3339),
+		CreditLimit: creditLimitCents(a.CreditLimit),
 	}, nil
 }
