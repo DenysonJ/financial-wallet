@@ -10,6 +10,7 @@ type CreateInput struct {
 	Name        string `json:"name" binding:"required,max=255"`                    // Nome da conta
 	Type        string `json:"type" binding:"required,max=50"`                     // Tipo: bank_account, credit_card, cash
 	Description string `json:"description,omitempty" binding:"omitempty,max=1000"` // Descrição opcional
+	CreditLimit *int64 `json:"credit_limit,omitempty"`                             // Limite de Crédito obrigatório para tipo credit_card
 }
 
 // CreateOutput representa os dados de saída após criação.

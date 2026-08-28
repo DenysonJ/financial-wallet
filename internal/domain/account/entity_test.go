@@ -6,13 +6,15 @@ import (
 	"github.com/DenysonJ/financial-wallet/internal/domain/account/vo"
 	uservo "github.com/DenysonJ/financial-wallet/pkg/vo"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func TestNewAccount(t *testing.T) {
 	userID := uservo.NewID()
 	accType, _ := vo.NewAccountType("bank_account")
 
-	a := NewAccount(userID, "Nubank", accType, "Conta corrente")
+	a, newErr := NewAccount(userID, "Nubank", accType, "Conta corrente", nil)
+	require.NoError(t, newErr)
 
 	assert.NotEmpty(t, a.ID)
 	assert.Equal(t, userID, a.UserID)
@@ -27,7 +29,8 @@ func TestNewAccount(t *testing.T) {
 func TestAccount_Deactivate(t *testing.T) {
 	userID := uservo.NewID()
 	accType, _ := vo.NewAccountType("cash")
-	a := NewAccount(userID, "Caixa", accType, "")
+	a, newErr := NewAccount(userID, "Caixa", accType, "", nil)
+	require.NoError(t, newErr)
 
 	a.Deactivate()
 
@@ -37,7 +40,9 @@ func TestAccount_Deactivate(t *testing.T) {
 func TestAccount_UpdateName(t *testing.T) {
 	userID := uservo.NewID()
 	accType, _ := vo.NewAccountType("credit_card")
-	a := NewAccount(userID, "Old Card", accType, "")
+	limit := int64(500000)
+	a, newErr := NewAccount(userID, "Old Card", accType, "", &limit)
+	require.NoError(t, newErr)
 	oldUpdatedAt := a.UpdatedAt
 
 	a.UpdateName("New Card")
@@ -49,7 +54,8 @@ func TestAccount_UpdateName(t *testing.T) {
 func TestAccount_UpdateDescription(t *testing.T) {
 	userID := uservo.NewID()
 	accType, _ := vo.NewAccountType("bank_account")
-	a := NewAccount(userID, "Nubank", accType, "")
+	a, newErr := NewAccount(userID, "Nubank", accType, "", nil)
+	require.NoError(t, newErr)
 	oldUpdatedAt := a.UpdatedAt
 
 	a.UpdateDescription("Conta corrente principal")
@@ -62,7 +68,8 @@ func TestNewAccount_BalanceInitializedToZero(t *testing.T) {
 	userID := uservo.NewID()
 	accType, _ := vo.NewAccountType("bank_account")
 
-	a := NewAccount(userID, "Nubank", accType, "")
+	a, newErr := NewAccount(userID, "Nubank", accType, "", nil)
+	require.NoError(t, newErr)
 
 	assert.Equal(t, int64(0), a.Balance)
 }

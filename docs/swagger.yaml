@@ -1,6 +1,9 @@
 definitions:
   github_com_DenysonJ_financial-wallet_internal_usecases_account_dto.CreateInput:
     properties:
+      credit_limit:
+        description: Limite de Crédito obrigatório para tipo credit_card
+        type: integer
       description:
         description: Descrição opcional
         maxLength: 1000
@@ -34,6 +37,8 @@ definitions:
         type: integer
       created_at:
         type: string
+      credit_limit:
+        type: integer
       description:
         type: string
       id:
@@ -71,6 +76,8 @@ definitions:
     type: object
   github_com_DenysonJ_financial-wallet_internal_usecases_account_dto.UpdateInput:
     properties:
+      credit_limit:
+        type: integer
       description:
         description: Descrição (opcional)
         maxLength: 1000
@@ -84,6 +91,8 @@ definitions:
     properties:
       active:
         type: boolean
+      credit_limit:
+        type: integer
       description:
         type: string
       id:
@@ -522,14 +531,6 @@ definitions:
         description: ID gerado (UUID v7)
         type: string
     type: object
-  github_com_DenysonJ_financial-wallet_internal_usecases_user_dto.DeleteOutput:
-    properties:
-      deleted_at:
-        description: Timestamp da deleção
-        type: string
-      id:
-        type: string
-    type: object
   github_com_DenysonJ_financial-wallet_internal_usecases_user_dto.GetOutput:
     properties:
       active:
@@ -669,7 +670,9 @@ paths:
     post:
       consumes:
       - application/json
-      description: Create a new financial account for the authenticated user
+      description: |-
+        Create a new financial account for the authenticated user.
+        credit_limit (cents) is required for type=credit_card and rejected for other types.
       parameters:
       - description: Account info
         in: body
@@ -690,6 +693,10 @@ paths:
             $ref: '#/definitions/internal_infrastructure_web_handler.ErrorResponse'
         "401":
           description: Unauthorized
+          schema:
+            $ref: '#/definitions/internal_infrastructure_web_handler.ErrorResponse'
+        "422":
+          description: Unprocessable Entity
           schema:
             $ref: '#/definitions/internal_infrastructure_web_handler.ErrorResponse'
         "429":
@@ -774,7 +781,9 @@ paths:
     put:
       consumes:
       - application/json
-      description: Update account details by ID
+      description: |-
+        Update account details by ID. Partial update: omitted fields are unchanged.
+        credit_limit (cents) is accepted only for type=credit_card; null or omitted keeps the current limit.
       parameters:
       - description: Account ID
         in: path
@@ -800,6 +809,10 @@ paths:
             $ref: '#/definitions/internal_infrastructure_web_handler.ErrorResponse'
         "404":
           description: Not Found
+          schema:
+            $ref: '#/definitions/internal_infrastructure_web_handler.ErrorResponse'
+        "422":
+          description: Unprocessable Entity
           schema:
             $ref: '#/definitions/internal_infrastructure_web_handler.ErrorResponse'
         "429":
@@ -1917,10 +1930,8 @@ paths:
       produces:
       - application/json
       responses:
-        "200":
-          description: OK
-          schema:
-            $ref: '#/definitions/github_com_DenysonJ_financial-wallet_internal_usecases_user_dto.DeleteOutput'
+        "204":
+          description: No Content
         "403":
           description: Forbidden
           schema:

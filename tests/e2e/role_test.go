@@ -42,24 +42,19 @@ func setupRoleTestRouter() *gin.Engine {
 	return r
 }
 
-// cleanupRoles remove todos os roles do banco de teste
-func cleanupRoles() error {
-	_, execErr := testDB.Exec("DELETE FROM roles")
-	return execErr
-}
-
 // =============================================================================
 // SUCCESS SCENARIOS
 // =============================================================================
 
 func TestE2E_CreateRole_Success(t *testing.T) {
-	require.NoError(t, cleanupRoles())
+	token := newScopeToken()
+	t.Cleanup(func() { cleanupRolesByPrefix(t, token) })
 	router := setupRoleTestRouter()
 
-	body := `{
-		"name": "admin",
+	body := fmt.Sprintf(`{
+		"name": "%s-admin",
 		"description": "Administrator role"
-	}`
+	}`, token)
 
 	req := httptest.NewRequest(http.MethodPost, "/roles", bytes.NewBufferString(body))
 	req.Header.Set("Content-Type", "application/json")
@@ -82,12 +77,13 @@ func TestE2E_CreateRole_Success(t *testing.T) {
 }
 
 func TestE2E_RoleFullCycle(t *testing.T) {
-	require.NoError(t, cleanupRoles())
+	token := newScopeToken()
+	t.Cleanup(func() { cleanupRolesByPrefix(t, token) })
 	router := setupRoleTestRouter()
 
 	// 1. Create
 	role := map[string]string{
-		"name":        "editor",
+		"name":        token + "-editor",
 		"description": "Editor role",
 	}
 	body, _ := json.Marshal(role)
@@ -105,7 +101,7 @@ func TestE2E_RoleFullCycle(t *testing.T) {
 
 	// 2. List - verify it appears
 	w = httptest.NewRecorder()
-	req = httptest.NewRequest("GET", "/roles", nil)
+	req = httptest.NewRequest("GET", "/roles?name="+token, nil)
 	router.ServeHTTP(w, req)
 	require.Equal(t, http.StatusOK, w.Code)
 
@@ -117,7 +113,7 @@ func TestE2E_RoleFullCycle(t *testing.T) {
 
 	firstRole := data[0].(map[string]interface{})
 	assert.Equal(t, id, firstRole["id"])
-	assert.Equal(t, "editor", firstRole["name"])
+	assert.Equal(t, token+"-editor", firstRole["name"])
 
 	// 3. Delete
 	w = httptest.NewRecorder()
@@ -127,7 +123,7 @@ func TestE2E_RoleFullCycle(t *testing.T) {
 
 	// 4. List again - verify gone
 	w = httptest.NewRecorder()
-	req = httptest.NewRequest("GET", "/roles", nil)
+	req = httptest.NewRequest("GET", "/roles?name="+token, nil)
 	router.ServeHTTP(w, req)
 	require.Equal(t, http.StatusOK, w.Code)
 
@@ -160,13 +156,14 @@ func TestE2E_CreateRole_EmptyName(t *testing.T) {
 }
 
 func TestE2E_CreateRole_DuplicateName(t *testing.T) {
-	require.NoError(t, cleanupRoles())
+	token := newScopeToken()
+	t.Cleanup(func() { cleanupRolesByPrefix(t, token) })
 	router := setupRoleTestRouter()
 
-	body := `{
-		"name": "admin",
+	body := fmt.Sprintf(`{
+		"name": "%s-admin",
 		"description": "Administrator role"
-	}`
+	}`, token)
 
 	// First create - should succeed
 	req := httptest.NewRequest(http.MethodPost, "/roles", bytes.NewBufferString(body))
@@ -212,13 +209,14 @@ func TestE2E_DeleteRole_InvalidID(t *testing.T) {
 // =============================================================================
 
 func TestE2E_ListRoles_Pagination(t *testing.T) {
-	require.NoError(t, cleanupRoles())
+	token := newScopeToken()
+	t.Cleanup(func() { cleanupRolesByPrefix(t, token) })
 	router := setupRoleTestRouter()
 
-	// Create 5 roles with different names
+	// Create 5 roles dentro do escopo deste teste
 	for i := 1; i <= 5; i++ {
 		body, _ := json.Marshal(map[string]string{
-			"name":        fmt.Sprintf("role-%d", i),
+			"name":        fmt.Sprintf("%s-role-%d", token, i),
 			"description": fmt.Sprintf("Role number %d", i),
 		})
 		req := httptest.NewRequest("POST", "/roles", bytes.NewReader(body))
@@ -228,8 +226,9 @@ func TestE2E_ListRoles_Pagination(t *testing.T) {
 		require.Equal(t, http.StatusCreated, w.Code)
 	}
 
-	// List with pagination (page 1, limit 2)
-	req := httptest.NewRequest("GET", "/roles?page=1&limit=2", nil)
+	// Filtra pelo token: total exato sem depender de tabela vazia nem apagar
+	// os roles semeados pelas migrations (admin/user), de que o RBAC depende.
+	req := httptest.NewRequest("GET", "/roles?name="+token+"&page=1&limit=2", nil)
 	w := httptest.NewRecorder()
 	router.ServeHTTP(w, req)
 

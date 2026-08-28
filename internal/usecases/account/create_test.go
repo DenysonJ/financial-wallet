@@ -5,6 +5,7 @@ import (
 	"errors"
 	"testing"
 
+	accountdomain "github.com/DenysonJ/financial-wallet/internal/domain/account"
 	accountvo "github.com/DenysonJ/financial-wallet/internal/domain/account/vo"
 	"github.com/DenysonJ/financial-wallet/internal/mocks/accountuci"
 	"github.com/DenysonJ/financial-wallet/internal/usecases/account/dto"
@@ -12,6 +13,8 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 )
+
+func creditLimitPtr(v int64) *int64 { return &v }
 
 func TestCreateUseCase_Execute(t *testing.T) {
 	tests := []struct {
@@ -53,6 +56,53 @@ func TestCreateUseCase_Execute(t *testing.T) {
 			},
 			repoErr:    errors.New("database connection failed"),
 			wantErrMsg: "database connection failed",
+		},
+		{
+			name: "GIVEN a credit card WHEN created with a valid credit limit THEN persists it (RN-05)",
+			input: dto.CreateInput{
+				UserID: vo.NewID().String(), Name: "Cartão Nubank", Type: "credit_card", CreditLimit: creditLimitPtr(500000),
+			},
+			wantOutput: true,
+		},
+		{
+			name: "GIVEN a credit card WHEN created without a credit limit THEN fails as required (RN-01)",
+			input: dto.CreateInput{
+				UserID: vo.NewID().String(), Name: "Cartão Nubank", Type: "credit_card",
+			},
+			wantErr:      accountdomain.ErrCreditLimitRequired,
+			skipRepoCall: true,
+		},
+		{
+			name: "GIVEN a bank account WHEN created with a credit limit THEN fails as not allowed (RN-02)",
+			input: dto.CreateInput{
+				UserID: vo.NewID().String(), Name: "Nubank", Type: "bank_account", CreditLimit: creditLimitPtr(100000),
+			},
+			wantErr:      accountdomain.ErrCreditLimitNotAllowed,
+			skipRepoCall: true,
+		},
+		{
+			name: "GIVEN a cash account WHEN created with a zero credit limit THEN fails by type, not by value (RN-02)",
+			input: dto.CreateInput{
+				UserID: vo.NewID().String(), Name: "Carteira", Type: "cash", CreditLimit: creditLimitPtr(0),
+			},
+			wantErr:      accountdomain.ErrCreditLimitNotAllowed,
+			skipRepoCall: true,
+		},
+		{
+			name: "GIVEN a credit card WHEN created with a zero credit limit THEN fails as invalid (RN-03)",
+			input: dto.CreateInput{
+				UserID: vo.NewID().String(), Name: "Cartão", Type: "credit_card", CreditLimit: creditLimitPtr(0),
+			},
+			wantErr:      accountvo.ErrInvalidCreditLimit,
+			skipRepoCall: true,
+		},
+		{
+			name: "GIVEN a credit card WHEN created above the credit limit ceiling THEN fails as invalid (RN-03)",
+			input: dto.CreateInput{
+				UserID: vo.NewID().String(), Name: "Cartão", Type: "credit_card", CreditLimit: creditLimitPtr(accountvo.MaxCreditLimit + 1),
+			},
+			wantErr:      accountvo.ErrInvalidCreditLimit,
+			skipRepoCall: true,
 		},
 	}
 

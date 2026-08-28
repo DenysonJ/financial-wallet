@@ -6,6 +6,7 @@ import (
 	"github.com/DenysonJ/financial-wallet/internal/domain/account/vo"
 	uservo "github.com/DenysonJ/financial-wallet/pkg/vo"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func FuzzNewAccount(f *testing.F) {
@@ -19,7 +20,8 @@ func FuzzNewAccount(f *testing.F) {
 
 	f.Fuzz(func(t *testing.T, name, description string) {
 		userID := uservo.NewID()
-		a := NewAccount(userID, name, vo.TypeBankAccount, description)
+		a, newErr := NewAccount(userID, name, vo.TypeBankAccount, description, nil)
+		require.NoError(t, newErr)
 
 		// Must never panic
 		assert.NotNil(t, a)
@@ -39,7 +41,8 @@ func FuzzAccountUpdateName(f *testing.F) {
 	f.Add("名前更新")
 
 	f.Fuzz(func(t *testing.T, name string) {
-		a := NewAccount(uservo.NewID(), "Original", vo.TypeCash, "")
+		a, newErr := NewAccount(uservo.NewID(), "Original", vo.TypeCash, "", nil)
+		require.NoError(t, newErr)
 		a.UpdateName(name)
 
 		assert.Equal(t, name, a.Name)
@@ -53,7 +56,9 @@ func FuzzAccountUpdateDescription(f *testing.F) {
 	f.Add("Desc\nwith\nnewlines\tand\ttabs")
 
 	f.Fuzz(func(t *testing.T, description string) {
-		a := NewAccount(uservo.NewID(), "Test", vo.TypeCreditCard, "Original")
+		limit := int64(500000)
+		a, newErr := NewAccount(uservo.NewID(), "Test", vo.TypeCreditCard, "Original", &limit)
+		require.NoError(t, newErr)
 		a.UpdateDescription(description)
 
 		assert.Equal(t, description, a.Description)

@@ -143,7 +143,7 @@ const statementSelectColumns = `
 		(SELECT json_agg(json_build_object('id', t.id, 'name', t.name) ORDER BY LOWER(t.name))
 		 FROM statement_tags st JOIN tags t ON t.id = st.tag_id
 		 WHERE st.statement_id = s.id),
-		'[]'::json
+		CAST('[]' AS json)
 	) AS tags_json
 `
 

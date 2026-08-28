@@ -139,3 +139,130 @@ func TestUpdateUseCase_Execute(t *testing.T) {
 		})
 	}
 }
+
+// existingCreditCardLimit é o limite dos cartões usados como fixture (R$ 5.000).
+const existingCreditCardLimit int64 = 500000
+
+// newExistingCreditCard devolve um cartão de crédito já persistido, com limite
+// definido e fatura em aberto (saldo negativo).
+func newExistingCreditCard(id, ownerID vo.ID) *accountdomain.Account {
+	limit := accountvo.ParseCreditLimit(existingCreditCardLimit)
+	return &accountdomain.Account{
+		ID: id, UserID: ownerID, Name: "Cartão Nubank", Type: accountvo.TypeCreditCard,
+		Description: "Original", Balance: -300000, Active: true,
+		CreatedAt: time.Now(), UpdatedAt: time.Now(), CreditLimit: &limit,
+	}
+}
+
+func TestUpdateUseCase_Execute_CreditLimit(t *testing.T) {
+	validID := vo.NewID()
+	ownerID := vo.NewID()
+
+	tests := []struct {
+		name            string
+		input           dto.UpdateInput
+		buildAccount    func() *accountdomain.Account
+		wantErr         error
+		wantCreditLimit *int64
+		skipUpdateCall  bool
+	}{
+		{
+			name:            "GIVEN a credit card WHEN updating only the credit limit THEN replaces it (RN-06, RN-07)",
+			input:           dto.UpdateInput{ID: validID.String(), CreditLimit: creditLimitPtr(800000)},
+			buildAccount:    func() *accountdomain.Account { return newExistingCreditCard(validID, ownerID) },
+			wantCreditLimit: creditLimitPtr(800000),
+		},
+		{
+			name:            "GIVEN a credit card with an open invoice WHEN reducing the limit below the amount used THEN allows it (RN-11)",
+			input:           dto.UpdateInput{ID: validID.String(), CreditLimit: creditLimitPtr(100000)},
+			buildAccount:    func() *accountdomain.Account { return newExistingCreditCard(validID, ownerID) },
+			wantCreditLimit: creditLimitPtr(100000),
+		},
+		{
+			name:            "GIVEN a credit card WHEN the credit limit field is omitted THEN keeps the current limit (RN-09)",
+			input:           dto.UpdateInput{ID: validID.String(), Name: ptrStr("Cartão Roxinho")},
+			buildAccount:    func() *accountdomain.Account { return newExistingCreditCard(validID, ownerID) },
+			wantCreditLimit: creditLimitPtr(500000),
+		},
+		{
+			name:            "GIVEN a bank account WHEN it has no limit THEN the response exposes null (RN-14)",
+			input:           dto.UpdateInput{ID: validID.String(), Name: ptrStr("Nubank Conta")},
+			buildAccount:    func() *accountdomain.Account { return newExistingAccount(validID, ownerID) },
+			wantCreditLimit: nil,
+		},
+		{
+			name:           "GIVEN a bank account WHEN setting a credit limit THEN fails as not allowed (RN-08)",
+			input:          dto.UpdateInput{ID: validID.String(), CreditLimit: creditLimitPtr(100000)},
+			buildAccount:   func() *accountdomain.Account { return newExistingAccount(validID, ownerID) },
+			wantErr:        accountdomain.ErrCreditLimitNotAllowed,
+			skipUpdateCall: true,
+		},
+		{
+			name:           "GIVEN a credit card WHEN setting a zero credit limit THEN fails as invalid (RN-03)",
+			input:          dto.UpdateInput{ID: validID.String(), CreditLimit: creditLimitPtr(0)},
+			buildAccount:   func() *accountdomain.Account { return newExistingCreditCard(validID, ownerID) },
+			wantErr:        accountvo.ErrInvalidCreditLimit,
+			skipUpdateCall: true,
+		},
+		{
+			name:           "GIVEN a credit card WHEN setting a limit above the ceiling THEN fails as invalid (RN-03)",
+			input:          dto.UpdateInput{ID: validID.String(), CreditLimit: creditLimitPtr(accountvo.MaxCreditLimit + 1)},
+			buildAccount:   func() *accountdomain.Account { return newExistingCreditCard(validID, ownerID) },
+			wantErr:        accountvo.ErrInvalidCreditLimit,
+			skipUpdateCall: true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			mockRepo := accountuci.NewMockRepository(t)
+			mockRepo.On("FindByID", mock.Anything, mock.AnythingOfType("vo.ID")).
+				Return(tt.buildAccount(), nil)
+			if !tt.skipUpdateCall {
+				mockRepo.On("Update", mock.Anything, mock.AnythingOfType("*account.Account")).Return(nil)
+			}
+
+			uc := NewUpdateUseCase(mockRepo)
+			output, execErr := uc.Execute(context.Background(), tt.input)
+
+			if tt.wantErr != nil {
+				assert.ErrorIs(t, execErr, tt.wantErr)
+				assert.Nil(t, output)
+				mockRepo.AssertNotCalled(t, "Update")
+				return
+			}
+
+			assert.NoError(t, execErr)
+			assert.NotNil(t, output)
+			if tt.wantCreditLimit == nil {
+				assert.Nil(t, output.CreditLimit)
+			} else {
+				assert.NotNil(t, output.CreditLimit)
+				assert.Equal(t, *tt.wantCreditLimit, *output.CreditLimit)
+			}
+			mockRepo.AssertExpectations(t)
+		})
+	}
+}
+
+// TestUpdateUseCase_Execute_CreditLimitDoesNotTouchBalance cobre INV-04/RN-13:
+// alterar o limite não mexe no saldo devedor nem gera lançamento.
+func TestUpdateUseCase_Execute_CreditLimitDoesNotTouchBalance(t *testing.T) {
+	validID := vo.NewID()
+	ownerID := vo.NewID()
+	existing := newExistingCreditCard(validID, ownerID)
+	balanceBefore := existing.Balance
+
+	mockRepo := accountuci.NewMockRepository(t)
+	mockRepo.On("FindByID", mock.Anything, mock.AnythingOfType("vo.ID")).Return(existing, nil)
+	mockRepo.On("Update", mock.Anything, mock.AnythingOfType("*account.Account")).Return(nil)
+
+	uc := NewUpdateUseCase(mockRepo)
+	_, execErr := uc.Execute(context.Background(), dto.UpdateInput{
+		ID: validID.String(), CreditLimit: creditLimitPtr(900000),
+	})
+
+	assert.NoError(t, execErr)
+	assert.Equal(t, balanceBefore, existing.Balance)
+	assert.Equal(t, int64(900000), existing.CreditLimit.Int64())
+}
