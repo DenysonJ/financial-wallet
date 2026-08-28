@@ -692,3 +692,25 @@ func TestStatementRepository_FindExternalIDs(t *testing.T) {
 		})
 	}
 }
+
+// TestStatementSelectColumns_SafeForNamedQueries protege contra uma classe de
+// bug que só aparece em runtime: List() compila a projecao via sqlx.Named, cujo
+// parser le qualquer ":" como inicio de parametro nomeado. Um cast escrito como
+// '[]'::json virava '[]':json (syntax error) e derrubava GET /accounts/:id/statements com 500.
+func TestStatementSelectColumns_SafeForNamedQueries(t *testing.T) {
+	assert.NotContains(t, statementSelectColumns, ":", "the projection must not contain a colon (use CAST(x AS type))")
+	assert.NotContains(t, statementSelectFrom, ":", "the FROM clause must not contain a colon")
+
+	query := "SELECT " + statementSelectColumns + statementSelectFrom +
+		"WHERE s.account_id = :account_id ORDER BY s.posted_at DESC LIMIT :limit OFFSET :offset"
+
+	compiled, args, namedErr := sqlx.Named(query, map[string]interface{}{
+		"account_id": "01a034a0-afc7-7217-8250-361e758af43d",
+		"limit":      20,
+		"offset":     0,
+	})
+
+	require.NoError(t, namedErr)
+	assert.Len(t, args, 3, "exactly the 3 named parameters must be bound")
+	assert.NotContains(t, compiled, ":", "no colon may remain in the compiled query")
+}

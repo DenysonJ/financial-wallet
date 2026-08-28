@@ -21,4 +21,5 @@ type GetOutput struct {
 	Active      bool   `json:"active"`
 	CreatedAt   string `json:"created_at"`
 	UpdatedAt   string `json:"updated_at"`
+	CreditLimit *int64 `json:"credit_limit"`
 }

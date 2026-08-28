@@ -14,6 +14,7 @@
     { "key": "user_id", "value": "", "type": "string" },
     { "key": "role_id", "value": "", "type": "string" },
     { "key": "account_id", "value": "", "type": "string" },
+    { "key": "credit_card_account_id", "value": "", "type": "string" },
     { "key": "statement_id", "value": "", "type": "string" },
     { "key": "category_id", "value": "", "type": "string" },
     { "key": "tag_id", "value": "", "type": "string" },
@@ -462,6 +463,38 @@
           }
         },
         {
+          "name": "Create Credit Card Account",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const json = pm.response.json();",
+                  "const data = json.data || json;",
+                  "if (data && data.id) {",
+                  "  pm.collectionVariables.set('credit_card_account_id', data.id);",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Service-Name", "value": "{{service_name}}" },
+              { "key": "Service-Key", "value": "{{service_key}}" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Credit Card of {{random_name}}\",\n  \"type\": \"credit_card\",\n  \"description\": \"Auto-generated via Postman\",\n  \"credit_limit\": 500000\n}"
+            },
+            "url": { "raw": "{{base_url}}/accounts", "host": ["{{base_url}}"], "path": ["accounts"] },
+            "description": "credit_limit is in cents and required for type=credit_card (201). Sending it for bank_account or cash returns 422 (credit limit is only allowed for credit card accounts); omitting it here returns 422 (credit limit is required for credit card accounts); zero, negative or above 1000000000000 returns 400."
+          }
+        },
+        {
           "name": "List Accounts",
           "request": {
             "method": "GET",
@@ -517,6 +550,27 @@
               "host": ["{{base_url}}"],
               "path": ["accounts", "{{account_id}}"]
             }
+          }
+        },
+        {
+          "name": "Update Credit Card Limit",
+          "request": {
+            "method": "PUT",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Service-Name", "value": "{{service_name}}" },
+              { "key": "Service-Key", "value": "{{service_key}}" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"credit_limit\": 800000\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/accounts/{{credit_card_account_id}}",
+              "host": ["{{base_url}}"],
+              "path": ["accounts", "{{credit_card_account_id}}"]
+            },
+            "description": "Partial update of the credit limit only (200). Omitting credit_limit — or sending null — keeps the current limit. Reducing it below the amount already used is allowed and the response may show usage above the limit. Sending it for an account that is not a credit card returns 422; zero, negative or above the ceiling returns 400; an account of another user returns 404."
           }
         },
         {

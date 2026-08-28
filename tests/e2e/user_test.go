@@ -3,6 +3,7 @@ package e2e
 import (
 	"bytes"
 	"encoding/json"
+	"fmt"
 	"net/http"
 	"net/http/httptest"
 	"testing"
@@ -38,6 +39,17 @@ func setupTestRouter() *gin.Engine {
 
 	r := gin.New()
 	r.Use(gin.Recovery())
+
+	// Contexto de service key. Os handlers de user aplicam ownership via
+	// isAdminOrOwner, então sem credencial no contexto toda leitura responderia
+	// 403 e mascararia o cenário que cada teste quer exercitar (404, 400...).
+	// Equivale ao que middleware.ServiceKeyAuth faz em produção, sem exigir
+	// headers em cada request — mesmo padrão dos outros harnesses e2e, que
+	// injetam ContextKeyUserID.
+	r.Use(func(c *gin.Context) {
+		c.Set(middleware.ContextKeyServiceKey, "e2e-test-service")
+		c.Next()
+	})
 
 	// Public routes
 	r.GET("/health", func(c *gin.Context) {
@@ -129,13 +141,15 @@ func extractData(t *testing.T, body []byte) map[string]interface{} {
 // =============================================================================
 
 func TestE2E_CreateUser_Success(t *testing.T) {
-	require.NoError(t, CleanupUsers())
+	token := newScopeToken()
+	t.Cleanup(func() { cleanupScope(t, token) })
 	router := setupTestRouter()
 
-	body := `{
-		"name": "Test User",
-		"email": "test@example.com"
-	}`
+	email := scopedEmail(token, "test")
+	body := fmt.Sprintf(`{
+		"name": %q,
+		"email": %q
+	}`, scopedName(token, "Test User"), email)
 
 	req := httptest.NewRequest(http.MethodPost, "/users", bytes.NewBufferString(body))
 	req.Header.Set("Content-Type", "application/json")
@@ -152,19 +166,20 @@ func TestE2E_CreateUser_Success(t *testing.T) {
 
 	// Verificar no banco de dados
 	var count int
-	dbErr := GetTestDB().Get(&count, "SELECT COUNT(*) FROM users WHERE email = $1", "test@example.com")
+	dbErr := GetTestDB().Get(&count, "SELECT COUNT(*) FROM users WHERE email = $1", email)
 	require.NoError(t, dbErr)
 	assert.Equal(t, 1, count)
 }
 
 func TestE2E_UserFullCycle(t *testing.T) {
-	require.NoError(t, CleanupUsers())
+	token := newScopeToken()
+	t.Cleanup(func() { cleanupScope(t, token) })
 	router := setupTestRouter()
 
 	// 1. Create
 	user := map[string]string{
-		"name":  "Cycle Test",
-		"email": "cycle@example.com",
+		"name":  scopedName(token, "Cycle Test"),
+		"email": scopedEmail(token, "cycle"),
 	}
 	body, _ := json.Marshal(user)
 	w := httptest.NewRecorder()
@@ -185,10 +200,10 @@ func TestE2E_UserFullCycle(t *testing.T) {
 	router.ServeHTTP(w, req)
 	require.Equal(t, http.StatusOK, w.Code)
 	fetched := extractData(t, w.Body.Bytes())
-	assert.Equal(t, "Cycle Test", fetched["name"])
+	assert.Equal(t, scopedName(token, "Cycle Test"), fetched["name"])
 
 	// 3. Update
-	update := map[string]string{"name": "Cycle Update"}
+	update := map[string]string{"name": scopedName(token, "Cycle Update")}
 	body, _ = json.Marshal(update)
 	w = httptest.NewRecorder()
 	req = httptest.NewRequest("PUT", "/users/"+id, bytes.NewReader(body))
@@ -202,7 +217,7 @@ func TestE2E_UserFullCycle(t *testing.T) {
 	router.ServeHTTP(w, req)
 	require.Equal(t, http.StatusOK, w.Code)
 	fetched = extractData(t, w.Body.Bytes())
-	assert.Equal(t, "Cycle Update", fetched["name"])
+	assert.Equal(t, scopedName(token, "Cycle Update"), fetched["name"])
 
 	// 5. List
 	w = httptest.NewRecorder()
@@ -210,11 +225,12 @@ func TestE2E_UserFullCycle(t *testing.T) {
 	router.ServeHTTP(w, req)
 	require.Equal(t, http.StatusOK, w.Code)
 
-	// 6. Delete
+	// 6. Delete — a API responde 204 No Content (mesma convenção de account,
+	// category e tag); não há corpo de resposta.
 	w = httptest.NewRecorder()
 	req = httptest.NewRequest("DELETE", "/users/"+id, nil)
 	router.ServeHTTP(w, req)
-	require.Equal(t, http.StatusOK, w.Code)
+	require.Equal(t, http.StatusNoContent, w.Code)
 
 	// 7. Verify Delete (soft delete - user becomes inactive)
 	w = httptest.NewRecorder()
@@ -304,11 +320,13 @@ func TestE2E_UpdateUser_NotFound(t *testing.T) {
 }
 
 func TestE2E_UpdateUser_InvalidEmail(t *testing.T) {
-	require.NoError(t, CleanupUsers())
+	token := newScopeToken()
+	t.Cleanup(func() { cleanupScope(t, token) })
 	router := setupTestRouter()
 
 	// 1. Create user
-	createBody := `{"name": "Test", "email": "valid@example.com"}`
+	createBody := fmt.Sprintf(`{"name": %q, "email": %q}`,
+		scopedName(token, "Test"), scopedEmail(token, "valid"))
 	req := httptest.NewRequest("POST", "/users", bytes.NewBufferString(createBody))
 	req.Header.Set("Content-Type", "application/json")
 	w := httptest.NewRecorder()
@@ -440,14 +458,15 @@ func TestE2E_ServiceKeyAuth_Errors(t *testing.T) {
 // =============================================================================
 
 func TestE2E_ListUsers_Pagination(t *testing.T) {
-	require.NoError(t, CleanupUsers())
+	token := newScopeToken()
+	t.Cleanup(func() { cleanupScope(t, token) })
 	router := setupTestRouter()
 
-	// Create 5 users
+	// Create 5 users dentro do escopo deste teste
 	for i := 1; i <= 5; i++ {
 		body, _ := json.Marshal(map[string]string{
-			"name":  "User " + string(rune('A'+i-1)),
-			"email": "user" + string(rune('a'+i-1)) + "@example.com",
+			"name":  scopedName(token, "User "+string(rune('A'+i-1))),
+			"email": scopedEmail(token, "user"+string(rune('a'+i-1))),
 		})
 		req := httptest.NewRequest("POST", "/users", bytes.NewReader(body))
 		req.Header.Set("Content-Type", "application/json")
@@ -456,8 +475,8 @@ func TestE2E_ListUsers_Pagination(t *testing.T) {
 		require.Equal(t, http.StatusCreated, w.Code)
 	}
 
-	// List with pagination (page 1, limit 2)
-	req := httptest.NewRequest("GET", "/users?page=1&limit=2", nil)
+	// Filtra pelo token do escopo: o total é exato sem precisar de tabela vazia
+	req := httptest.NewRequest("GET", "/users?name="+token+"&page=1&limit=2", nil)
 	w := httptest.NewRecorder()
 	router.ServeHTTP(w, req)
 
@@ -481,13 +500,14 @@ func TestE2E_ListUsers_Pagination(t *testing.T) {
 // =============================================================================
 
 func TestE2E_CacheBehavior(t *testing.T) {
-	require.NoError(t, CleanupUsers())
+	token := newScopeToken()
+	t.Cleanup(func() { cleanupScope(t, token) })
 	router := setupTestRouter()
 
 	// 1. Create a user
 	user := map[string]string{
-		"name":  "Cache Test User",
-		"email": "cache@example.com",
+		"name":  scopedName(token, "Cache Test User"),
+		"email": scopedEmail(token, "cache"),
 	}
 	body, _ := json.Marshal(user)
 	w := httptest.NewRecorder()
@@ -511,7 +531,7 @@ func TestE2E_CacheBehavior(t *testing.T) {
 	duration1 := time.Since(start1)
 
 	fetched1 := extractData(t, w.Body.Bytes())
-	assert.Equal(t, "Cache Test User", fetched1["name"])
+	assert.Equal(t, scopedName(token, "Cache Test User"), fetched1["name"])
 
 	// 3. Second GET - should be cache hit (typically faster)
 	start2 := time.Now()
@@ -522,7 +542,7 @@ func TestE2E_CacheBehavior(t *testing.T) {
 	duration2 := time.Since(start2)
 
 	fetched2 := extractData(t, w.Body.Bytes())
-	assert.Equal(t, "Cache Test User", fetched2["name"])
+	assert.Equal(t, scopedName(token, "Cache Test User"), fetched2["name"])
 
 	// Log performance (cache hit should be similar or faster)
 	t.Logf("First GET (cache miss): %v", duration1)
@@ -552,13 +572,14 @@ func TestE2E_CacheBehavior(t *testing.T) {
 // =============================================================================
 
 func TestE2E_CreateUser_PerformanceBaseline(t *testing.T) {
-	require.NoError(t, CleanupUsers())
+	token := newScopeToken()
+	t.Cleanup(func() { cleanupScope(t, token) })
 	router := setupTestRouter()
 
-	body := `{
-		"name": "Performance Test",
-		"email": "perf@example.com"
-	}`
+	body := fmt.Sprintf(`{
+		"name": %q,
+		"email": %q
+	}`, scopedName(token, "Performance Test"), scopedEmail(token, "perf"))
 
 	req := httptest.NewRequest(http.MethodPost, "/users", bytes.NewBufferString(body))
 	req.Header.Set("Content-Type", "application/json")

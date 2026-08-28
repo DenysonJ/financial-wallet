@@ -72,6 +72,9 @@ var domainErrors = []struct {
 	// Account domain errors
 	{accountvo.ErrInvalidAccountType, domainErrorMapping{http.StatusBadRequest, apperror.CodeInvalidRequest, "invalid account type"}},
 	{accountdomain.ErrAccountNotFound, domainErrorMapping{http.StatusNotFound, apperror.CodeNotFound, "account not found"}},
+	{accountvo.ErrInvalidCreditLimit, domainErrorMapping{http.StatusBadRequest, apperror.CodeInvalidRequest, "credit limit must be greater than zero and at most 1000000000000 cents"}},
+	{accountdomain.ErrCreditLimitRequired, domainErrorMapping{http.StatusUnprocessableEntity, apperror.CodeValidationError, "credit limit is required for credit card accounts"}},
+	{accountdomain.ErrCreditLimitNotAllowed, domainErrorMapping{http.StatusUnprocessableEntity, apperror.CodeValidationError, "credit limit is only allowed for credit card accounts"}},
 	// Statement domain errors
 	{stmtvo.ErrInvalidStatementType, domainErrorMapping{http.StatusBadRequest, apperror.CodeInvalidRequest, "invalid statement type"}},
 	{stmtvo.ErrInvalidAmount, domainErrorMapping{http.StatusBadRequest, apperror.CodeInvalidRequest, "amount must be greater than zero"}},

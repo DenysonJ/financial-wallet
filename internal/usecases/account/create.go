@@ -50,7 +50,12 @@ func (uc *CreateUseCase) Execute(ctx context.Context, input dto.CreateInput) (*d
 	}
 
 	// Criar entidade
-	a := accountdomain.NewAccount(userID, input.Name, accountType, input.Description)
+	a, newErr := accountdomain.NewAccount(userID, input.Name, accountType, input.Description, input.CreditLimit)
+	if newErr != nil {
+		telemetry.WarnSpan(span, attribute.String("app.result", "invalid_credit_limit"))
+		logutil.LogWarn(ctx, "account creation failed: invalid credit limit", "error", newErr.Error())
+		return nil, newErr
+	}
 
 	// Persistir
 	if createErr := uc.repo.Create(ctx, a); createErr != nil {

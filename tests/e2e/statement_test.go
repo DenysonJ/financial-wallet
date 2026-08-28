@@ -64,22 +64,13 @@ func setupStatementTestRouter(userID string) *gin.Engine {
 	return r
 }
 
-func cleanupStatements() error {
-	// Delete in FK dependency order: statements → accounts (users are shared, don't delete)
-	if _, execErr := testDB.Exec("DELETE FROM statements"); execErr != nil {
-		return execErr
-	}
-	_, execErr := testDB.Exec("DELETE FROM accounts")
-	return execErr
-}
-
 func seedTestUser(t *testing.T, userID string) {
 	t.Helper()
 	_, insertErr := testDB.Exec(
 		`INSERT INTO users (id, name, email, active, created_at, updated_at)
 		 VALUES ($1, 'E2E Test User', $2, true, NOW(), NOW())
 		 ON CONFLICT (id) DO NOTHING`,
-		userID, userID+"@test.local",
+		userID, userID+"@"+e2eDomain,
 	)
 	require.NoError(t, insertErr)
 }
@@ -108,12 +99,14 @@ func createStatement(t *testing.T, router *gin.Engine, accountID, stmtType strin
 	return extractData(t, w.Body.Bytes())
 }
 
-// setupE2E is a convenience that cleans up, seeds a user, builds a router, and creates an account.
+// setupE2E cria o dono dos dados deste teste e registra a limpeza do escopo.
+// Não apaga nada global: o teste só remove a própria subárvore
+// (statement_tags → statements → accounts → user).
 func setupE2E(t *testing.T) (*gin.Engine, string) {
 	t.Helper()
-	require.NoError(t, cleanupStatements())
 	userID := vo.NewID().String()
 	seedTestUser(t, userID)
+	t.Cleanup(func() { cleanupUserData(t, userID) })
 	router := setupStatementTestRouter(userID)
 	accountID := createTestAccount(t, router)
 	return router, accountID
@@ -501,12 +494,11 @@ func TestE2E_BalanceAfterIsConsistent(t *testing.T) {
 // =============================================================================
 
 func TestE2E_OwnershipEnforcement(t *testing.T) {
-	require.NoError(t, cleanupStatements())
-
 	ownerID := vo.NewID().String()
 	otherUserID := vo.NewID().String()
 	seedTestUser(t, ownerID)
 	seedTestUser(t, otherUserID)
+	t.Cleanup(func() { cleanupUserData(t, ownerID, otherUserID) })
 
 	ownerRouter := setupStatementTestRouter(ownerID)
 	accountID := createTestAccount(t, ownerRouter)

@@ -10,6 +10,7 @@ type UpdateInput struct {
 	RequestingUserID string  `json:"-"`                                                  // JWT user_id (empty = skip ownership check)
 	Name             *string `json:"name,omitempty" binding:"omitempty,max=255"`         // Nome (opcional)
 	Description      *string `json:"description,omitempty" binding:"omitempty,max=1000"` // Descrição (opcional)
+	CreditLimit      *int64  `json:"credit_limit,omitempty"`
 }
 
 // UpdateOutput representa os dados de saída após atualização.
@@ -21,4 +22,5 @@ type UpdateOutput struct {
 	Description string `json:"description"`
 	Active      bool   `json:"active"`
 	UpdatedAt   string `json:"updated_at"`
+	CreditLimit *int64 `json:"credit_limit"`
 }
