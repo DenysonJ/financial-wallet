@@ -2378,7 +2378,7 @@ const docTemplate = `{
             ],
             "properties": {
                 "credit_limit": {
-                    "description": "CreditLimit é o limite de crédito em centavos. Obrigatório para\ntype=credit_card, proibido nos demais tipos. Sem tag ` + "`" + `binding` + "`" + ` de faixa:\na validação é do domínio, para o erro carregar o sentinela correto.",
+                    "description": "Limite de Crédito obrigatório para tipo credit_card",
                     "type": "integer"
                 },
                 "description": {
@@ -2424,7 +2424,6 @@ const docTemplate = `{
                     "type": "string"
                 },
                 "credit_limit": {
-                    "description": "CreditLimit em centavos; null quando a account não admite limite.\nSem ` + "`" + `omitempty` + "`" + `: o campo precisa aparecer como null (RN-14).",
                     "type": "integer"
                 },
                 "description": {
@@ -2485,7 +2484,6 @@ const docTemplate = `{
             "type": "object",
             "properties": {
                 "credit_limit": {
-                    "description": "CreditLimit em centavos. Ausente ou null = não alterar — não existe\noperação de remoção de limite (INV-01 e INV-02 tornam-na sem sentido).",
                     "type": "integer"
                 },
                 "description": {
@@ -2507,7 +2505,6 @@ const docTemplate = `{
                     "type": "boolean"
                 },
                 "credit_limit": {
-                    "description": "CreditLimit em centavos; null quando a account não admite limite.\nSem ` + "`" + `omitempty` + "`" + `: o campo precisa aparecer como null (RN-14).",
                     "type": "integer"
                 },
                 "description": {
